@@ -1,0 +1,15 @@
+pypdf
+fastapi
+uvicorn
+sqlalchemy
+qdrant-client
+transformers
+torch
+sentence-transformers
+pytesseract
+pdf2image
+python-multipart
+python-dotenv
+pydantic-settings
+# Removed versions to allow installation on Python 3.13
+# Removed psycopg2-binary since we switched to SQLite

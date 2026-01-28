@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Qdrant local storage
+qdrant_storage/
+
+# Databases
+thesis.db
+
+# Uploads
+uploads/
+
+# Library/Binaries (Poppler/Tesseract)
+app/Library/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
