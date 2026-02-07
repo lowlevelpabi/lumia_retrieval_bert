@@ -1,0 +1,50 @@
+================================================================================
+SMART RESEARCH PROJECT: SPRINT HISTORY LOG
+================================================================================
+
+--------------------------------------------------------------------------------
+SPRINT 1: Foundational MVP & Semantic Search
+--------------------------------------------------------------------------------
+Theme: AI-Powered PDF Archive Foundation
+
+Key Features & Changes:
+- BERT-NLP Integration: Implemented Sentence-Transformers for generating 384-d
+  embeddings of research paper abstracts and titles.
+- Vector Database Setup: Configured Qdrant (Local Storage) for high-speed
+  semantic nearest-neighbor retrieval.
+- OCR Pipeline: Developed a multi-stage OCR service using pypdf for direct
+  text extraction and Tesseract OCR for image-based PDFs.
+- Relational Metadata: Implemented SQLite via SQLAlchemy to store persistent
+  paper metadata (Title, Author, Year, file paths).
+- Core Paper Management: Created API endpoints for PDF upload, metadata 
+  extraction, and basic semantic search.
+- Development Tools: Created setup_local.ps1 and Docker configuration for
+  cross-platform portability.
+
+--------------------------------------------------------------------------------
+SPRINT 2: Advanced Features, Optimization & Security
+--------------------------------------------------------------------------------
+Theme: Retrieval Refinement, RBAC, and Contextual Recommendations
+
+Key Features & Changes:
+- Hybrid Search Engine: Combined SQL 'LIKE' keyword matching with BERT 
+  semantic scoring. Exact matches are prioritized, ensuring technical terms 
+  (e.g., "YOLO", "CNN") are never missed.
+- Role-Based Access Control (RBAC): 
+    - Roles: Admin (Full control), Faculty (Upload/Edit), User (Search only).
+    - Implemented JWT-based authentication with direct bcrypt hashing.
+- Advanced Filtering: Added backend support for complex search queries including 
+  Author, Year range (Last 5 years), and Department-specific filters.
+- "Narrow Down" Recommendations: Enhanced Qdrant "Recommend" logic to support
+  metadata constraints, allowing users to find similar papers within a 
+  specific academic context.
+- Database Evolution: Migrated SQLite schema to include academic metrics like 
+  citation_count, department tags, and research keywords.
+- OCR Enhancement: Improved regex heuristics to auto-detect college departments 
+  and keywords from paper headers and content.
+- Performance Tuning: Lowered similarity threshold to 0.2 to optimize result
+  recall and research discovery.
+
+================================================================================
+END OF SPRINT 2 LOG
+================================================================================

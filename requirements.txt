@@ -11,5 +11,5 @@ pdf2image
 python-multipart
 python-dotenv
 pydantic-settings
-# Removed versions to allow installation on Python 3.13
-# Removed psycopg2-binary since we switched to SQLite
+passlib[bcrypt]
+python-jose[cryptography]

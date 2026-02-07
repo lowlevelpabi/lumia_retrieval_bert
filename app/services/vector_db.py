@@ -54,13 +54,14 @@ class VectorDB:
         )
         return results.points
 
-    def search_max(self, vector: List[float], limit: int = 5):
+    def search_max(self, vector: List[float], limit: int = 5, filter_obj: Any = None):
         """Alternative search that simply takes the max similarity across both vectors"""
         # Query title
         title_response = self.client.query_points(
             collection_name=self.collection_name,
             using="title",
             query=vector,
+            filter=filter_obj,
             limit=limit
         )
         title_results = title_response.points
@@ -70,6 +71,7 @@ class VectorDB:
             collection_name=self.collection_name,
             using="abstract",
             query=vector,
+            filter=filter_obj,
             limit=limit
         )
         abstract_results = abstract_response.points
@@ -82,8 +84,6 @@ class VectorDB:
         
         return sorted(merged.values(), key=lambda x: x.score, reverse=True)[:limit]
 
-
-
     def delete_paper(self, paper_id: int):
         self.client.delete(
             collection_name=self.collection_name,
@@ -91,6 +91,24 @@ class VectorDB:
                 points=[paper_id]
             )
         )
+
+    def recommend(self, paper_id: int, limit: int = 5, filter_obj: Any = None):
+        """
+        Finds papers similar to the given paper_id based on their abstract embeddings.
+        Uses Qdrant's Recommend API with optional metadata filtering.
+        """
+        results = self.client.query_points(
+            collection_name=self.collection_name,
+            using="abstract",
+            query=models.RecommendQuery(
+                recommend=models.RecommendInput(
+                    positive=[paper_id]
+                )
+            ),
+            filter=filter_obj,
+            limit=limit
+        )
+        return results.points
 
 vector_db = VectorDB()
 

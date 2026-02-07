@@ -7,6 +7,9 @@ class PaperBase(BaseModel):
     author: Optional[str] = None
     year: Optional[str] = None
     abstract: Optional[str] = None
+    department: Optional[str] = "N/A"
+    keywords: Optional[str] = ""
+    citation_count: Optional[int] = 0
 
 class PaperCreate(PaperBase):
     file_path: str
@@ -28,4 +31,7 @@ class PaperUpdate(BaseModel):
     author: Optional[str] = None
     year: Optional[str] = None
     abstract: Optional[str] = None
+    department: Optional[str] = None
+    keywords: Optional[str] = None
+    citation_count: Optional[int] = None
 

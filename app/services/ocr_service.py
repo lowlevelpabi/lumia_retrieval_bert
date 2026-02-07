@@ -141,11 +141,22 @@ class OCRService:
             if not abstract_text or len(abstract_text) < 100:
                 abstract_text = full_text[:1500].strip()
 
+            # Extract Department (Look for "College of" or "Department of")
+            dept_match = re.search(r'(College of [A-Za-z\s]+|Department of [A-Za-z\s]+)', full_text, re.IGNORECASE)
+            detected_dept = dept_match.group(1) if dept_match else "N/A"
+
+            # Extract Keywords (Look for "Keywords:" or "Index Terms:")
+            keywords_match = re.search(r'(Keywords:|Index Terms:)(.*?)(?=\n|\.)', full_text, re.IGNORECASE)
+            detected_keywords = keywords_match.group(2).strip() if keywords_match else ""
+
             metadata = {
                 "title": detected_title,
                 "author": final_author,
                 "year": detected_year, 
-                "abstract": abstract_text if abstract_text else "No text could be extracted."
+                "abstract": abstract_text if abstract_text else "No text could be extracted.",
+                "department": detected_dept,
+                "keywords": detected_keywords,
+                "citation_count": 0  # Default to 0 for new uploads
             }
             
             print("Successfully finished extraction.")
