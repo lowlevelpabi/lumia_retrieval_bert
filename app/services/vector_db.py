@@ -61,7 +61,7 @@ class VectorDB:
             collection_name=self.collection_name,
             using="title",
             query=vector,
-            filter=filter_obj,
+            query_filter=filter_obj,
             limit=limit
         )
         title_results = title_response.points
@@ -71,7 +71,7 @@ class VectorDB:
             collection_name=self.collection_name,
             using="abstract",
             query=vector,
-            filter=filter_obj,
+            query_filter=filter_obj,
             limit=limit
         )
         abstract_results = abstract_response.points
@@ -105,7 +105,7 @@ class VectorDB:
                     positive=[paper_id]
                 )
             ),
-            filter=filter_obj,
+            query_filter=filter_obj,
             limit=limit
         )
         return results.points

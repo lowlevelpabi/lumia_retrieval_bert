@@ -5,6 +5,7 @@ from typing import List, Optional
 import shutil
 import os
 import uuid
+from qdrant_client.http import models
 
 from app.core.database import get_db
 from app.models.paper import Paper
@@ -107,29 +108,58 @@ async def search_papers(
             qdrant_filter = models.Filter(must=filter_conditions)
 
         # 2. Keyword search (Exact Match in SQLite)
-        print("Performing keyword search in DB...")
+        # 2. Perform keyword search in DB (Metadata match)
+        print("Performing metadata keyword search...")
         sql_query = db.query(Paper).filter(
             (Paper.title.ilike(f"%{query}%")) | 
             (Paper.abstract.ilike(f"%{query}%"))
         )
         
-        # Apply SQLite filters
+        # Apply filters
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
         if min_year: sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
         if department: sql_query = sql_query.filter(Paper.department == department)
         
-        keyword_results = sql_query.all()
+        keyword_matches = {p.id: p for p in sql_query.all()}
         
-        search_results = []
-        seen_ids = set()
+        # 3. Generate query embedding for semantic search
+        print("Generating query embedding for semantic search...")
+        query_vector = embedding_service.get_embedding(query)
+        
+        # 4. Search in Qdrant (Max of Title or Abstract)
+        print("Searching across Titles and Abstracts in Qdrant...")
+        semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter)
+        
+        combined_results = {}
+        
+        # Process Semantic Results first (detailed scores)
+        for hit in semantic_results:
+            paper_id = hit.id
+            bert_score = hit.score
+            
+            # Weighted Blend: 85% Semantic, 15% Metadata Bonus
+            is_keyword_match = paper_id in keyword_matches
+            metadata_bonus = 0.15 if is_keyword_match else 0.0
+            
+            final_score = (bert_score * 0.85) + metadata_bonus
+            
+            combined_results[paper_id] = SearchResult(
+                id=paper_id,
+                score=min(final_score, 1.0),
+                payload=hit.payload
+            )
+            
+            # Mark as processed if it was in keyword matches
+            if is_keyword_match:
+                del keyword_matches[paper_id]
 
-        # Add keyword matches first with a high "artificial" score
-        for paper in keyword_results:
-            seen_ids.add(paper.id)
-            search_results.append(SearchResult(
-                id=paper.id,
-                score=1.0, 
+        # Add remaining keyword-only matches (rare cases)
+        for paper_id, paper in keyword_matches.items():
+            # Fallback score for keyword-only matches
+            combined_results[paper_id] = SearchResult(
+                id=paper_id,
+                score=0.75, 
                 payload={
                     "title": paper.title,
                     "author": paper.author,
@@ -138,31 +168,11 @@ async def search_papers(
                     "department": paper.department,
                     "citation_count": paper.citation_count
                 }
-            ))
-        
-        # 3. Generate query embedding for semantic search
-        print("Generating query embedding for semantic search...")
-        query_vector = embedding_service.get_embedding(query)
-        
-        # 4. Search in Qdrant (Max of Title or Abstract)
-        print("Searching across Titles and Abstracts in Qdrant...")
-        results = vector_db.search_max(query_vector, filter_obj=qdrant_filter)
-        print(f"Raw Qdrant found {len(results)} matches.")
-        
-        for hit in results:
-            if hit.id in seen_ids:
-                continue 
-                
-            print(f" -> SEMANTIC MATCH: ID={hit.id}, Score={hit.score:.4f}, Title='{hit.payload.get('title')}'")
-            if hit.score >= threshold:
-                search_results.append(SearchResult(
-                    id=hit.id,
-                    score=hit.score,
-                    payload=hit.payload
-                ))
-            else:
-                print(f"    (Skipping above match - score below {threshold} threshold)")
+            )
 
+        # Convert to list and filter by threshold
+        search_results = [res for res in combined_results.values() if res.score >= threshold]
+        
         # Sort by score descending
         search_results.sort(key=lambda x: x.score, reverse=True)
         
