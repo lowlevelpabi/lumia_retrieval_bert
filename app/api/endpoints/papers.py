@@ -9,49 +9,119 @@ from qdrant_client.http import models
 
 from app.core.database import get_db
 from app.models.paper import Paper
-from app.schemas.paper import PaperResponse, SearchResult, PaperUpdate
+from app.models.citation import UserCitation
+from app.schemas.paper import (
+    PaperResponse, SearchResult, PaperUpdate, CitationStatus, 
+    ViewCountResponse, UploadPreviewResponse, UploadConfirm, PagePreview
+)
 from app.services.ocr_service import ocr_service
 from app.services.embedding_service import embedding_service
 from app.services.vector_db import vector_db
-from app.api.deps import admin_required, faculty_or_admin_required
+from pypdf import PdfReader
+from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 
 router = APIRouter()
 
 UPLOAD_DIR = "uploads"
+TEMP_UPLOAD_DIR = "uploads/temp"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 
-@router.post("/upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
-async def upload_paper(file: UploadFile = File(...), db: Session = Depends(get_db)):
+@router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(faculty_or_admin_required)])
+async def upload_preview(
+    file: UploadFile = File(...),
+    auto_extract: bool = True
+):
+    """
+    Step 1: Upload a PDF and get metadata + page thumbnails for review.
+    """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
-    file_id = str(uuid.uuid4())
-    file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
+    session_id = str(uuid.uuid4())
+    temp_path = os.path.join(TEMP_UPLOAD_DIR, f"{session_id}_{file.filename}")
     
-    with open(file_path, "wb") as buffer:
+    with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 1. Extract Metadata using OCR
-    metadata = await ocr_service.extract_metadata(file_path)
+    # 1. Extract Metadata (Only if requested)
+    if auto_extract:
+        metadata = await ocr_service.extract_metadata(temp_path)
+    else:
+        # Default metadata for manual review
+        metadata = {
+            "title": file.filename.replace(".pdf", ""),
+            "author": "The system couldn't confidently detect any authors. Please click '+ Add Another Author' below to enter them manually.",
+            "year": "N/A",
+            "abstract": "The author of this study doesn't provide any abstract, or it perhaps it is still in manuscript phase or incomplete study.",
+            "department": "N/A",
+            "keywords": "",
+            "degree_program": "N/A",
+            "project_type": "Thesis",
+            "citation_count": 0
+        }
+    
+    # 2. Extract Page Previews (Thumbnails + Text)
+    # Always extract thumbnails so user can see what they are uploading
+    pages = await ocr_service.extract_page_previews(temp_path)
 
-    # 2. Save to SQLite
+    return {
+        "session_id": session_id,
+        "metadata": metadata,
+        "pages": pages
+    }
+
+@router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
+async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
+    """
+    Step 2: Finalize upload with corrected metadata and selected pages.
+    """
+    # Find the temp file
+    temp_files = [f for f in os.listdir(TEMP_UPLOAD_DIR) if f.startswith(data.session_id)]
+    if not temp_files:
+        raise HTTPException(status_code=404, detail="Session expired or file not found")
+    
+    temp_path = os.path.join(TEMP_UPLOAD_DIR, temp_files[0])
+    original_filename = temp_files[0].replace(f"{data.session_id}_", "")
+    final_path = os.path.join(UPLOAD_DIR, f"{data.session_id}_{original_filename}")
+
+    # Move to permanent storage
+    shutil.move(temp_path, final_path)
+
+    # Extract text FROM SELECTED PAGES ONLY
+    selected_content = ""
+    try:
+        reader = PdfReader(final_path)
+        for page_idx in data.selected_pages:
+            if 1 <= page_idx <= len(reader.pages):
+                page_text = reader.pages[page_idx - 1].extract_text()
+                if page_text:
+                    selected_content += page_text + "\n\n"
+    except Exception as e:
+        print(f"Error extracting selected content: {e}")
+
+    # Create paper record
     db_paper = Paper(
-        title=metadata["title"],
-        author=metadata["author"],
-        year=metadata["year"],
-        abstract=metadata["abstract"],
-        department=metadata["department"],
-        keywords=metadata["keywords"],
-        citation_count=metadata["citation_count"],
-        file_path=file_path
+        title=data.metadata.get("title", "Untitled"),
+        author=data.metadata.get("author", "Unknown"),
+        year=data.metadata.get("year", "N/A"),
+        abstract=data.metadata.get("abstract", ""),
+        department=data.metadata.get("department", "N/A"),
+        keywords=data.metadata.get("keywords", ""),
+        project_type=data.metadata.get("project_type", "N/A"),
+        degree_program=data.metadata.get("degree_program", "N/A"),
+        citation_count=data.metadata.get("citation_count", 0),
+        file_path=final_path
     )
     db.add(db_paper)
     db.commit()
     db.refresh(db_paper)
 
-    # 3. Generate Multi-Vectors and Save to Qdrant
+    # Sync to Qdrant using SELECTED CONTENT for the abstract/fulltext vectors
     title_vector = embedding_service.get_embedding(db_paper.title)
-    abstract_vector = embedding_service.get_embedding(db_paper.abstract)
+    # Use selected pages text if available, otherwise fallback to abstract
+    content_for_vector = selected_content.strip() if selected_content.strip() else db_paper.abstract
+    abstract_vector = embedding_service.get_embedding(content_for_vector[:5000]) # Cap for embedding
     
     vector_db.upsert_paper(
         paper_id=db_paper.id,
@@ -66,6 +136,8 @@ async def upload_paper(file: UploadFile = File(...), db: Session = Depends(get_d
             "abstract": db_paper.abstract,
             "department": db_paper.department,
             "keywords": db_paper.keywords,
+            "project_type": db_paper.project_type,
+            "degree_program": db_paper.degree_program,
             "citation_count": db_paper.citation_count
         }
     )
@@ -83,7 +155,10 @@ async def search_papers(
     author: Optional[str] = None,
     year: Optional[str] = None,
     min_year: Optional[int] = None,
+    max_year: Optional[int] = None,
     department: Optional[str] = None,
+    project_type: Optional[str] = None,
+    degree_program: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     try:
@@ -103,6 +178,10 @@ async def search_papers(
             pass
         if department:
             filter_conditions.append(models.FieldCondition(key="department", match=models.MatchValue(value=department)))
+        if project_type:
+            filter_conditions.append(models.FieldCondition(key="project_type", match=models.MatchValue(value=project_type)))
+        if degree_program:
+            filter_conditions.append(models.FieldCondition(key="degree_program", match=models.MatchValue(value=degree_program)))
         
         if filter_conditions:
             qdrant_filter = models.Filter(must=filter_conditions)
@@ -119,7 +198,10 @@ async def search_papers(
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
         if min_year: sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
+        if max_year: sql_query = sql_query.filter(Paper.year.cast(Integer) <= max_year)
         if department: sql_query = sql_query.filter(Paper.department == department)
+        if project_type: sql_query = sql_query.filter(Paper.project_type == project_type)
+        if degree_program: sql_query = sql_query.filter(Paper.degree_program == degree_program)
         
         keyword_matches = {p.id: p for p in sql_query.all()}
         
@@ -166,6 +248,8 @@ async def search_papers(
                     "year": paper.year,
                     "abstract": paper.abstract,
                     "department": paper.department,
+                    "project_type": paper.project_type,
+                    "degree_program": paper.degree_program,
                     "citation_count": paper.citation_count
                 }
             )
@@ -289,6 +373,8 @@ async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depend
             "abstract": db_paper.abstract,
             "department": db_paper.department,
             "keywords": db_paper.keywords,
+            "project_type": db_paper.project_type,
+            "degree_program": db_paper.degree_program,
             "citation_count": db_paper.citation_count
         }
     )
@@ -297,3 +383,66 @@ async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depend
 
 
 
+@router.get("/{paper_id}", response_model=PaperResponse)
+async def get_paper(paper_id: int, db: Session = Depends(get_db)):
+    """Fetch a single paper by its ID."""
+    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return paper
+
+
+@router.post("/{paper_id}/view", response_model=ViewCountResponse)
+async def record_view(paper_id: int, db: Session = Depends(get_db)):
+    """Increment view count. Public endpoint — any visit counts."""
+    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    paper.view_count = (paper.view_count or 0) + 1
+    db.commit()
+    db.refresh(paper)
+    return {"view_count": paper.view_count}
+
+
+@router.get("/{paper_id}/cite-status", response_model=CitationStatus)
+async def get_cite_status(
+    paper_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Check whether the authenticated user has already cited this paper."""
+    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    has_cited = db.query(UserCitation).filter(
+        UserCitation.user_id == current_user.id,
+        UserCitation.paper_id == paper_id
+    ).first() is not None
+    return {"has_cited": has_cited, "citation_count": paper.citation_count}
+
+
+@router.post("/{paper_id}/cite", response_model=CitationStatus)
+async def cite_paper(
+    paper_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Allow a registered user to cite/vouch for a paper (once per user)."""
+    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    already_cited = db.query(UserCitation).filter(
+        UserCitation.user_id == current_user.id,
+        UserCitation.paper_id == paper_id
+    ).first()
+
+    if already_cited:
+        raise HTTPException(status_code=409, detail="You have already cited this paper")
+
+    citation = UserCitation(user_id=current_user.id, paper_id=paper_id)
+    db.add(citation)
+    paper.citation_count = (paper.citation_count or 0) + 1
+    db.commit()
+    db.refresh(paper)
+    return {"has_cited": True, "citation_count": paper.citation_count}

@@ -4,15 +4,20 @@
 
 This is a specialized backend for a Research Paper Retrieval and Recommendation System. It uses **BERT-NLP** (via Sentence-Transformers) and a vector database (**Qdrant**) to provide semantic search based on paper abstracts and titles.
 
+---
+
 ## 🚀 Core Features
 
 - **Hybrid Retrieval System**: Combines SQL keyword matching (for 100% term accuracy) with BERT-powered semantic search (for contextual understanding).
 - **Role-Based Access Control (RBAC)**: Tiered privilege system for **Admin**, **Faculty**, and **User** roles protected by JWT authentication.
 - **Advanced Academic Filtering**: Filter research papers by Year Range (Last 5 years), Department, Author, and citation metrics.
 - **"Narrow Down" Recommendations**: Context-aware recommendation engine that finds similar studies within specific metadata constraints.
-- **Intelligent Metadata Extraction**: Automatically detects Title, Author, Year, Department, and Abstract from PDFs using OCR and regex heuristics.
+- **Intelligent Metadata Extraction**: Automatically detects Title, Author, Year, Department, Degree Program, and Abstract from PDFs using OCR.
 - **Multi-Vector Semantic Indexing**: Independently indexes Titles and Abstracts in **Qdrant** for maximum retrieval precision.
+- **Enhanced Upload Flow**: Guided 3-step upload with Smart Extract (OCR) or Manual Review strategy selection and page thumbnail previews.
 - **RESTful API**: Professional CRUD operations for paper management and academic discovery.
+
+---
 
 ## 🛠 Tech Stack
 
@@ -21,6 +26,8 @@ This is a specialized backend for a Research Paper Retrieval and Recommendation 
 - **Vector DB**: Qdrant (Local Storage Mode)
 - **Relational DB**: SQLite (Metadata storage)
 - **OCR**: Pypdf, Pytesseract, Poppler
+
+---
 
 ## ⚙️ Installation (Windows)
 
@@ -50,6 +57,8 @@ uvicorn app.main:app --reload
 The API will be available at `http://127.0.0.1:8000`.
 You can access the interactive documentation (Swagger) at `http://127.0.0.1:8000/docs`.
 
+---
+
 ## 📁 Project Structure
 
 - `app/api/endpoints/`: API route definitions.
@@ -57,27 +66,72 @@ You can access the interactive documentation (Swagger) at `http://127.0.0.1:8000
 - `app/models/`: Database schemas.
 - `uploads/`: Physical storage for uploaded PDFs.
 - `qdrant_storage/`: Local vector database files.
+- `history/`: Sprint run logs (see below).
+
+---
+
+## 📋 Sprint History
+
+> Full week-by-week sprint details are documented in:
+> **[`history/sprint_history.txt`](./history/sprint_history.txt)**
+
+This project uses a **non-fixed sprint structure** due to iterative clarification with the thesis adviser. All development phases are part of **Sprint 2**.
+
+---
 
 ## 📜 Changelog
 
-### Sprint 2: Advanced Retrieval & Role Management
+### Sprint 2 – Week C _(2026-02-25)_
 
-- **Role-Based Access Control (RBAC)**: Implemented `Admin`, `Faculty`, and `User` roles with JWT protection.
-- **Hybrid Search Engine**: Combined SQL keyword matching with BERT semantic scoring.
-- **Direct Bcrypt Security**: Optimized password hashing for Python 3.13 stability.
-- **Advanced Metadata**: Added support for `citation_count`, `department`, and `keywords`.
-- **Filtered Recommendations**: Implemented "Narrow Down" logic for context-specific discovery.
-- **OCR Upgrades**: Enhanced auto-detection of departments and research keywords.
-- **Improved Recall**: Adjusted similarity threshold to 0.2 for broader discovery.
+_OCR Accuracy, Author Detection & Upload UI Refinement_
 
-### Sprint 1: Foundational MVP & Semantic Search
+- **Author Detection Fix**: Replaced all previous heuristics with `re.findall()` directly on raw cover-page text, using Filipino academic name patterns (`SURNAME, FIRSTNAME M.I.` — both ALL CAPS and Title Case).
+- **Author Delimiter Fix**: Changed join/split delimiter from `,` to `|` to prevent Filipino-format names (which contain commas) from being broken into separate fields.
+- **Descriptive Fallbacks**: Author and abstract fields now show instructional messages when data cannot be auto-detected, consistent across Smart Extract and Manual Review modes.
+- **Vertical Step Navigation**: Upload step indicator moved to a fixed right-side vertical rail with a pulse effect on the active step.
+- **Header Layout Fix**: Long paper filenames now truncate with ellipsis, preventing layout overlap.
+- **Abstract Cleanup**: Removed cover-page fallback that incorrectly populated the abstract with table-of-contents text.
 
-- **BERT-NLP Integration**: Implemented Sentence-Transformers for semantic embeddings.
-- **Vector Database**: Configured Qdrant for high-speed nearest-neighbor retrieval.
+---
+
+### Sprint 2 – Week B
+
+_Upload Flow UX Overhaul & Thumbnail Previews_
+
+- **3-Step Upload Flow**: Strategy selection → Metadata review → Confirmation.
+- **Smart/Manual Strategy**: Users choose between OCR auto-extraction or manual input.
+- **PDF Page Thumbnails**: Live page previews with zoom modal and side-by-side extracted text.
+- **Page Selection**: Users select which pages to vectorize, excluding noise pages.
+- **Step Indicator**: Visual progress indicator across the upload flow.
+- **Department Detection Refinement**: Degree-to-department inference fallback added.
+
+---
+
+### Sprint 2 – Week A
+
+_Advanced Retrieval, RBAC & Academic Categorization_
+
+- **RBAC**: Admin / Faculty / User roles with JWT + bcrypt authentication.
+- **Hybrid Search**: SQL `LIKE` keyword matching + BERT semantic scoring.
+- **Advanced Filters**: Author, year range, department, degree program, project type.
+- **"Narrow Down" Recommendations**: Qdrant-powered context-aware discovery.
+- **Citation & View Count**: Added metrics seeding for realistic paper statistics.
+- **Degree/Project Detection**: OCR auto-detects BSCS, BSIT, BSIS, BSCpE and classifies Capstone vs Thesis.
+
+---
+
+### Sprint 1 – Foundational MVP
+
+_AI-Powered PDF Archive Foundation_
+
+- **BERT-NLP Integration**: Sentence-Transformers semantic embeddings.
+- **Vector Database**: Qdrant for nearest-neighbor retrieval.
 - **OCR Pipeline**: Multi-stage extraction using `pypdf` and `Tesseract`.
-- **Relational Metadata**: SQLite/SQLAlchemy integration for persistent storage.
-- **Core API**: Developed primary endpoints for upload and semantic discovery.
-- **DevOps**: Established Docker and PowerShell setup scripts for portability.
+- **Relational Metadata**: SQLite/SQLAlchemy for persistent storage.
+- **Core API**: Upload and semantic discovery endpoints.
+- **DevOps**: Docker and PowerShell setup scripts.
+
+---
 
 ## 📝 License
 

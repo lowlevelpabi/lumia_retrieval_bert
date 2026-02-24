@@ -1,0 +1,30 @@
+# Python environment - NEVER include this (2-4GB!)
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Local data - rebuilt on server
+qdrant_storage/
+uploads/
+thesis.db
+
+# Dev/test files
+.env
+*.env
+.git
+.gitignore
+
+# Test scripts
+test_*.py
+check_*.py
+
+# Docs
+*.md
+surveys/
+history/
+
+# OS
+.DS_Store
+Thumbs.db

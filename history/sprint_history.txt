@@ -1,10 +1,13 @@
 ================================================================================
 SMART RESEARCH PROJECT: SPRINT HISTORY LOG
 ================================================================================
+NOTE: All development phases below are part of SPRINT 2 (Development Phase).
+The sprint was not a fixed 1-week sprint; it spanned multiple weeks due to
+ongoing clarifications with the thesis adviser and confirmation of requirements.
 
---------------------------------------------------------------------------------
+================================================================================
 SPRINT 1: Foundational MVP & Semantic Search
---------------------------------------------------------------------------------
+================================================================================
 Theme: AI-Powered PDF Archive Foundation
 
 Key Features & Changes:
@@ -16,34 +19,93 @@ Key Features & Changes:
   text extraction and Tesseract OCR for image-based PDFs.
 - Relational Metadata: Implemented SQLite via SQLAlchemy to store persistent
   paper metadata (Title, Author, Year, file paths).
-- Core Paper Management: Created API endpoints for PDF upload, metadata 
+- Core Paper Management: Created API endpoints for PDF upload, metadata
   extraction, and basic semantic search.
 - Development Tools: Created setup_local.ps1 and Docker configuration for
   cross-platform portability.
 
---------------------------------------------------------------------------------
-SPRINT 2: Advanced Features, Optimization & Security
---------------------------------------------------------------------------------
-Theme: Retrieval Refinement, RBAC, and Contextual Recommendations
+================================================================================
+SPRINT 2: Development Phase (Multi-Week - Iterative Refinement)
+================================================================================
+Theme: Full-System Polish, Advanced Retrieval, RBAC & Upload UX Overhaul
 
-Key Features & Changes:
-- Hybrid Search Engine: Combined SQL 'LIKE' keyword matching with BERT 
-  semantic scoring. Exact matches are prioritized, ensuring technical terms 
+--------------------------------------------------------------------------------
+Sprint 2 - Week A: Advanced Retrieval, RBAC & Academic Categorization
+--------------------------------------------------------------------------------
+- Hybrid Search Engine: Combined SQL 'LIKE' keyword matching with BERT
+  semantic scoring. Exact matches are prioritized, ensuring technical terms
   (e.g., "YOLO", "CNN") are never missed.
-- Role-Based Access Control (RBAC): 
+- Role-Based Access Control (RBAC):
     - Roles: Admin (Full control), Faculty (Upload/Edit), User (Search only).
     - Implemented JWT-based authentication with direct bcrypt hashing.
-- Advanced Filtering: Added backend support for complex search queries including 
+- Advanced Filtering: Added backend support for complex search queries including
   Author, Year range (Last 5 years), and Department-specific filters.
 - "Narrow Down" Recommendations: Enhanced Qdrant "Recommend" logic to support
-  metadata constraints, allowing users to find similar papers within a 
+  metadata constraints, allowing users to find similar papers within a
   specific academic context.
-- Database Evolution: Migrated SQLite schema to include academic metrics like 
+- Database Evolution: Migrated SQLite schema to include academic metrics like
   citation_count, department tags, and research keywords.
-- OCR Enhancement: Improved regex heuristics to auto-detect college departments 
+- OCR Enhancement: Improved regex heuristics to auto-detect college departments
   and keywords from paper headers and content.
 - Performance Tuning: Lowered similarity threshold to 0.2 to optimize result
   recall and research discovery.
+- New Columns: Added project_type and degree_program to paper schema.
+- Degree/Project Detection: OCR now auto-detects BSCS, BSIT, BSIS, BSCpE
+  and distinguishes Capstone vs Thesis based on content signals.
+- Citation & View Count Seeding: Added seed data for realistic metrics.
+
+--------------------------------------------------------------------------------
+Sprint 2 - Week B: Upload Flow UX Overhaul & Thumbnail Previews
+--------------------------------------------------------------------------------
+- 2-Step Upload Flow: Replaced plain upload with a guided multi-step flow.
+    - Step 1: File selection and strategy pick (Smart Extract vs Manual Review).
+    - Step 2: Interactive metadata review with editable form.
+    - Step 3: Final confirmation screen.
+- Strategy Modal: Users now choose between Smart Auto-Scan (OCR) and Manual
+  Review (skip extraction and fill fields manually).
+- PDF Page Thumbnails: Each page of the uploaded PDF is rendered as a
+  clickable thumbnail in the review screen.
+- Page Zoom Modal: Clicking a thumbnail opens a full-page zoom view with
+  extracted text preview side-by-side.
+- Page Selection: Users can choose exactly which pages to vectorize, avoiding
+  bibliography, table of contents, and cover pages from being indexed.
+- Step Indicator: Added a numbered progress indicator guiding users through
+  the upload flow.
+
+--------------------------------------------------------------------------------
+Sprint 2 - Week C: OCR Accuracy, Author Detection & UI Refinement
+                   (Session: 2026-02-25)
+--------------------------------------------------------------------------------
+BACKEND:
+- Author Detection Overhaul (ocr_service.py):
+    - Replaced all previous heuristics with direct re.findall() on raw cover
+      page text (first 5000 chars), targeting Filipino academic name format.
+    - Strategy 1: ALL CAPS pattern → BILLONES, PRINCE ISIAH R.
+    - Strategy 2: Title Case fallback → Billones, Prince Isiah R.
+    - Root cause fix: pdfplumber collapses cover page into one giant line;
+      line-by-line scanning was never effective.
+    - Diagnostic logging added to confirm extracted text structure.
+    - Author join delimiter changed from ',' to ' | ' to avoid conflicts
+      with commas inside "SURNAME, FIRSTNAME M.I." names.
+    - Descriptive fallback message added for undetected authors (matches
+      the same approach used for abstract fallback).
+- Abstract Extraction: Removed aggressive cover-page fallback that was
+  incorrectly populating the abstract field with table of contents text.
+- Unified Messaging: Both abstract and author fields now consistently show
+  descriptive instructional messages when data cannot be auto-detected,
+  across both Smart Extract and Manual Review modes.
+
+FRONTEND (up_win.vue):
+- Author Split Fix: Changed author delimiter from comma to pipe (' | ')
+  so that SURNAME, FIRSTNAME names are not broken into separate author boxes.
+- Vertical Step Navigation: Moved step indicator from top header to a fixed
+  vertical rail on the right side of the screen.
+- Pulse Effect: Active step now displays a pulsing green ring animation
+  for clear visual focus.
+- Header Layout Fix: Long research paper filenames now truncate with ellipsis
+  to prevent UI overlap with header buttons.
+- Author Input UX: Each author has their own input box; '+' button to add
+  more authors.
 
 ================================================================================
 END OF SPRINT 2 LOG

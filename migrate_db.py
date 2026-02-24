@@ -15,7 +15,10 @@ def migrate():
     columns_to_add = [
         ("department", "TEXT DEFAULT 'N/A'"),
         ("keywords", "TEXT DEFAULT ''"),
-        ("citation_count", "INTEGER DEFAULT 0")
+        ("project_type", "TEXT DEFAULT 'N/A'"),
+        ("degree_program", "TEXT DEFAULT 'N/A'"),
+        ("citation_count", "INTEGER DEFAULT 0"),
+        ("view_count", "INTEGER DEFAULT 0"),
     ]
 
     for col_name, col_def in columns_to_add:
@@ -37,6 +40,21 @@ def migrate():
         )
     """)
     print("Users table ready.")
+
+    # 3. Create 'user_citations' junction table
+    print("Creating 'user_citations' table...")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_citations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            paper_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE,
+            UNIQUE (user_id, paper_id)
+        )
+    """)
+    print("user_citations table ready.")
 
     conn.commit()
     conn.close()
