@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.models.paper import Base
 from app.models.user import User  # Import to register with Base
 from app.models.citation import UserCitation  # Import to register with Base
+from app.models.borrowing import BorrowRecord, Penalty # Import to register with Base
 
 engine = create_engine(
     settings.DATABASE_URL, connect_args={"check_same_thread": False}

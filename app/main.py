@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.endpoints import papers, auth
+from app.api.endpoints import papers, auth, users, system, borrowing
 from app.core.database import init_db
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -24,4 +24,7 @@ def read_root():
     return {"message": "Welcome to Smart Research API"}
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
 app.include_router(papers.router, prefix="/api/v1/papers", tags=["papers"])
+app.include_router(borrowing.router, prefix="/api/v1/borrowing", tags=["borrowing"])

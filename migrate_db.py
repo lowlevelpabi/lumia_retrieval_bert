@@ -56,6 +56,40 @@ def migrate():
     """)
     print("user_citations table ready.")
 
+    # 4. Create 'borrow_records' table
+    print("Creating 'borrow_records' table...")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS borrow_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paper_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            borrow_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            due_date DATETIME NOT NULL,
+            return_date DATETIME,
+            status TEXT DEFAULT 'Borrowed',
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE
+        )
+    """)
+    print("borrow_records table ready.")
+
+    # 5. Create 'penalties' table
+    print("Creating 'penalties' table...")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS penalties (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            borrow_record_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            reason TEXT,
+            status TEXT DEFAULT 'Unpaid',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (borrow_record_id) REFERENCES borrow_records(id) ON DELETE CASCADE
+        )
+    """)
+    print("penalties table ready.")
+
     conn.commit()
     conn.close()
     print("Migration completed successfully.")
