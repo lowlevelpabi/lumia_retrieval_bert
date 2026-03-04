@@ -10,17 +10,40 @@ from pypdf import PdfReader
 
 class OCRService:
     def __init__(self):
-        # Common Windows paths for Tesseract
+        # Platform-specific paths for Tesseract
         tesseract_paths = [
             r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-            r'C:\Users\\' + os.getlogin() + r'\AppData\Local\Tesseract-OCR\tesseract.exe'
+            # Linux default path
+            '/usr/bin/tesseract'
         ]
+        
+        # Try to get Windows user-specific path safely
+        try:
+            import getpass
+            user = getpass.getuser()
+            tesseract_paths.append(fr'C:\Users\{user}\AppData\Local\Tesseract-OCR\tesseract.exe')
+        except Exception:
+            pass
+
         self.tesseract_available = False
-        for path in tesseract_paths:
-            if os.path.exists(path):
-                pytesseract.pytesseract.tesseract_cmd = path
-                self.tesseract_available = True
-                break
+        
+        # Check if tesseract is in PATH first (most robust for Linux)
+        try:
+            import subprocess
+            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+            self.tesseract_available = True
+            print("Tesseract detected in system PATH.")
+        except (Exception, FileNotFoundError):
+            # Fallback to hardcoded paths
+            for path in tesseract_paths:
+                if os.path.exists(path):
+                    pytesseract.pytesseract.tesseract_cmd = path
+                    self.tesseract_available = True
+                    print(f"Tesseract detected at: {path}")
+                    break
+        
+        if not self.tesseract_available:
+            print("⚠️ Tesseract OCR not found. OCR features will be disabled.")
 
     async def extract_metadata(self, pdf_path: str) -> Dict[str, Any]:
         """
