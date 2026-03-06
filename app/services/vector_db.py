@@ -2,6 +2,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from app.core.config import settings
 from typing import List, Dict, Any
+from app.services.imrad_service import imrad_service
 
 class VectorDB:
     def __init__(self):
@@ -19,13 +20,10 @@ class VectorDB:
                 self.client.delete_collection(self.collection_name)
                 raise Exception("Need named vectors")
         except Exception as e:
-            print(f"Initialing Multi-Vector collection '{self.collection_name}'...")
+            print(f"Initialing IMRAD Multi-Vector collection '{self.collection_name}'...")
             self.client.recreate_collection(
                 collection_name=self.collection_name,
-                vectors_config={
-                    "title": models.VectorParams(size=384, distance=models.Distance.COSINE),
-                    "abstract": models.VectorParams(size=384, distance=models.Distance.COSINE),
-                },
+                vectors_config=imrad_service.get_qdrant_vector_config(),
             )
 
     def upsert_paper(self, paper_id: int, vectors: Dict[str, List[float]], metadata: Dict[str, Any]):
@@ -41,47 +39,53 @@ class VectorDB:
         )
 
     def search(self, vector: List[float], limit: int = 5):
-        # We query BOTH the title and abstract vectors and take the best score
-        # Using the query interface for better results
+        # Dynamically build prefetch list from all active vector names (IMRAD + title + abstract if enabled)
+        active_vectors = imrad_service.get_all_vector_names()
         results = self.client.query_points(
             collection_name=self.collection_name,
             prefetch=[
-                models.Prefetch(query=vector, using="title", limit=limit),
-                models.Prefetch(query=vector, using="abstract", limit=limit),
+                models.Prefetch(query=vector, using=name, limit=limit)
+                for name in active_vectors
             ],
-            query=models.FusionQuery(fusion=models.Fusion.RRF), # Reciprocal Rank Fusion for best relevance
+            query=models.FusionQuery(fusion=models.Fusion.RRF),  # Reciprocal Rank Fusion for best relevance
             limit=limit
         )
         return results.points
 
-    def search_max(self, vector: List[float], limit: int = 5, filter_obj: Any = None):
-        """Alternative search that simply takes the max similarity across both vectors"""
-        # Query title
-        title_response = self.client.query_points(
-            collection_name=self.collection_name,
-            using="title",
-            query=vector,
-            query_filter=filter_obj,
-            limit=limit
-        )
-        title_results = title_response.points
+    def search_max(self, vector: List[float], limit: int = 5, filter_obj: Any = None, section: str = None):
+        """
+        Searches across all active vectors and takes the max similarity score per paper.
+        If `section` is specified (e.g. 'methods'), only that vector is queried — 
+        enabling precise section-targeted retrieval.
+        """
+        active_vectors = imrad_service.get_all_vector_names()
 
-        # Query abstract
-        abstract_response = self.client.query_points(
-            collection_name=self.collection_name,
-            using="abstract",
-            query=vector,
-            query_filter=filter_obj,
-            limit=limit
-        )
-        abstract_results = abstract_response.points
-        
-        # Merge and take max score per ID
-        merged = {}
-        for hit in title_results + abstract_results:
+        # Section targeting: restrict to a single vector if a valid section is requested
+        if section and section in active_vectors:
+            print(f"[IMRAD] Section-targeted search using vector: '{section}'")
+            active_vectors = [section]
+
+        all_results = []
+        for vector_name in active_vectors:
+            try:
+                response = self.client.query_points(
+                    collection_name=self.collection_name,
+                    using=vector_name,
+                    query=vector,
+                    query_filter=filter_obj,
+                    limit=limit
+                )
+                all_results.extend(response.points)
+            except Exception as e:
+                # A vector may not exist for older papers — skip gracefully
+                print(f"[IMRAD] Skipping vector '{vector_name}' (not found or error): {e}")
+
+        # Merge: take max score per paper ID across all queried vectors
+        merged: Dict[int, Any] = {}
+        for hit in all_results:
             if hit.id not in merged or hit.score > merged[hit.id].score:
                 merged[hit.id] = hit
-        
+
         return sorted(merged.values(), key=lambda x: x.score, reverse=True)[:limit]
 
     def delete_paper(self, paper_id: int):
@@ -94,20 +98,36 @@ class VectorDB:
 
     def recommend(self, paper_id: int, limit: int = 5, filter_obj: Any = None):
         """
-        Finds papers similar to the given paper_id based on their abstract embeddings.
-        Uses Qdrant's Recommend API with optional metadata filtering.
+        Finds papers similar to the given paper_id.
+        Uses the 'methods' vector as the primary similarity signal for IMRAD-aware
+        recommendations (most academically meaningful section for CS theses).
+        Falls back to 'abstract' if 'methods' is unavailable.
         """
-        results = self.client.query_points(
-            collection_name=self.collection_name,
-            using="abstract",
-            query=models.RecommendQuery(
-                recommend=models.RecommendInput(
-                    positive=[paper_id]
-                )
-            ),
-            query_filter=filter_obj,
-            limit=limit
-        )
+        # Prefer 'methods' section for recommendation (most content-rich for CS theses)
+        recommend_vector = "methods" if "methods" in imrad_service.get_all_vector_names() else "abstract"
+        try:
+            results = self.client.query_points(
+                collection_name=self.collection_name,
+                using=recommend_vector,
+                query=models.RecommendQuery(
+                    recommend=models.RecommendInput(
+                        positive=[paper_id]
+                    )
+                ),
+                query_filter=filter_obj,
+                limit=limit
+            )
+        except Exception:
+            # Fallback to abstract if methods vector doesn't exist for this paper
+            results = self.client.query_points(
+                collection_name=self.collection_name,
+                using="abstract",
+                query=models.RecommendQuery(
+                    recommend=models.RecommendInput(positive=[paper_id])
+                ),
+                query_filter=filter_obj,
+                limit=limit
+            )
         return results.points
 
 vector_db = VectorDB()

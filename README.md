@@ -8,13 +8,15 @@ This is a specialized backend for a Research Paper Retrieval and Recommendation 
 
 ## 🚀 Core Features
 
+- **IMRAD Section-Aware Retrieval**: Detects and embedds Introduction, Methods, Results, and Discussion sections as independent BERT vectors, enabling precise section-targeted semantic search.
 - **Hybrid Retrieval System**: Combines SQL keyword matching (for 100% term accuracy) with BERT-powered semantic search (for contextual understanding).
 - **Role-Based Access Control (RBAC)**: Tiered privilege system for **Admin**, **Faculty**, and **User** roles protected by JWT authentication.
 - **Advanced Academic Filtering**: Filter research papers by Year Range (Last 5 years), Department, Author, and citation metrics.
-- **"Narrow Down" Recommendations**: Context-aware recommendation engine that finds similar studies within specific metadata constraints.
-- **Intelligent Metadata Extraction**: Automatically detects Title, Author, Year, Department, Degree Program, and Abstract from PDFs using OCR.
-- **Multi-Vector Semantic Indexing**: Independently indexes Titles and Abstracts in **Qdrant** for maximum retrieval precision.
-- **Enhanced Upload Flow**: Guided 3-step upload with Smart Extract (OCR) or Manual Review strategy selection and page thumbnail previews.
+- **Section-Targeted Search**: Optional `?section=methods` query parameter narrows semantic search to a specific IMRAD section.
+- **"Narrow Down" Recommendations**: Context-aware recommendation engine that uses the Methods section vector for IMRAD-aware similarity.
+- **Intelligent Metadata Extraction**: Automatically detects Title, Author, Year, Department, Degree Program, Abstract, and IMRAD sections from PDFs using OCR.
+- **Multi-Vector Semantic Indexing**: Independently indexes Title, Abstract, Introduction, Methods, Results, and Discussion in **Qdrant** using 6 named vectors.
+- **Enhanced Upload Flow**: Guided 3-step upload with Smart Extract (OCR + IMRAD detection) or Manual Review strategy selection and page thumbnail previews.
 - **RESTful API**: Professional CRUD operations for paper management and academic discovery.
 
 ---
@@ -62,11 +64,15 @@ You can access the interactive documentation (Swagger) at `http://127.0.0.1:8000
 ## 📁 Project Structure
 
 - `app/api/endpoints/`: API route definitions.
-- `app/services/`: Core logic for OCR, Embeddings, and Vector Search.
+- `app/services/`: Core logic for OCR, Embeddings, IMRAD Detection, and Vector Search.
+  - `imrad_service.py`: Standalone IMRAD section detection and vector building service.
 - `app/models/`: Database schemas.
 - `uploads/`: Physical storage for uploaded PDFs.
-- `qdrant_storage/`: Local vector database files.
-- `history/`: Sprint run logs (see below).
+- `qdrant_storage/`: Local vector database files (6-vector IMRAD schema).
+- `history/`: Sprint run logs.
+- `dummy_imrad_pdfs/`: 26 realistic dummy IMRAD thesis PDFs for testing.
+- `scripts/test_imrad.py`: Automated test suite for IMRAD section detection.
+- `scripts/generate_imrad_pdfs.py`: Generator for dummy IMRAD PDFs.
 
 ---
 

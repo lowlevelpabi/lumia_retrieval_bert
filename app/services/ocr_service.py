@@ -7,6 +7,7 @@ import re
 import base64
 from io import BytesIO
 from pypdf import PdfReader
+from app.services.imrad_service import imrad_service
 
 class OCRService:
     def __init__(self):
@@ -293,6 +294,10 @@ class OCRService:
             if not abstract_text or len(abstract_text.strip()) < 50:
                 abstract_text = "The author of this study doesn't provide any abstract, or it perhaps it is still in manuscript phase or incomplete study."
 
+            # --- IMRAD Section Extraction ---
+            # Run section detection on the full extracted text and attach to metadata
+            imrad_sections = imrad_service.extract_sections(full_text)
+
             metadata = {
                 "title": detected_title,
                 "author": final_author,
@@ -302,7 +307,8 @@ class OCRService:
                 "keywords": detected_keywords,
                 "degree_program": detected_degree,
                 "project_type": detected_project_type,
-                "citation_count": 0
+                "citation_count": 0,
+                "sections": imrad_sections  # IMRAD section text, may be empty dict for scanned PDFs
             }
             
             print("Successfully finished extraction.")

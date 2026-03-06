@@ -17,6 +17,7 @@ from app.schemas.paper import (
 from app.services.ocr_service import ocr_service
 from app.services.embedding_service import embedding_service
 from app.services.vector_db import vector_db
+from app.services.imrad_service import imrad_service
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 
@@ -117,18 +118,21 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_paper)
 
-    # Sync to Qdrant using SELECTED CONTENT for the abstract/fulltext vectors
-    title_vector = embedding_service.get_embedding(db_paper.title)
-    # Use selected pages text if available, otherwise fallback to abstract
-    content_for_vector = selected_content.strip() if selected_content.strip() else db_paper.abstract
-    abstract_vector = embedding_service.get_embedding(content_for_vector[:5000]) # Cap for embedding
-    
+    # Extract IMRAD sections from the selected pages content
+    # These become the primary retrieval vectors for semantic search
+    imrad_sections = imrad_service.extract_sections(selected_content)
+
+    # Build the full vector dict: title + abstract (if enabled) + any detected IMRAD sections
+    content_for_abstract = selected_content.strip() if selected_content.strip() else db_paper.abstract
+    all_vectors = imrad_service.build_vectors(
+        title=db_paper.title,
+        sections=imrad_sections,
+        abstract=content_for_abstract
+    )
+
     vector_db.upsert_paper(
         paper_id=db_paper.id,
-        vectors={
-            "title": title_vector,
-            "abstract": abstract_vector
-        },
+        vectors=all_vectors,
         metadata={
             "title": db_paper.title,
             "author": db_paper.author,
@@ -159,6 +163,7 @@ async def search_papers(
     department: Optional[str] = None,
     project_type: Optional[str] = None,
     degree_program: Optional[str] = None,
+    section: Optional[str] = None,  # IMRAD section targeting: 'introduction','methods','results','discussion'
     db: Session = Depends(get_db)
 ):
     try:
@@ -209,9 +214,9 @@ async def search_papers(
         print("Generating query embedding for semantic search...")
         query_vector = embedding_service.get_embedding(query)
         
-        # 4. Search in Qdrant (Max of Title or Abstract)
-        print("Searching across Titles and Abstracts in Qdrant...")
-        semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter)
+        # 4. Search in Qdrant (IMRAD multi-vector max-score, with optional section targeting)
+        print(f"Searching across IMRAD vectors in Qdrant (section={section})...")
+        semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section)
         
         combined_results = {}
         
@@ -356,16 +361,17 @@ async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depend
     db.commit()
     db.refresh(db_paper)
 
-    # Update Qdrant Multi-Vectors
-    title_vector = embedding_service.get_embedding(db_paper.title)
-    abstract_vector = embedding_service.get_embedding(db_paper.abstract)
+    # Update Qdrant — Re-extract IMRAD sections from abstract as best-effort (no PDF re-read on edit)
+    imrad_sections = imrad_service.extract_sections(db_paper.abstract)
+    all_vectors = imrad_service.build_vectors(
+        title=db_paper.title,
+        sections=imrad_sections,
+        abstract=db_paper.abstract
+    )
     
     vector_db.upsert_paper(
         paper_id=db_paper.id,
-        vectors={
-            "title": title_vector,
-            "abstract": abstract_vector
-        },
+        vectors=all_vectors,
         metadata={
             "title": db_paper.title,
             "author": db_paper.author,

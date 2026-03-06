@@ -94,5 +94,83 @@ def migrate():
     conn.close()
     print("Migration completed successfully.")
 
+def reindex_with_imrad():
+    """
+    Re-indexes all existing papers in Qdrant with IMRAD section vectors.
+    Run once after deploying the IMRAD feature to upgrade existing papers.
+    Usage: python migrate_db.py --reindex-imrad
+    """
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+    from app.services.imrad_service import imrad_service
+    from app.services.vector_db import vector_db
+    from pypdf import PdfReader
+
+    db_path = 'thesis.db'
+    if not os.path.exists(db_path):
+        print("❌ Database not found.")
+        return
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, abstract, file_path FROM papers")
+    papers = cursor.fetchall()
+    conn.close()
+
+    print(f"\n📚 Re-indexing {len(papers)} papers with IMRAD vectors...\n")
+    success, skipped, failed = 0, 0, 0
+
+    for paper_id, title, abstract, file_path in papers:
+        print(f"[{paper_id}] {title[:60]}...")
+        full_text = abstract or ""
+
+        # Try to read the full PDF for richer section detection
+        if file_path and os.path.exists(file_path):
+            try:
+                reader = PdfReader(file_path)
+                for i in range(min(20, len(reader.pages))):
+                    page_text = reader.pages[i].extract_text()
+                    if page_text:
+                        full_text += page_text + "\n"
+            except Exception as e:
+                print(f"  ⚠️ PDF read error: {e} — falling back to abstract only")
+
+        if not full_text.strip():
+            print(f"  ⚠️ No content found. Skipping.")
+            skipped += 1
+            continue
+
+        try:
+            sections = imrad_service.extract_sections(full_text)
+            all_vectors = imrad_service.build_vectors(
+                title=title or "",
+                sections=sections,
+                abstract=abstract or ""
+            )
+            vector_db.upsert_paper(
+                paper_id=paper_id,
+                vectors=all_vectors,
+                metadata={
+                    "title": title,
+                    "abstract": abstract,
+                }
+            )
+            detected = [k for k in sections.keys()] if sections else []
+            print(f"  ✅ Vectors built: {list(all_vectors.keys())} | IMRAD detected: {detected}")
+            success += 1
+        except Exception as e:
+            print(f"  ❌ Failed: {e}")
+            failed += 1
+
+    print(f"\n{'='*60}")
+    print(f"Re-indexing complete: {success} success | {skipped} skipped | {failed} failed")
+    print(f"{'='*60}\n")
+
+
 if __name__ == "__main__":
-    migrate()
+    import sys
+    if "--reindex-imrad" in sys.argv:
+        reindex_with_imrad()
+    else:
+        migrate()

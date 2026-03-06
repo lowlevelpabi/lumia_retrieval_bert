@@ -107,6 +107,52 @@ FRONTEND (up_win.vue):
 - Author Input UX: Each author has their own input box; '+' button to add
   more authors.
 
+--------------------------------------------------------------------------------
+Sprint 2 - Week D: IMRAD Section-Aware Retrieval
+                   (Session: 2026-03-06)
+--------------------------------------------------------------------------------
+BACKEND:
+- New Standalone Service (imrad_service.py):
+    - Created app/services/imrad_service.py as the sole owner of all IMRAD logic.
+    - Detects 4 IMRAD sections: introduction, methods, results, discussion.
+    - Supports both IMRAD-style headings (INTRODUCTION, METHODOLOGY) and
+      CvSU Chapter-style headings (CHAPTER I, CHAPTER II, etc.).
+    - INCLUDE_ABSTRACT_VECTOR flag isolates abstract vector from search —
+      flip to False to remove abstract-based search with zero other file changes.
+    - get_all_vector_names(): dynamically builds prefetch list for Qdrant.
+    - build_vectors(): orchestrates embedding generation for all active sections.
+
+- Vector DB Upgrade (vector_db.py):
+    - Expanded Qdrant collection from 2 named vectors (title, abstract) to 6
+      named vectors: title, abstract, introduction, methods, results, discussion.
+    - All vector names sourced dynamically from imrad_service — zero hardcoding.
+    - search() and search_max() use dynamic prefetch list via get_all_vector_names().
+    - search_max() now accepts optional section parameter for targeted retrieval
+      (e.g., search only within 'methods' vectors).
+    - recommend() now uses 'methods' vector as primary similarity signal for
+      IMRAD-aware recommendations; falls back to 'abstract' gracefully.
+
+- OCR Service (ocr_service.py):
+    - Added call to imrad_service.extract_sections() after full text extraction.
+    - IMRAD sections returned in metadata dict under 'sections' key.
+
+- API Endpoint (papers.py):
+    - confirm_upload(): uses imrad_service.build_vectors() — IMRAD sections from
+      selected pages become primary retrieval vectors in Qdrant.
+    - update_paper(): re-extracts IMRAD from abstract (best-effort on edit).
+    - search_papers(): new optional section query param for section-targeted search.
+      Example: GET /api/papers/search?q=dataset&section=methods
+
+- Migration (migrate_db.py):
+    - Added reindex_with_imrad() function to re-index all existing papers with
+      the new 6-vector IMRAD schema.
+    - Run: python migrate_db.py --reindex-imrad
+
+TESTING:
+- Created scripts/test_imrad.py — 5 test suites, 26 assertions, all passed.
+- Created scripts/generate_imrad_pdfs.py — generates 26 realistic IMRAD PDFs
+  across BSCS, BSIT, BSIS, BSCpE topics using reportlab. Stored in dummy_imrad_pdfs/.
+
 ================================================================================
 END OF SPRINT 2 LOG
 ================================================================================
