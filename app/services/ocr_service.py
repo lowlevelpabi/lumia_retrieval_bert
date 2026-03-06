@@ -89,8 +89,36 @@ class OCRService:
             year_match = re.search(r'\b(20[1-2][0-9])\b', full_text)
             detected_year = year_match.group(1) if year_match else "N/A"
 
-            # Extract Title
-            detected_title = lines[0] if lines else os.path.basename(pdf_path)
+            # Extract Title — collect consecutive lines from the top of the
+            # document and join them, stopping when we hit a non-title signal
+            # (author names, institutional boilerplate, year, "submitted to", etc.)
+            TITLE_STOP_PATTERNS = [
+                r'\b(submitted|presented|in partial|fulfillment|requirements|degree|bachelor|undergraduate|thesis|capstone|adviser|supervisor|prepared)\b',
+                r'\b(cavite|university|college|department|imus|campus)\b',
+                r'^(by|presented by|submitted by)$',
+                r'\b(20[1-2][0-9])\b',             # year line
+                r'[A-Z]{2,},\s+[A-Z]+',            # ALL CAPS "SURNAME, FIRSTNAME" author line
+                r'^[A-Z][a-z]+,\s+[A-Z]',          # Title Case "Surname, Firstname" author line
+            ]
+            title_lines = []
+            for line in lines[:15]:  # Only look in the first 15 lines of the document
+                is_stop = any(re.search(p, line, re.IGNORECASE) for p in TITLE_STOP_PATTERNS)
+                # A title line is typically ALL CAPS or Title Case, longer than 3 chars,
+                # and doesn't look like a section heading or body sentence
+                looks_like_title = (
+                    len(line) > 3 and
+                    not line.endswith('.') and    # body sentences end with period
+                    not is_stop
+                )
+                if looks_like_title:
+                    title_lines.append(line)
+                elif title_lines:
+                    break  # We already collected some title lines; stop at the first non-title
+
+            detected_title = " ".join(title_lines).strip() if title_lines else os.path.basename(pdf_path)
+            # Collapse any double-spaces from PDF join artifacts
+            detected_title = re.sub(r'\s+', ' ', detected_title)
+
             
             # DIAGNOSTIC: Print the first 80 lines to see what OCR extracted
             print(f"\n===== [OCR DIAGNOSIS] First 80 lines of full_text =====")
