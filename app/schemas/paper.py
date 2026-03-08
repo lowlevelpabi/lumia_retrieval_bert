@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 
 class PaperBase(BaseModel):
@@ -13,6 +13,12 @@ class PaperBase(BaseModel):
     degree_program: Optional[str] = "N/A"
     citation_count: Optional[int] = 0
     view_count: Optional[int] = 0
+    
+    # IMRAD sections
+    introduction: Optional[str] = None
+    methods: Optional[str] = None
+    results: Optional[str] = None
+    discussion: Optional[str] = None
 
 class PaperCreate(PaperBase):
     file_path: str
@@ -46,6 +52,12 @@ class PaperUpdate(BaseModel):
     project_type: Optional[str] = None
     degree_program: Optional[str] = None
     citation_count: Optional[int] = None
+    
+    # IMRAD sections
+    introduction: Optional[str] = None
+    methods: Optional[str] = None
+    results: Optional[str] = None
+    discussion: Optional[str] = None
 
 class PagePreview(BaseModel):
     page_num: int
@@ -56,9 +68,17 @@ class UploadPreviewResponse(BaseModel):
     session_id: str
     metadata: dict
     pages: List[PagePreview]
+    sections: Optional[Dict[str, str]] = None  # Extracted IMRAD text
+    section_pages: Optional[Dict[str, List[int]]] = None  # Mapping of section to page numbers
 
 class UploadConfirm(BaseModel):
     session_id: str
     metadata: dict
     selected_pages: List[int]
+    
+    # Optional manual IMRAD overrides from the review step
+    introduction: Optional[str] = None
+    methods: Optional[str] = None
+    results: Optional[str] = None
+    discussion: Optional[str] = None
 

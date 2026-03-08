@@ -19,5 +19,12 @@ class Paper(Base):
     citation_count = Column(Integer, default=0)
     view_count = Column(Integer, default=0)
     file_path = Column(String)
+    
+    # Persistent IMRAD sections (extracted and potentially edited)
+    introduction = Column(Text, nullable=True)
+    methods = Column(Text, nullable=True)
+    results = Column(Text, nullable=True)
+    discussion = Column(Text, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

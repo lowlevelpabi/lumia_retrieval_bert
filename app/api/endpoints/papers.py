@@ -62,14 +62,43 @@ async def upload_preview(
             "citation_count": 0
         }
     
-    # 2. Extract Page Previews (Thumbnails + Text)
-    # Always extract thumbnails so user can see what they are uploading
-    pages = await ocr_service.extract_page_previews(temp_path)
+    # 2. Determine document completeness and pick which pages to preview.
+    #
+    # A 'manuscript' is any uploaded PDF where IMRAD extraction found no
+    # section headings — incomplete/in-progress or too non-standard to detect.
+    #
+    # Behaviour:
+    #   Complete doc → imrad_pages carries the short per-section preview list
+    #                  → only those thumbnails are rendered (fast, focused)
+    #   Manuscript   → imrad_pages is empty → show first MAX_MANUSCRIPT_PREVIEW
+    #                  pages so the admin still sees something useful
+    #   Manual mode  → always show first MAX_MANUSCRIPT_PREVIEW pages
+    MAX_MANUSCRIPT_PREVIEW = 10
+
+    imrad_pages: list = metadata.pop("imrad_pages", [])
+    is_manuscript: bool = auto_extract and len(imrad_pages) == 0
+
+    if auto_extract and imrad_pages:
+        # Normal path: smart IMRAD-filtered thumbnails
+        pages = await ocr_service.extract_page_previews(temp_path, imrad_pages=imrad_pages)
+    else:
+        # Manuscript or manual path: show only the first N pages, not the whole doc
+        try:
+            _num_pages = len(PdfReader(temp_path).pages)
+        except Exception:
+            _num_pages = MAX_MANUSCRIPT_PREVIEW
+        preview_range = list(range(1, min(_num_pages, MAX_MANUSCRIPT_PREVIEW) + 1))
+        pages = await ocr_service.extract_page_previews(temp_path, imrad_pages=preview_range)
+
+    # Attach manuscript flag so the frontend can show a specific notice
+    metadata["is_manuscript"] = is_manuscript
 
     return {
         "session_id": session_id,
         "metadata": metadata,
-        "pages": pages
+        "pages": pages,
+        "sections": metadata.get("sections", {}),
+        "section_pages": metadata.get("section_pages", {})
     }
 
 @router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
@@ -112,15 +141,49 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
         project_type=data.metadata.get("project_type", "N/A"),
         degree_program=data.metadata.get("degree_program", "N/A"),
         citation_count=data.metadata.get("citation_count", 0),
-        file_path=final_path
+        file_path=final_path,
+        
+        # Save IMRAD sections (manual overrides or defaults)
+        introduction=data.introduction,
+        methods=data.methods,
+        results=data.results,
+        discussion=data.discussion
     )
     db.add(db_paper)
     db.commit()
     db.refresh(db_paper)
 
-    # Extract IMRAD sections from the selected pages content
-    # These become the primary retrieval vectors for semantic search
-    imrad_sections = imrad_service.extract_sections(selected_content)
+    # Use provided IMRAD sections or fallback to extraction if not provided
+    imrad_sections = {
+        "introduction": data.introduction,
+        "methods": data.methods,
+        "results": data.results,
+        "discussion": data.discussion
+    }
+    # Filter out None values and fill gaps with re-extraction from selected pages
+    if not all(imrad_sections.values()):
+        # Build a page-keyed dict from the selected pages so extract_sections
+        # receives the format it now expects (Dict[int, str])
+        try:
+            reader_for_fill = PdfReader(final_path)
+            selected_page_map: dict = {}
+            for pg_num in data.selected_pages:
+                if 1 <= pg_num <= len(reader_for_fill.pages):
+                    txt = reader_for_fill.pages[pg_num - 1].extract_text()
+                    if txt:
+                        selected_page_map[pg_num] = txt
+        except Exception as e:
+            print(f"Re-extraction page read error: {e}")
+            selected_page_map = {}
+
+        if selected_page_map:
+            extracted_result = imrad_service.extract_sections(selected_page_map)
+            extracted = extracted_result.get("sections", {})
+            for key, val in extracted.items():
+                if not imrad_sections.get(key):
+                    imrad_sections[key] = val
+                    setattr(db_paper, key, val)
+            db.commit()
 
     # Build the full vector dict: title + abstract (if enabled) + any detected IMRAD sections
     content_for_abstract = selected_content.strip() if selected_content.strip() else db_paper.abstract
@@ -361,8 +424,14 @@ async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depend
     db.commit()
     db.refresh(db_paper)
 
-    # Update Qdrant — Re-extract IMRAD sections from abstract as best-effort (no PDF re-read on edit)
-    imrad_sections = imrad_service.extract_sections(db_paper.abstract)
+    # Use persistent sections for vectorizing
+    imrad_sections = {
+        "introduction": db_paper.introduction,
+        "methods": db_paper.methods,
+        "results": db_paper.results,
+        "discussion": db_paper.discussion
+    }
+    
     all_vectors = imrad_service.build_vectors(
         title=db_paper.title,
         sections=imrad_sections,
@@ -408,6 +477,64 @@ async def record_view(paper_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(paper)
     return {"view_count": paper.view_count}
+
+
+@router.get("/{paper_id}/section-pages/{section}", dependencies=[])
+async def get_section_pages(
+    paper_id: int,
+    section: str,
+    db: Session = Depends(get_db),
+):
+    """
+    On-demand: return base64 thumbnails for the pages belonging to a specific
+    IMRAD section of a paper.  Used by detail_win.vue when the user clicks
+    "View Pages" on an IMRAD tab.
+
+    Flow:
+      1. Load paper record → get file_path
+      2. Build page_text_map from the full PDF
+      3. Re-run extract_sections() to get section_pages mapping
+      4. Render only those pages as JPEG thumbnails via extract_page_previews()
+    """
+    VALID_SECTIONS = {"introduction", "methods", "results", "discussion"}
+    if section not in VALID_SECTIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid section '{section}'")
+
+    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    if not paper.file_path or not os.path.exists(paper.file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found on server")
+
+    try:
+        reader = PdfReader(paper.file_path)
+        num_pages = len(reader.pages)
+
+        # Build full page map for IMRAD detection
+        page_text_map: dict = {}
+        for i in range(num_pages):
+            t = reader.pages[i].extract_text()
+            if t:
+                page_text_map[i + 1] = t
+
+        # Re-detect section boundaries
+        extracted = imrad_service.extract_sections(page_text_map)
+        full_section_pages: dict = extracted.get("full_section_pages", {})
+        section_pages_map: dict = full_section_pages or extracted.get("section_pages", {})
+
+        pages_for_section = section_pages_map.get(section, [])
+        if not pages_for_section:
+            return {"pages": [], "message": f"No pages detected for section '{section}'"}
+
+        thumbnails = await ocr_service.extract_page_previews(
+            paper.file_path,
+            imrad_pages=pages_for_section,
+        )
+        return {"pages": thumbnails, "section": section}
+
+    except Exception as e:
+        print(f"[section-pages] Error for paper {paper_id}/{section}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to render section pages: {str(e)}")
 
 
 @router.get("/{paper_id}/cite-status", response_model=CitationStatus)
