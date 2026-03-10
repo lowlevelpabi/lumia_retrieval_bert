@@ -130,6 +130,7 @@ class OCRService:
             cover_text = meta_text[:5000]
             detected_authors = []
 
+            # Strategy 1: ALL CAPS "LAST, FIRST MIDDLE MI." — e.g. DELA CRUZ, JUAN CARLO M.
             all_caps_names = re.findall(
                 r'[A-Z]{2,}(?:\s+[A-Z]+)*,\s+[A-Z]+(?:\s+[A-Z]+)+\s+[A-Z]\.',
                 cover_text
@@ -137,6 +138,7 @@ class OCRService:
             if all_caps_names:
                 detected_authors = [re.sub(r'\s+', ' ', n).strip() for n in all_caps_names[:5]]
 
+            # Strategy 2: Title Case "Last, First Middle MI." — e.g. Dela Cruz, Juan Carlo M.
             if not detected_authors:
                 title_case_names = re.findall(
                     r'[A-Z][a-z]+,\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]*)+\s+[A-Z]\.',
@@ -144,6 +146,27 @@ class OCRService:
                 )
                 if title_case_names:
                     detected_authors = [re.sub(r'\s+', ' ', n).strip() for n in title_case_names[:5]]
+
+            # Strategy 3: Names appear just ABOVE a "Month Year" date line — no "by" label
+            if not detected_authors:
+                date_match = re.search(
+                    # Find possible month name under the author name list, so we can read upward from there to find names without relying on "by" labels which are often missing.
+                    r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}',
+                    cover_text
+                )
+                if date_match:
+                    chunk_before_date = cover_text[max(0, date_match.start() - 400) : date_match.start()]
+                    lines_before = [l.strip() for l in chunk_before_date.split('\n') if l.strip()]
+                    for line in reversed(lines_before):
+                        words = line.split()
+                        # Must be 2–4 words, each Title-cased or ALL CAPS, no digits, no noise
+                        if (2 <= len(words) <= 4
+                                and all(re.match(r'^[A-Z][a-zA-Z\-\.]+$', w) for w in words)):
+                            detected_authors.insert(0, re.sub(r'\s+', ' ', line))
+                        else:
+                            # Stop as soon as we hit a non-name line coming upward
+                            break
+                    detected_authors = detected_authors[:5]
 
             author_fallback = "The system couldn't confidently detect any authors. Please click '+ Add Another Author' below to enter them manually."
             final_author = " | ".join(detected_authors) if detected_authors else author_fallback
