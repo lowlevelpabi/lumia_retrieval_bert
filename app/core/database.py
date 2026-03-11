@@ -7,7 +7,8 @@ from app.models.citation import UserCitation  # Import to register with Base
 from app.models.borrowing import BorrowRecord, Penalty # Import to register with Base
 
 engine = create_engine(
-    settings.DATABASE_URL, connect_args={"check_same_thread": False}
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
