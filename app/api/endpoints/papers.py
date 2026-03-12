@@ -20,6 +20,7 @@ from app.services.vector_db import vector_db
 from app.services.imrad_service import imrad_service
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
+from app.core.hash import encode_id, decode_id
 
 router = APIRouter()
 
@@ -340,18 +341,22 @@ async def search_papers(
 
 @router.get("/{paper_id}/recommendations", response_model=List[SearchResult])
 async def get_paper_recommendations(
-    paper_id: int, 
+    paper_id: str, 
     limit: int = 5,
     author: Optional[str] = None,
     year: Optional[str] = None,
     department: Optional[str] = None
 ):
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
     try:
-        print(f"--- Recommendations requested for Paper ID: {paper_id} ---")
+        print(f"--- Recommendations requested for Paper ID: {real_id} ---")
         
         # Construct Metadata Filter for Qdrant (Narrow Down)
         qdrant_filter = models.Filter(
-            must_not=[models.HasIdCondition(has_id=[paper_id])]
+            must_not=[models.HasIdCondition(has_id=[real_id])]
         )
         
         filter_conditions = []
@@ -365,12 +370,12 @@ async def get_paper_recommendations(
         if filter_conditions:
             qdrant_filter.must = filter_conditions
 
-        results = vector_db.recommend(paper_id, limit=limit, filter_obj=qdrant_filter)
+        results = vector_db.recommend(real_id, limit=limit, filter_obj=qdrant_filter)
         
         search_results = []
         for hit in results:
             search_results.append(SearchResult(
-                id=hit.id,
+                id=encode_id(hit.id),
                 score=hit.score,
                 payload=hit.payload
             ))
@@ -386,14 +391,18 @@ async def get_paper_recommendations(
 
 
 @router.delete("/{paper_id}", dependencies=[Depends(admin_required)])
-async def delete_paper(paper_id: int, db: Session = Depends(get_db)):
-    db_paper = db.query(Paper).filter(Paper.id == paper_id).first()
+async def delete_paper(paper_id: str, db: Session = Depends(get_db)):
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    db_paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not db_paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
     # 1. Delete from Qdrant
     try:
-        vector_db.delete_paper(paper_id)
+        vector_db.delete_paper(real_id)
     except Exception as e:
         print(f"Error deleting from Qdrant: {e}")
 
@@ -411,8 +420,12 @@ async def delete_paper(paper_id: int, db: Session = Depends(get_db)):
     return {"message": f"Paper {paper_id} deleted successfully"}
 
 @router.put("/{paper_id}", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
-async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depends(get_db)):
-    db_paper = db.query(Paper).filter(Paper.id == paper_id).first()
+async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depends(get_db)):
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    db_paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not db_paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
@@ -459,18 +472,26 @@ async def update_paper(paper_id: int, updates: PaperUpdate, db: Session = Depend
 
 
 @router.get("/{paper_id}", response_model=PaperResponse)
-async def get_paper(paper_id: int, db: Session = Depends(get_db)):
+async def get_paper(paper_id: str, db: Session = Depends(get_db)):
     """Fetch a single paper by its ID."""
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     return paper
 
 
 @router.post("/{paper_id}/view", response_model=ViewCountResponse)
-async def record_view(paper_id: int, db: Session = Depends(get_db)):
+async def record_view(paper_id: str, db: Session = Depends(get_db)):
     """Increment view count. Public endpoint — any visit counts."""
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     paper.view_count = (paper.view_count or 0) + 1
@@ -481,7 +502,7 @@ async def record_view(paper_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{paper_id}/section-pages/{section}", dependencies=[])
 async def get_section_pages(
-    paper_id: int,
+    paper_id: str,
     section: str,
     db: Session = Depends(get_db),
 ):
@@ -500,7 +521,11 @@ async def get_section_pages(
     if section not in VALID_SECTIONS:
         raise HTTPException(status_code=400, detail=f"Invalid section '{section}'")
 
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     if not paper.file_path or not os.path.exists(paper.file_path):
@@ -539,41 +564,49 @@ async def get_section_pages(
 
 @router.get("/{paper_id}/cite-status", response_model=CitationStatus)
 async def get_cite_status(
-    paper_id: int,
+    paper_id: str,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     """Check whether the authenticated user has already cited this paper."""
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     has_cited = db.query(UserCitation).filter(
         UserCitation.user_id == current_user.id,
-        UserCitation.paper_id == paper_id
+        UserCitation.paper_id == real_id
     ).first() is not None
     return {"has_cited": has_cited, "citation_count": paper.citation_count}
 
 
 @router.post("/{paper_id}/cite", response_model=CitationStatus)
 async def cite_paper(
-    paper_id: int,
+    paper_id: str,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     """Allow a registered user to cite/vouch for a paper (once per user)."""
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
     already_cited = db.query(UserCitation).filter(
         UserCitation.user_id == current_user.id,
-        UserCitation.paper_id == paper_id
+        UserCitation.paper_id == real_id
     ).first()
 
     if already_cited:
         raise HTTPException(status_code=409, detail="You have already cited this paper")
 
-    citation = UserCitation(user_id=current_user.id, paper_id=paper_id)
+    citation = UserCitation(user_id=current_user.id, paper_id=real_id)
     db.add(citation)
     paper.citation_count = (paper.citation_count or 0) + 1
     db.commit()

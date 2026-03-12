@@ -17,15 +17,21 @@ router = APIRouter()
 
 # ── Borrow Records ────────────────────────────────────────────────
 
+from app.core.hash import decode_id
+
 @router.post("/", response_model=BorrowRecordResponse, dependencies=[Depends(faculty_or_admin_required)])
 async def create_borrow_record(data: BorrowRecordCreate, db: Session = Depends(get_db)):
     # Check if paper exists
-    paper = db.query(Paper).filter(Paper.id == data.paper_id).first()
+    real_id = decode_id(data.paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     
     db_record = BorrowRecord(
-        paper_id=data.paper_id,
+        paper_id=real_id,
         user_id=data.user_id,
         due_date=data.due_date,
         status="Borrowed"

@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict
 from datetime import datetime
+from app.core.hash import encode_id
 
 class PaperBase(BaseModel):
     title: str
@@ -24,14 +25,20 @@ class PaperCreate(PaperBase):
     file_path: str
 
 class PaperResponse(PaperBase):
-    id: int
+    id: str  # Encoded string ID
     created_at: datetime
+
+    @field_validator('id', mode='before')
+    def encode_db_id(cls, v):
+        if isinstance(v, int):
+            return encode_id(v)
+        return v
 
     class Config:
         from_attributes = True
 
 class SearchResult(BaseModel):
-    id: int
+    id: str
     score: float
     payload: dict
 
