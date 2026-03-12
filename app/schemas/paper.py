@@ -89,3 +89,13 @@ class UploadConfirm(BaseModel):
     results: Optional[str] = None
     discussion: Optional[str] = None
 
+class SearchResult(BaseModel):
+    id: str
+    score: float
+    payload: dict
+
+    @field_validator('id', mode='before')
+    def encode_db_id(cls, v):
+        if isinstance(v, int):
+            return encode_id(v)
+        return v
