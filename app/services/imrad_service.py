@@ -8,51 +8,98 @@ from difflib import SequenceMatcher
 
 INCLUDE_ABSTRACT_VECTOR: bool = True
 IMRAD_SECTION_KEYS: List[str] = ["introduction", "methods", "results", "discussion"]
-MAX_SECTION_CHARS: int  = 5000
+
+# ── FIX #1: Raised MAX_SECTION_CHARS to allow multi-page Introduction sections.
+# Old value was 5000, which silently cut off long introductions.
+# 20000 chars ≈ ~3 dense pages; adjust higher if needed.
+MAX_SECTION_CHARS: int  = 20000
 MIN_SECTION_CHARS: int  = 100
 
 # Number of pages shown in the frontend preview per section.
-# The review screen only needs to show the heading page + a few body pages —
-# not every single page of a 90-page Results section.
 PREVIEW_PAGES_PER_SECTION: int = 3
 
 FUZZY_THRESHOLD: float        = 0.60
 EARLY_ACCEPT_THRESHOLD: float = 0.88
-
-# A 'first candidate' (score between FUZZY_THRESHOLD and EARLY_ACCEPT_THRESHOLD)
-# must score at least this high to be accepted. This prevents single body words
-# like 'institutions' (score 0.67) from winning just because they appear first.
 FIRST_CANDIDATE_MIN_SCORE: float = 0.80
-
-# Heading lines shorter than this are almost certainly body words, not headings.
-# 'INTRODUCTION' is 12 chars, 'METHODOLOGY' is 11, 'RESULTS' is 7.
 MIN_HEADING_CHARS: int = 6
 
-# ── Canonical heading vocabulary ─────────────────────────────────────────────
+# ── FIX #2: Expanded HEADING_KEYWORDS to support legacy (older) document formats.
+# Many older Filipino theses use "Chapter I", "Chapter II", "Chapter III", etc.
+# as their ONLY section heading — no "INTRODUCTION" label on the same page.
+# Also added numbered heading variants like "I.", "II.", "III.", "IV.", "V."
+# and common abbreviated forms found in pre-2015 documents.
 HEADING_KEYWORDS: Dict[str, List[str]] = {
     "introduction": [
-        "INTRODUCTION", "CHAPTER I", "CHAPTER 1",
-        "I. INTRODUCTION", "1. INTRODUCTION",
+        # Current format
+        "INTRODUCTION", "I. INTRODUCTION", "1. INTRODUCTION",
+        # Legacy chapter-only headings
+        "CHAPTER I", "CHAPTER 1", "CHAPTER ONE",
+        # Legacy numbered headings (standalone on a line)
+        "I.",
+        # Legacy section labels
+        "THE PROBLEM AND ITS BACKGROUND",
+        "THE PROBLEM AND ITS SETTING",
+        "PROBLEM AND ITS BACKGROUND",
+        "BACKGROUND OF THE STUDY",
+        "INTRODUCTION AND BACKGROUND",
     ],
     "methods": [
+        # Current format
         "METHODOLOGY", "METHODS", "RESEARCH METHODOLOGY",
-        "MATERIALS AND METHODS", "CHAPTER III", "CHAPTER 3",
-        "III. METHODOLOGY", "3. METHODOLOGY",
+        "MATERIALS AND METHODS", "III. METHODOLOGY", "3. METHODOLOGY",
+        # Legacy chapter-only headings
+        "CHAPTER III", "CHAPTER 3", "CHAPTER THREE",
+        # Legacy numbered headings
+        "III.",
+        # Legacy section labels
+        "RESEARCH DESIGN AND METHODOLOGY",
+        "RESEARCH METHOD",
+        "METHOD OF RESEARCH",
+        "METHODS AND PROCEDURES",
+        "RESEARCH PROCEDURES",
+        "DESIGN AND METHODOLOGY",
     ],
     "results": [
-        "RESULTS", "FINDINGS", "CHAPTER IV", "CHAPTER 4",
-        "IV. RESULTS", "4. RESULTS",
+        # Current format
+        "RESULTS", "FINDINGS", "IV. RESULTS", "4. RESULTS",
+        # Legacy chapter-only headings
+        "CHAPTER IV", "CHAPTER 4", "CHAPTER FOUR",
+        # Legacy numbered headings
+        "IV.",
+        # Legacy section labels
+        "PRESENTATION OF DATA",
+        "PRESENTATION AND ANALYSIS OF DATA",
+        "ANALYSIS AND INTERPRETATION",
+        "DATA PRESENTATION",
+        "ANALYSIS AND DISCUSSION OF RESULTS",
+        "PRESENTATION, ANALYSIS AND INTERPRETATION",
+        "DATA ANALYSIS AND INTERPRETATION",
     ],
     "results_and_discussion": [
         "RESULTS AND DISCUSSION", "RESULTS AND DISCUSSIONS",
         "CHAPTER IV RESULTS AND DISCUSSION",
         "IV. RESULTS AND DISCUSSION", "4. RESULTS AND DISCUSSION",
+        # Legacy combined labels
+        "PRESENTATION, ANALYSIS AND INTERPRETATION OF DATA",
+        "ANALYSIS AND INTERPRETATION OF DATA",
     ],
     "discussion": [
+        # Current format
         "CONCLUSION", "CONCLUSIONS", "CONCLUSIONS AND RECOMMENDATIONS",
         "CONCLUSION AND RECOMMENDATION",
         "SUMMARY CONCLUSIONS AND RECOMMENDATIONS",
-        "CHAPTER V", "CHAPTER 5", "V. CONCLUSION", "5. CONCLUSION",
+        "V. CONCLUSION", "5. CONCLUSION",
+        # Legacy chapter-only headings
+        "CHAPTER V", "CHAPTER 5", "CHAPTER FIVE",
+        # Legacy numbered headings
+        "V.",
+        # Legacy section labels
+        "SUMMARY, CONCLUSIONS AND RECOMMENDATIONS",
+        "SUMMARY AND CONCLUSIONS",
+        "SUMMARY, FINDINGS, CONCLUSIONS AND RECOMMENDATIONS",
+        "SUMMARY OF FINDINGS",
+        "IMPLICATIONS AND RECOMMENDATIONS",
+        "SUMMARY AND RECOMMENDATION",
     ],
 }
 
@@ -66,14 +113,18 @@ FALSE_POSITIVE_KEYWORDS: List[str] = [
     "ACKNOWLEDGMENT", "ACKNOWLEDGMENTS", "REFERENCES", "BIBLIOGRAPHY",
     "APPENDIX", "APPENDICES", "LIST OF TABLES", "LIST OF FIGURES",
     "LIST OF APPENDICES", "TABLE OF CONTENTS", "ABSTRACT", "SYNTHESIS",
-    "RESEARCH GAP", "BACKGROUND OF THE STUDY",
+    "RESEARCH GAP",
     "CRITERIA", "RUBRIC", "EVALUATION", "RATING", "SCORE", "SUITABILITY",
+    # FIX #2: Prevent legacy sub-section labels from being scored as section headings
+    "REVIEW OF RELATED LITERATURE AND STUDIES",
+    "REVIEW OF LITERATURE",
+    "CHAPTER II", "CHAPTER 2", "CHAPTER TWO", "II.",  # Review of Literature chapter
+    # Project context / intro sub-sections that must not trigger a new section match
+    "PROJECT CONTEXT", "CONTEXT OF THE STUDY", "CONTEXT OF THE PROJECT",
+    "PURPOSE OF THE STUDY", "PURPOSE OF THE PROJECT",
+    "RELATED WORKS", "RELATED WORK",
 ]
 
-# ── Back-matter heading patterns ─────────────────────────────────────────────
-# When ANY of these appear at the TOP of a page (first 300 chars), that page
-# marks the start of back-matter. Sections never extend past this boundary.
-# This is what stops Results/Discussion from running all the way to page 132.
 BACK_MATTER_PAGE_PATTERNS: List[str] = [
     r"\bREFERENCES\b",
     r"\bBIBLIOGRAPHY\b",
@@ -84,29 +135,46 @@ BACK_MATTER_PAGE_PATTERNS: List[str] = [
     r"\bABOUT\s+THE\s+AUTHOR\b",
 ]
 
-# ── Chapter I sub-section heading patterns ──────────────────────────────────
-# In Filipino thesis format, Chapter I (Introduction) contains many sub-sections
-# like Background of the Study, SOP, Objectives, etc. When any of these appear
-# at the TOP of a page (first 400 chars), that page is the end of the pure
-# Introduction body — we stop the intro's page range there.
-# This means Introduction gets exactly 1 page (or however many pages its own
-# body text spans) rather than bleeding into all 25 pages of Chapter I.
+# ── FIX #3: Revised INTRO_SUBSECTION_PATTERNS for Introduction end-page detection.
+#
+# ROOT CAUSE of the "Introduction capped at 1 page" bug:
+#   _find_intro_end_page() was scanning from intro_start+1 and stopping as soon
+#   as the TOP 400 chars of any page matched one of these patterns. In many
+#   documents, "Background of the Study" appears on the SAME page as
+#   "INTRODUCTION" (or the very next page), so the intro was truncated to 0–1 pages.
+#
+# FIX: We now ONLY stop the Introduction when a sub-section heading appears ALONE
+# at the very top of a page (first 150 chars) — meaning it is clearly a new
+# standalone heading page, not body text that happens to mention these phrases.
+# This allows multi-page introductions to be captured fully (up to 3 pages).
 INTRO_SUBSECTION_PATTERNS: List[str] = [
-    r"\bBackground\s+of\s+the\s+Study\b",
-    r"\bStatement\s+of\s+the\s+Problem\b",
-    r"\bResearch\s+(?:Objectives?|Questions?)\b",
-    r"\bObjectives?\s+of\s+the\s+Study\b",
-    r"\bSignificance\s+of\s+the\s+Study\b",
-    r"\bScope\s+and\s+(?:Delimitation|Limitation)\b",
-    r"\bDefinition\s+of\s+Terms\b",
-    r"\bConceptual\s+Framework\b",
-    r"\bTheoretical\s+Framework\b",
-    r"\bReview\s+of\s+(?:Related\s+)?Literature\b",
-    r"\bHypothes[ie]s\b",
+    r"^\s*Background\s+of\s+the\s+Study\b",
+    r"^\s*Statement\s+of\s+the\s+Problem\b",
+    r"^\s*Research\s+(?:Objectives?|Questions?)\b",
+    r"^\s*Objectives?\s+of\s+the\s+Study\b",
+    r"^\s*Significance\s+of\s+the\s+Study\b",
+    r"^\s*Scope\s+and\s+(?:Delimitation|Limitation)\b",
+    r"^\s*Definition\s+of\s+Terms\b",
+    r"^\s*Conceptual\s+Framework\b",
+    r"^\s*Theoretical\s+Framework\b",
+    r"^\s*Review\s+of\s+(?:Related\s+)?Literature\b",
+    r"^\s*Hypothes[ie]s\b",
+    # Legacy sub-section starts that clearly open a new section page
+    r"^\s*Scope\s+and\s+Delimitation\b",
+    r"^\s*Research\s+Locale\b",
+    # Project context / related works sub-sections
+    r"^\s*Project\s+Context\b",
+    r"^\s*Context\s+of\s+the\s+(?:Study|Project)\b",
+    r"^\s*Purpose\s+of\s+the\s+(?:Study|Project)\b",
+    r"^\s*Related\s+(?:Works?|Studies|Literature)\b",
 ]
 
-# ── TOC / rubric page skip patterns ──────────────────────────────────────────
-# Require multiple co-occurring signals to avoid skipping body pages.
+# ── FIX #3 cont.: Maximum Introduction length in pages.
+# Even if no sub-section heading is detected, cap Introduction at this many pages
+# to prevent it from running into the Literature Review chapter.
+MAX_INTRO_PAGES: int = 3
+
+# TOC / rubric page skip patterns
 SKIP_PAGE_PATTERNS: List[str] = [
     r"\.{4,}",
     r"\bTable\s+of\s+Contents\b",
@@ -119,7 +187,7 @@ SKIP_PAGE_PATTERNS: List[str] = [
     r"(?=.*\bSuitability\s+of\b)(?=.*\bTotal\s+Score\b)",
 ]
 
-# ── Methodology sub-heading checklist ────────────────────────────────────────
+# Methodology sub-heading checklist
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Research Design",            "patterns": [r"Research\s+Design"]},
     {"label": "Research Approach",          "patterns": [r"Research\s+Approach"]},
@@ -165,27 +233,16 @@ def _strip_page_header(
 ) -> str:
     """
     Remove the cover-page header block from the first page of a section.
-
-    Core strategy: find the IMRAD section heading word in the text and cut
-    everything UP TO AND INCLUDING that heading word. What remains is the
-    actual body text. This handles the common pypdf layout where the entire
-    page is one long string:
-      "SMART RESEARCH: AN AI-POWERED... INTRODUCTION The growing number..."
-    After cut: "The growing number..."
-
-    Fallback: if no heading word is found, strip known boilerplate phrases
-    from the first 800 characters individually.
     """
     ALL_SECTION_HEADINGS = sorted(
         [kw for kws in HEADING_KEYWORDS.values() for kw in kws]
         + ["INTRODUCTION", "METHODOLOGY", "METHODS", "RESULTS", "DISCUSSION",
            "CONCLUSION", "FINDINGS"],
-        key=len, reverse=True  # longest first so "RESULTS AND DISCUSSION" beats "RESULTS"
+        key=len, reverse=True
     )
 
     upper_text = text.upper()
 
-    # Find the earliest heading word in the text and cut everything before + including it
     earliest_pos = -1
     earliest_len = 0
     for heading in ALL_SECTION_HEADINGS:
@@ -195,19 +252,16 @@ def _strip_page_header(
             earliest_len = len(heading)
 
     if earliest_pos != -1:
-        # Everything after the heading word is the body
         result = text[earliest_pos + earliest_len:].strip()
         print(f"[IMRAD][strip] Cut header at pos {earliest_pos}, "
               f"heading='{text[earliest_pos:earliest_pos+earliest_len]}', "
               f"body starts: {repr(result[:60])}")
         return result
 
-    # ── Fallback: heading not found, strip boilerplate phrases individually ──
     print("[IMRAD][strip] No heading anchor found — falling back to phrase stripping")
     result = text
 
     if title and title not in ("N/A", ""):
-        # Collapse whitespace in title before matching (pypdf inserts random spaces)
         title_normalized = re.sub(r"\s+", r"\s+", re.escape(title.strip()))
         result = re.sub(title_normalized, " ", result[:800], flags=re.IGNORECASE) + result[800:]
 
@@ -272,10 +326,7 @@ def _is_skip_page(text: str) -> bool:
 
 def _is_back_matter_page(text: str) -> bool:
     """
-    True when the first 300 characters of a page contain a back-matter heading
-    (References, Bibliography, Appendix, etc.).
-    Checking only the top of the page means a body page that *mentions*
-    references in passing won't be treated as a boundary.
+    True when the first 300 characters of a page contain a back-matter heading.
     """
     top = _normalize_text(text)[:300]
     for pat in BACK_MATTER_PAGE_PATTERNS:
@@ -287,7 +338,7 @@ def _is_back_matter_page(text: str) -> bool:
 def _find_back_matter_start(page_text_map: Dict[int, str], after_page: int) -> Optional[int]:
     """
     Return the first page number (at or after `after_page`) whose top content
-    matches a back-matter heading.  Returns None if no such page is found.
+    matches a back-matter heading.
     """
     for pg in sorted(page_text_map.keys()):
         if pg < after_page:
@@ -303,19 +354,37 @@ def _find_intro_end_page(
     next_section_start: int,
 ) -> int:
     """
-    For Introduction specifically: scan pages from intro_start+1 up to
-    next_section_start-1. Return the page BEFORE the first page whose top
-    400 chars contain a Chapter I sub-section heading (Background, SOP, etc.).
-    If no sub-section heading is found, return next_section_start - 1 as normal.
+    FIX #3: Revised Introduction end-page detection.
+
+    Old behaviour: stopped at the first page whose top-400-chars contained any
+    INTRO_SUBSECTION_PATTERN — this meant introductions were almost always cut
+    to 1 page because "Background of the Study" appears very early.
+
+    New behaviour:
+    1. Only stop when a sub-section heading appears in the FIRST 150 chars of a
+       page (i.e., it IS the page heading, not just mentioned in body text).
+    2. Also enforce MAX_INTRO_PAGES as a hard cap so intros never bleed too far.
+    3. Start scanning from intro_start + 1 as before.
     """
+    hard_cap = min(intro_start + MAX_INTRO_PAGES, next_section_start - 1)
+
     for pg in range(intro_start + 1, next_section_start):
+        if pg > hard_cap:
+            print(f"[IMRAD] Introduction capped at page {hard_cap} "
+                  f"(MAX_INTRO_PAGES={MAX_INTRO_PAGES})")
+            return hard_cap
+
         text = page_text_map.get(pg, "")
-        top  = _normalize_text(text)[:400]
-        if any(re.search(pat, top, re.IGNORECASE) for pat in INTRO_SUBSECTION_PATTERNS):
+        # Check only the very top of the page (first 150 chars) for a standalone
+        # sub-section heading. This avoids false-cuts when body text mentions
+        # "Background of the Study" in passing.
+        top = _normalize_text(text)[:150]
+        if any(re.search(pat, top, re.IGNORECASE | re.MULTILINE) for pat in INTRO_SUBSECTION_PATTERNS):
             print(f"[IMRAD] Introduction ends at page {pg - 1} "
-                  f"(sub-section heading found on page {pg})")
+                  f"(sub-section heading detected at top of page {pg})")
             return pg - 1
-    return next_section_start - 1
+
+    return hard_cap
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -383,9 +452,6 @@ def _find_section_page(
                       f"(early accept, score={penalised:.2f})\n")
                 return page_num
 
-            # Only record as first candidate if score clears the higher bar.
-            # This stops weak body-word matches (e.g. 'institutions' 0.67)
-            # from winning just by appearing before the real heading.
             if first_candidate_page is None and penalised >= FIRST_CANDIDATE_MIN_SCORE:
                 first_candidate_page  = page_num
                 first_candidate_score = penalised
@@ -401,6 +467,134 @@ def _find_section_page(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# IMRAD Summary Helpers  (FIX #4)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _extract_intro_subsections(text: str) -> Dict[str, str]:
+    """
+    Extract named sub-sections from Introduction body text.
+    Returns a dict keyed by sub-section label (e.g. 'background', 'objectives').
+    Used by the AI summariser to give context-aware prompts per sub-section.
+    """
+    INTRO_LABELS = {
+        "background":   [r"Background\s+of\s+the\s+Study", r"Introduction\s+Background"],
+        "objectives":   [r"Objectives?\s+of\s+the\s+Study", r"Research\s+Objectives?",
+                         r"Aims?\s+(?:and\s+Objectives?|of\s+the\s+Study)"],
+        "problem":      [r"Statement\s+of\s+the\s+Problem", r"Research\s+(?:Questions?|Problem)"],
+        "significance": [r"Significance\s+of\s+the\s+Study"],
+        "scope":        [r"Scope\s+and\s+(?:Delimitation|Limitation)"],
+    }
+    splits: Dict[str, int] = {}
+    for key, patterns in INTRO_LABELS.items():
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                splits[key] = m.start()
+                break
+
+    if not splits:
+        return {"full": text}
+
+    order = sorted(splits.items(), key=lambda x: x[1])
+    result: Dict[str, str] = {}
+    for idx, (key, start) in enumerate(order):
+        end = order[idx + 1][1] if idx + 1 < len(order) else len(text)
+        result[key] = text[start:end].strip()
+
+    return result
+
+
+def build_imrad_summary_prompt(section_key: str, content: str) -> str:
+    """
+    Build an AI summarisation prompt for a given IMRAD section.
+    Returns a prompt string ready to send to Claude API.
+
+    The output is formatted for 2-column IMRAD display:
+    - Introduction: bullet-summarise each sub-section (Background, Objectives, SOP, etc.)
+    - Methods: summarise each detected sub-heading
+    - Results: concise paragraph summary of key findings
+    - Discussion: concise paragraph summary of conclusions / recommendations
+    """
+    # Truncate to 8000 chars (well within Claude's context) for efficiency
+    content_truncated = content[:8000]
+
+    if section_key == "introduction":
+        return f"""You are summarising the Introduction section of a Filipino undergraduate thesis for display in a 2-column IMRAD layout on an academic repository website.
+
+The Introduction may contain multiple sub-sections such as: Background of the Study, Statement of the Problem, Research Objectives, Significance of the Study, Scope and Delimitation, etc.
+
+Instructions:
+- Identify each sub-section present in the text.
+- For each sub-section, write a concise summary in 2–4 sentences.
+- Use clear headings for each sub-section (e.g., "Background of the Study", "Objectives", "Statement of the Problem").
+- Keep the total summary under 400 words.
+- Write in plain academic prose. No bullet lists.
+- Do not include content from outside the Introduction.
+
+Introduction text:
+---
+{content_truncated}
+---
+
+Respond with the structured summary only. No preamble."""
+
+    elif section_key == "methods":
+        return f"""You are summarising the Methodology section of a Filipino undergraduate thesis for a 2-column IMRAD display on an academic repository website.
+
+The Methodology section may contain sub-headings such as: Research Design, Research Setting, Participants/Respondents, Research Instruments, Data Collection, Data Analysis, Ethical Considerations, Development Model, etc.
+
+Instructions:
+- Identify all sub-headings present in the text.
+- For each sub-heading, write a concise 2–3 sentence summary.
+- Use the original sub-heading as the label.
+- Keep the total summary under 450 words.
+- Write in plain academic prose.
+
+Methodology text:
+---
+{content_truncated}
+---
+
+Respond with the structured summary only. No preamble."""
+
+    elif section_key == "results":
+        return f"""You are summarising the Results/Findings section of a Filipino undergraduate thesis for a 2-column IMRAD display on an academic repository website.
+
+Instructions:
+- Write a concise 3–5 sentence paragraph summarising the key findings.
+- Mention the most significant results or data points.
+- Do not include methodology details or recommendations.
+- Keep the summary under 200 words.
+- Write in plain academic prose.
+
+Results text:
+---
+{content_truncated}
+---
+
+Respond with the summary paragraph only. No preamble."""
+
+    elif section_key == "discussion":
+        return f"""You are summarising the Conclusions and Recommendations section of a Filipino undergraduate thesis for a 2-column IMRAD display on an academic repository website.
+
+Instructions:
+- Write a concise 3–5 sentence paragraph covering: the main conclusions and any recommendations.
+- If both conclusions and recommendations are present, address each briefly.
+- Keep the summary under 200 words.
+- Write in plain academic prose.
+
+Conclusions/Discussion text:
+---
+{content_truncated}
+---
+
+Respond with the summary paragraph only. No preamble."""
+
+    else:
+        return f"Summarise the following academic text in 3–5 sentences:\n\n{content_truncated}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Service
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -412,15 +606,11 @@ class IMRADService:
 
         Returns:
             {
-              'sections':      {section_key: text},
-              'section_pages': {section_key: [all page numbers in section]},
-              'imrad_pages':   sorted flat list of PREVIEW pages only
-                               (start_page + up to PREVIEW_PAGES_PER_SECTION per section)
+              'sections':           {section_key: full_text},
+              'section_pages':      {section_key: [preview page numbers]},
+              'full_section_pages': {section_key: [all page numbers]},
+              'imrad_pages':        sorted flat list of preview pages only
             }
-
-        NOTE: 'section_pages' contains ALL pages for embedding/search purposes.
-              'imrad_pages'   contains only the first few pages per section
-              for the frontend review thumbnail display.
         """
         if not page_input:
             return {"sections": {}, "section_pages": {}, "imrad_pages": []}
@@ -460,8 +650,6 @@ class IMRADService:
         print(f"[IMRAD] Final section pages: {section_start_pages}")
 
         # ── 2. Find the back-matter boundary ─────────────────────────────────
-        # Determine the earliest page that starts References/Appendix/etc.
-        # No section may extend past this page.
         first_imrad_page = min(section_start_pages.values())
         back_matter_start = _find_back_matter_start(
             page_text_map, after_page=first_imrad_page + 1
@@ -474,8 +662,6 @@ class IMRADService:
         result_sections: Dict[str, str]       = {}
         result_pages:    Dict[str, List[int]] = {}
 
-        # Dynamic per-paper strip patterns — title fragments and author names.
-        # These prevent the cover page header from leaking into section text.
         dynamic_strip: List[str] = []
         if title and title not in ("N/A", ""):
             dynamic_strip.append(re.escape(title.strip()))
@@ -493,9 +679,8 @@ class IMRADService:
 
         for i, (section_key, start_pg) in enumerate(sorted_items):
 
-            # End page = page before next section, capped at last_valid_page
             end_pg = last_valid_page
-            next_section_pg = last_valid_page + 1  # default: no next section
+            next_section_pg = last_valid_page + 1
             for j in range(i + 1, len(sorted_items)):
                 next_pg = sorted_items[j][1]
                 if next_pg != start_pg:
@@ -503,9 +688,7 @@ class IMRADService:
                     next_section_pg = next_pg
                     break
 
-            # For Introduction: stop at the first Chapter I sub-section heading
-            # (Background of the Study, SOP, etc.) so it doesn't bleed into
-            # all 25 pages of Chapter I.
+            # FIX #3: Use revised _find_intro_end_page with MAX_INTRO_PAGES cap
             if section_key == "introduction":
                 end_pg = _find_intro_end_page(
                     page_text_map,
@@ -515,40 +698,95 @@ class IMRADService:
 
             section_page_nums = [p for p in all_pages if start_pg <= p <= end_pg]
 
-            raw_content = ""
+            # Build per-page cleaned text so we can prune pages after inline trim
+            page_cleaned_chars: List[int] = []  # cumulative char count after each page
+            cleaned_lines = []
+            running_chars = 0
             for idx_pg, pg in enumerate(section_page_nums):
                 page_text = _normalize_text(page_text_map.get(pg, ""))
-                # Only strip header material from the FIRST page of the section —
-                # subsequent pages won't have the cover/title block.
                 if idx_pg == 0:
                     page_text = _strip_page_header(page_text, title=title, authors=authors)
-                raw_content += page_text + "\n\n"
-
-            cleaned_lines = []
-            for line in raw_content.split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                if any(re.search(bp, line, re.IGNORECASE) for bp in all_boilerplate):
-                    continue
-                if re.fullmatch(r'[\divxIVX]+', line):
-                    continue
-                cleaned_lines.append(line)
+                pg_lines = []
+                for line in page_text.split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if any(re.search(bp, line, re.IGNORECASE) for bp in all_boilerplate):
+                        continue
+                    if re.fullmatch(r'[\divxIVX]+', line):
+                        continue
+                    pg_lines.append(line)
+                if pg_lines:
+                    pg_text_joined = " ".join(pg_lines)
+                    if cleaned_lines:
+                        running_chars += 1  # space separator between pages
+                    cleaned_lines.extend(pg_lines)
+                    running_chars += len(pg_text_joined)
+                page_cleaned_chars.append(running_chars)
 
             final_content = " ".join(cleaned_lines)
 
+            # ── Inline intro truncation ───────────────────────────────────────
+            # Page-level detection only fires when a heading is at the TOP of a
+            # new page. When sub-section labels appear mid-paragraph (e.g. OCR
+            # runs them inline), cut at the first heading that follows a sentence
+            # boundary — not on phrases that appear naturally mid-sentence.
+            if section_key == "introduction":
+                INTRO_INLINE_CUT = [
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Background\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Project\s+Context\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Context\s+of\s+the\s+(?:Study|Project)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Purpose\s+of\s+the\s+(?:Study|Project)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Statement\s+of\s+the\s+Problem\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Objectives?\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Objectives?\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Significance\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Scope\s+and\s+(?:Delimitation|Limitation)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Definition\s+of\s+Terms\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Conceptual\s+Framework\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Theoretical\s+Framework\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Review\s+of\s+(?:Related\s+)?Literature\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Related\s+(?:Works?|Studies)\s+(?:and\s+Literature\s+)?(?:show|discuss|suggest|indicate|reveal|demonstrate|present|provide|highlight|support|confirm|include)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Hypothes[ie]s\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Locale\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Questions?\b",
+                ]
+                cut_pos = len(final_content)
+                for pat in INTRO_INLINE_CUT:
+                    m = re.search(pat, final_content, re.IGNORECASE | re.MULTILINE)
+                    if m:
+                        heading_start = next(
+                            (ci for ci in range(m.start(), m.end()) if final_content[ci].isalpha()),
+                            m.start(),
+                        )
+                        if heading_start < cut_pos:
+                            cut_pos = heading_start
+                if cut_pos < len(final_content):
+                    trimmed = final_content[:cut_pos].rstrip(" .,;")
+                    print(f"[IMRAD] Introduction inline-trimmed at pos {cut_pos} "
+                          f"('{final_content[cut_pos:cut_pos+40].strip()}')")
+                    final_content = trimmed
+                    # Prune section_page_nums to only pages whose content
+                    # falls within the kept portion of text.
+                    kept_pages = []
+                    prev = 0
+                    for pi, pg in enumerate(section_page_nums):
+                        page_end = page_cleaned_chars[pi] if pi < len(page_cleaned_chars) else len(final_content)
+                        if prev < cut_pos:
+                            kept_pages.append(pg)
+                        prev = page_end
+                    if kept_pages:
+                        section_page_nums = kept_pages
+                        print(f"[IMRAD] Introduction pages pruned to {section_page_nums} after inline trim")
+
             if len(final_content) >= MIN_SECTION_CHARS:
+                # FIX #1: Store full content (up to MAX_SECTION_CHARS = 20000)
                 result_sections[section_key] = final_content[:MAX_SECTION_CHARS]
                 result_pages[section_key]    = section_page_nums
                 print(f"[IMRAD] '{section_key}' → pages {section_page_nums}, "
-                      f"{len(final_content)} chars")
+                      f"{len(final_content)} chars (stored {min(len(final_content), MAX_SECTION_CHARS)})")
 
         # ── 4. Build preview structures ───────────────────────────────────────
-        # result_pages      = full page range per section → used for embedding
-        # preview_pages     = flat sorted list of thumbnail page numbers
-        # preview_sec_pages = section_pages capped to PREVIEW_PAGES_PER_SECTION
-        #                     → sent to frontend so badges only appear on the
-        #                       heading page(s), not on Background/SOP/etc.
         preview_sec_pages: Dict[str, List[int]] = {
             key: pages_list[:PREVIEW_PAGES_PER_SECTION]
             for key, pages_list in result_pages.items()
@@ -563,10 +801,10 @@ class IMRADService:
         print(f"[IMRAD] Preview pages for frontend: {preview_pages}")
 
         return {
-            "sections":      result_sections,
-            "section_pages": preview_sec_pages,  # capped — frontend badges only
-            "full_section_pages": result_pages,  # full range — for internal use
-            "imrad_pages":   preview_pages,
+            "sections":           result_sections,
+            "section_pages":      preview_sec_pages,
+            "full_section_pages": result_pages,
+            "imrad_pages":        preview_pages,
         }
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -647,6 +885,25 @@ class IMRADService:
 
         print(f"[IMRAD] Built vectors for: {list(vectors.keys())}")
         return vectors
+
+    def get_summary_prompts(self, sections: Dict[str, str]) -> Dict[str, str]:
+        """
+        FIX #4: Returns a dict of {section_key: prompt_string} for each available
+        section. These prompts are ready to send to Claude API to generate
+        shortened summaries for the 2-column IMRAD view.
+
+        Usage (in your router or background task):
+            prompts = imrad_service.get_summary_prompts(paper.sections)
+            for key, prompt in prompts.items():
+                summary = await call_claude_api(prompt)
+                paper.imrad_summaries[key] = summary
+        """
+        prompts: Dict[str, str] = {}
+        for key in IMRAD_SECTION_KEYS:
+            content = sections.get(key, "")
+            if content and len(content.strip()) >= MIN_SECTION_CHARS:
+                prompts[key] = build_imrad_summary_prompt(key, content)
+        return prompts
 
 
 # Singleton instance

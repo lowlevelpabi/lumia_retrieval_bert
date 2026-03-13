@@ -61,6 +61,25 @@ You can access the interactive documentation (Swagger) at `http://127.0.0.1:8000
 
 ---
 
+## ☁️ Deployment on Railway (PostgreSQL)
+
+To ensure your database is **persistent** (not erased on restart), you must use Railway's PostgreSQL service instead of the local SQLite file.
+
+### 1. Provision PostgreSQL
+In your Railway project, click **New** -> **Database** -> **Add PostgreSQL**.
+
+### 2. Configure Environment Variables
+In your API service settings, add a variable:
+- `DATABASE_URL`: Copy the **Connection URL** from your PostgreSQL service.
+
+### 3. Initialize the Database
+Once deployed, run migrations to create the tables in your persistent PostgreSQL database:
+```bash
+alembic upgrade head
+```
+
+---
+
 ## 📁 Project Structure
 
 - `app/api/endpoints/`: API route definitions.

@@ -19,6 +19,16 @@ def migrate():
         ("degree_program", "TEXT DEFAULT 'N/A'"),
         ("citation_count", "INTEGER DEFAULT 0"),
         ("view_count", "INTEGER DEFAULT 0"),
+        # IMRAD extracted text
+        ("introduction", "TEXT"),
+        ("methods", "TEXT"),
+        ("results", "TEXT"),
+        ("discussion", "TEXT"),
+        # IMRAD summaries (2-column view)
+        ("introduction_summary", "TEXT"),
+        ("methods_summary", "TEXT"),
+        ("results_summary", "TEXT"),
+        ("discussion_summary", "TEXT"),
     ]
 
     for col_name, col_def in columns_to_add:

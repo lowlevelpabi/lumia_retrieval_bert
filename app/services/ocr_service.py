@@ -8,6 +8,7 @@ import base64
 from io import BytesIO
 from pypdf import PdfReader
 from app.services.imrad_service import imrad_service
+from app.services.imrad_summary_service import imrad_summary_service
 
 
 class OCRService:
@@ -291,7 +292,7 @@ class OCRService:
                 detected_keywords = re.sub(r'\s+', ' ', kw_match.group(1).strip())[:300]
 
             if not abstract_text or len(abstract_text.strip()) < 50:
-                abstract_text = "The author of this study doesn't provide any abstract, or it perhaps it is still in manuscript phase or incomplete study."
+                abstract_text = "The author of this study doesn't provide any abstract, perhaps it is still in manuscript phase or incomplete study."
 
             # ── IMRAD Extraction ──────────────────────────────────────────────
             extracted_imrad = {"sections": {}, "section_pages": {}, "imrad_pages": []}
@@ -314,6 +315,70 @@ class OCRService:
             except Exception as imrad_err:
                 print(f"[IMRAD] Extraction failed (non-fatal): {type(imrad_err).__name__} - {imrad_err}")
 
+            # ── Pre-generate IMRAD summaries ──────────────────────────────────
+            # Done HERE (during preview) so the uploader sees summaries in
+            # Step 2 and can correct them before confirming the upload.
+            # The summaries travel back to the frontend in sections_summary
+            # and are stored to DB in papers.py confirm_upload.
+            sections_raw: dict = extracted_imrad.get("sections", {})
+
+            # ── Inline intro truncation ───────────────────────────────────────
+            # When OCR merges a sub-section heading inline with the paragraph
+            # above it (e.g. "...(Dupont, 2024). Project Context Identifying...")
+            # the page-level boundary detection in imrad_service never fires.
+            # Cut the introduction at the first heading that appears at a sentence
+            # or paragraph boundary (after ". ", "! ", "? ", or a newline).
+            # Using boundary anchors prevents cutting on phrases that appear
+            # naturally mid-sentence, e.g. "...systems relying on related studies,
+            # or requiring exact word matching..." should NOT be cut.
+            intro_raw: str = sections_raw.get("introduction", "")
+            if intro_raw:
+                # Each pattern requires the heading to follow a sentence-end or newline.
+                # (?:^|\.\s+|\!\s+|\?\s+|\n\s*) = start of string OR end of sentence.
+                INTRO_INLINE_CUT = [
+                    # Distinctive phrases — safe to match anywhere after a boundary
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Background\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Project\s+Context\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Context\s+of\s+the\s+(?:Study|Project)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Purpose\s+of\s+the\s+(?:Study|Project)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Statement\s+of\s+the\s+Problem\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Objectives?\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Objectives?\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Significance\s+of\s+the\s+Study\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Scope\s+and\s+(?:Delimitation|Limitation)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Definition\s+of\s+Terms\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Conceptual\s+Framework\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Theoretical\s+Framework\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Review\s+of\s+(?:Related\s+)?Literature\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Related\s+(?:Works?|Studies)\s+(?:and\s+Literature\s+)?(?:show|discuss|suggest|indicate|reveal|demonstrate|present|provide|highlight|support|confirm|show|include)\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Hypothes[ie]s\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Locale\b",
+                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Questions?\b",
+                ]
+                cut_pos = len(intro_raw)
+                for pat in INTRO_INLINE_CUT:
+                    m = re.search(pat, intro_raw, re.IGNORECASE | re.MULTILINE)
+                    if m:
+                        # Find the first alpha character in the match — that's
+                        # where the heading word actually starts (skip ". " etc.)
+                        heading_start = next(
+                            (ci for ci in range(m.start(), m.end()) if intro_raw[ci].isalpha()),
+                            m.start(),
+                        )
+                        if heading_start < cut_pos:
+                            cut_pos = heading_start
+                if cut_pos < len(intro_raw):
+                    print(f"[OCR] Introduction inline-trimmed at pos {cut_pos} "
+                          f"('{intro_raw[cut_pos:cut_pos+40].strip()}')")
+                    sections_raw["introduction"] = intro_raw[:cut_pos].rstrip(" .,;")
+            sections_summary: dict = {}
+            try:
+                sections_summary = imrad_summary_service.summarise_all(sections_raw)
+                print(f"[IMRADSummary] Preview summaries generated: "
+                      f"{[k for k, v in sections_summary.items() if v]}")
+            except Exception as sum_err:
+                print(f"[IMRADSummary] Preview generation failed (non-fatal): {sum_err}")
+
             metadata = {
                 "title":                detected_title,
                 "author":               final_author,
@@ -325,7 +390,8 @@ class OCRService:
                 "project_type":         detected_project_type,
                 "citation_count":       0,
                 "detected_subheadings": detected_subs,
-                "sections":             extracted_imrad.get("sections", {}),
+                "sections":             sections_raw,
+                "sections_summary":     sections_summary,
                 "section_pages":        extracted_imrad.get("section_pages", {}),
                 # Flat list of preview page numbers — popped in papers.py before
                 # the response is sent to the frontend.

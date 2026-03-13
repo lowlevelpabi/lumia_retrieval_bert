@@ -1,4 +1,4 @@
-﻿email-validator
+email-validator
 pypdf
 fastapi
 uvicorn
@@ -16,3 +16,7 @@ passlib[bcrypt]
 python-jose[cryptography]
 psycopg2
 hashids
+alembic
+gunicorn
+psycopg2-binary
+httpx

@@ -18,6 +18,7 @@ from app.services.ocr_service import ocr_service
 from app.services.embedding_service import embedding_service
 from app.services.vector_db import vector_db
 from app.services.imrad_service import imrad_service
+from app.services.imrad_summary_service import imrad_summary_service
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 from app.core.hash import encode_id, decode_id
@@ -79,6 +80,28 @@ async def upload_preview(
     imrad_pages: list = metadata.pop("imrad_pages", [])
     is_manuscript: bool = auto_extract and len(imrad_pages) == 0
 
+    # ── Pre-generate IMRAD summaries during preview ───────────────────────────
+    # This runs synchronously before returning so the Step-2 review screen
+    # already shows summarised text. Wrapped in try/except so a summariser
+    # failure never breaks the upload flow.
+    if auto_extract and not is_manuscript:
+        extracted_sections: dict = metadata.get("sections") or {}
+        if extracted_sections and any(extracted_sections.values()):
+            try:
+                import asyncio
+                preview_summaries = await asyncio.to_thread(
+                    imrad_summary_service.summarise_all, extracted_sections
+                )
+                # Only store non-None results
+                metadata["sections_summary"] = {
+                    k: v for k, v in preview_summaries.items() if v
+                }
+                print(f"[Preview] Pre-generated summaries for sections: "
+                      f"{list(metadata['sections_summary'].keys())}")
+            except Exception as sum_err:
+                print(f"[Preview] Summary pre-generation failed (non-fatal): {sum_err}")
+                metadata.setdefault("sections_summary", {})
+
     if auto_extract and imrad_pages:
         # Normal path: smart IMRAD-filtered thumbnails
         pages = await ocr_service.extract_page_previews(temp_path, imrad_pages=imrad_pages)
@@ -99,6 +122,7 @@ async def upload_preview(
         "metadata": metadata,
         "pages": pages,
         "sections": metadata.get("sections", {}),
+        "sections_summary": metadata.get("sections_summary", {}),
         "section_pages": metadata.get("section_pages", {})
     }
 
@@ -143,12 +167,18 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
         degree_program=data.metadata.get("degree_program", "N/A"),
         citation_count=data.metadata.get("citation_count", 0),
         file_path=final_path,
-        
+
         # Save IMRAD sections (manual overrides or defaults)
         introduction=data.introduction,
         methods=data.methods,
         results=data.results,
-        discussion=data.discussion
+        discussion=data.discussion,
+
+        # Save pre-generated summaries from preview (if available)
+        introduction_summary=data.sections_summary.get("introduction") if data.sections_summary else None,
+        methods_summary=data.sections_summary.get("methods") if data.sections_summary else None,
+        results_summary=data.sections_summary.get("results") if data.sections_summary else None,
+        discussion_summary=data.sections_summary.get("discussion") if data.sections_summary else None,
     )
     db.add(db_paper)
     db.commit()
@@ -185,6 +215,31 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
                     imrad_sections[key] = val
                     setattr(db_paper, key, val)
             db.commit()
+
+    # ── IMRAD Summaries ───────────────────────────────────────────────────
+    # Summaries were pre-generated during preview and saved to db_paper above.
+    # Only re-run summarisation if they're still missing (e.g. manuscript path
+    # where auto_extract=False was used and no preview summaries exist).
+    summaries_already_saved = any([
+        db_paper.introduction_summary,
+        db_paper.methods_summary,
+        db_paper.results_summary,
+        db_paper.discussion_summary,
+    ])
+    if not summaries_already_saved:
+        try:
+            summaries = imrad_summary_service.summarise_all(imrad_sections)
+            db_paper.introduction_summary = summaries.get("introduction")
+            db_paper.methods_summary      = summaries.get("methods")
+            db_paper.results_summary      = summaries.get("results")
+            db_paper.discussion_summary   = summaries.get("discussion")
+            db.commit()
+            print(f"[IMRADSummary] Fallback summaries saved for paper {db_paper.id}: "
+                  f"{[k for k, v in summaries.items() if v]}")
+        except Exception as summary_err:
+            print(f"[IMRADSummary] Non-fatal error: {summary_err}")
+    else:
+        print(f"[IMRADSummary] Using pre-generated summaries from preview for paper {db_paper.id}")
 
     # Build the full vector dict: title + abstract (if enabled) + any detected IMRAD sections
     content_for_abstract = selected_content.strip() if selected_content.strip() else db_paper.abstract

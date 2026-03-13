@@ -4,6 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Smart Research API"
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./thesis.db")
+    # Fix for Railway/PostgreSQL: replace postgres:// with postgresql:// if needed
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     QDRANT_PATH: str = "./qdrant_storage"
     COLLECTION_NAME: str = "thesis_papers"
     
