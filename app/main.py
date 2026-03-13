@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.core.config import settings
 from app.api.endpoints import papers, auth, users, borrowing
-from app.core.database import init_db
+from app.core.database import init_db, engine
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -18,6 +19,13 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    # Ensure summary columns exist — safe to run on every deploy (IF NOT EXISTS)
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS introduction_summary TEXT"))
+        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS methods_summary TEXT"))
+        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS results_summary TEXT"))
+        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS discussion_summary TEXT"))
+        conn.commit()
 
 @app.get("/")
 def read_root():
