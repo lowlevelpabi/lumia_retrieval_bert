@@ -21,5 +21,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Use shell form to expand environment variables
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use shell form to expand environment variables and run migrations
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

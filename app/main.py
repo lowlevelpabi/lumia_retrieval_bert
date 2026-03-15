@@ -16,18 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-'''
 @app.on_event("startup")
 def startup_event():
     init_db()
-    # Ensure summary columns exist — safe to run on every deploy (IF NOT EXISTS)
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS introduction_summary TEXT"))
-        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS methods_summary TEXT"))
-        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS results_summary TEXT"))
-        conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS discussion_summary TEXT"))
-        conn.commit()
-'''
 
 @app.get("/")
 def read_root():
