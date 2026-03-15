@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+'''
 @app.on_event("startup")
 def startup_event():
     init_db()
@@ -26,6 +27,7 @@ def startup_event():
         conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS results_summary TEXT"))
         conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS discussion_summary TEXT"))
         conn.commit()
+'''
 
 @app.get("/")
 def read_root():

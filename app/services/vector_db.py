@@ -131,4 +131,3 @@ class VectorDB:
         return results.points
 
 vector_db = VectorDB()
-
