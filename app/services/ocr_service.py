@@ -100,7 +100,11 @@ class OCRService:
             # ── Title ─────────────────────────────────────────────────────────
             TITLE_STOP_PATTERNS = [
                 r'\b(submitted|presented|in partial|fulfillment|requirements|degree|bachelor|undergraduate|thesis|capstone|adviser|supervisor|prepared)\b',
-                r'\b(cavite|university|college|department|imus|campus)\b',
+                r'\b(cavite|university|college|department|campus)\b',
+                # "imus" only stops when paired with campus/city context —
+                # NOT when it appears in a title phrase like "FOR PESO IMUS"
+                r'\bimus\s+campus\b',
+                r'^imus\s*city',
                 r'^(by|presented by|submitted by)$',
                 r'\b(20[1-2][0-9])\b',
                 r'[A-Z]{2,},\s+[A-Z]+',
@@ -128,53 +132,273 @@ class OCRService:
             print("=====  [END DIAGNOSIS] =====\n")
 
             # ── Authors ───────────────────────────────────────────────────────
-            cover_text = meta_text[:5000]
+            # Step 1: truncate cover_text at the first biographical/back-matter
+            # boundary. Everything after "BIOGRAPHICAL DATA", "BIOGRAPHY",
+            # "ACKNOWLEDGMENT", page-number-only lines like "iii", or approval
+            # sheet anchors is noise — addresses, dates, and place names in bios
+            # look exactly like author names to any regex.
+            COVER_END_ANCHORS = re.compile(
+                r'(?:^|\n)(?:'
+                r'BIOGRAPHICAL\s+DATA|BIOGRAPHY|ABOUT\s+THE\s+AUTHORS?|'
+                r'ACKNOWLEDGMENT|TABLE\s+OF\s+CONTENTS'
+                r')\b',
+                re.IGNORECASE
+            )
+            raw_cover = meta_text[:6000]
+            end_match = COVER_END_ANCHORS.search(raw_cover)
+            cover_text = raw_cover[:end_match.start()].strip() if end_match else raw_cover
+
+            # Also stop at the first roman-numeral page marker (iii, iv, v…)
+            # which marks the start of front-matter beyond the title page
+            roman_pg = re.search(r'\n\s*(iii|iv|vi|vii|viii)\s*\n', cover_text, re.IGNORECASE)
+            if roman_pg:
+                cover_text = cover_text[:roman_pg.start()].strip()
+
+            print(f"[OCR] Author scan region: {len(cover_text)} chars "
+                  f"({'truncated at: ' + repr(end_match.group().strip()[:30]) if end_match else 'full cover'})")
+
             detected_authors = []
 
-            # Strategy 1: ALL CAPS "LAST, FIRST MIDDLE MI." — e.g. DELA CRUZ, JUAN CARLO M.
+            # Strategy 1: ALL CAPS "LAST, FIRST [MIDDLE] [MI.]"
+            # Tightened regex: last name is 2–20 chars (prevents long noise words
+            # like DEVELOPMENTAL prepending to a real name), and the whole match
+            # must sit on its own line (anchored by line boundaries or newlines).
+            # e.g. BILLONES, PRINCE ISIAH R.  /  DELA CRUZ, JUAN CARLO
             all_caps_names = re.findall(
-                r'[A-Z]{2,}(?:\s+[A-Z]+)*,\s+[A-Z]+(?:\s+[A-Z]+)+\s+[A-Z]\.',
-                cover_text
+                # Use [ ]+ (literal space) not \s+ so the regex never
+                # crosses newlines and merges two author names into one.
+                r'(?:^|\n)([A-Z]{2,20}(?:[ ]+[A-Z]{2,20})?,[ ]+[A-Z]{2,20}(?:[ ]+[A-Z]{2,20}){0,2}(?:[ ]+[A-Z]\.)?)(?=[ ]*$|[ ]*\n)',
+                cover_text, re.MULTILINE
             )
+            # re.findall with a group returns only the group — strip whitespace
+            all_caps_names = [m.strip() for m in all_caps_names]
             if all_caps_names:
-                detected_authors = [re.sub(r'\s+', ' ', n).strip() for n in all_caps_names[:5]]
+                NAME_NOISE = re.compile(
+                    r'\b(UNIVERSITY|COLLEGE|DEPARTMENT|CAMPUS|CAVITE|BACHELOR|SCIENCE|'
+                    r'THESIS|CAPSTONE|SUBMITTED|PARTIAL|FULFILLMENT|REQUIREMENTS|'
+                    r'DEVELOPMENTAL|APPROVAL|PROPOSAL|RESEARCH|DEGREE|COURSE|'
+                    r'ADVISER|CHAIRPERSON|COORDINATOR|ADMINISTRATOR|CRITIC)\b'
+                )
+                # Deduplicate while preserving order
+                seen_upper = set()
+                filtered = []
+                for n in all_caps_names:
+                    clean = re.sub(r'\s+', ' ', n).strip()
+                    key   = clean.upper()
+                    if not NAME_NOISE.search(clean) and len(clean.split()) >= 2 and key not in seen_upper:
+                        filtered.append(clean)
+                        seen_upper.add(key)
+                if filtered:
+                    detected_authors = filtered[:5]
 
-            # Strategy 2: Title Case "Last, First Middle MI." — e.g. Dela Cruz, Juan Carlo M.
+            # Strategy 2: Title Case "Last, First [Middle] [MI.]"
+            # e.g. Dela Cruz, Juan Carlo M.  /  Santos, Maria Anna
+            # Geography filter blocks place names that match the Last, First pattern
+            # e.g. "Imus, Cavite" / "Santa Cruz, Manila" / "City, Metro Manila"
             if not detected_authors:
                 title_case_names = re.findall(
-                    r'[A-Z][a-z]+,\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]*)+\s+[A-Z]\.',
+                    r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]*)*(?:\s+[A-Z]\.)?(?=\s|$|\n)',
                     cover_text
                 )
                 if title_case_names:
-                    detected_authors = [re.sub(r'\s+', ' ', n).strip() for n in title_case_names[:5]]
+                    GEO_NOISE = re.compile(
+                        r'\b(Cavite|Manila|Imus|Bacoor|Laguna|Batangas|Quezon|Makati|'
+                        r'Pasig|Taguig|Paranaque|Caloocan|Malabon|Muntinlupa|'
+                        r'Metro|City|Province|Municipality|Barangay|Street|Avenue|'
+                        r'Subdivision|Village|Compound|Block|Lot|Phase|'
+                        r'January|February|March|April|May|June|July|August|'
+                        r'September|October|November|December|Monday|Tuesday|'
+                        r'Wednesday|Thursday|Friday|Saturday|Sunday)\b',
+                        re.IGNORECASE
+                    )
+                    filtered_tc = [
+                        re.sub(r'\s+', ' ', n).strip()
+                        for n in title_case_names
+                        if not GEO_NOISE.search(n)
+                    ]
+                    if filtered_tc:
+                        detected_authors = filtered_tc[:5]
 
-            # Strategy 3: Names appear just ABOVE a "Month Year" date line — no "by" label
+            # Strategy 3: Names above a "Month Year" date line
+            # Scans upward from the date — collects consecutive name-shaped lines
+            # even if they have no trailing initial (handles missing MI. format)
             if not detected_authors:
                 date_match = re.search(
-                    # Find possible month name under the author name list, so we can read upward from there to find names without relying on "by" labels which are often missing.
-                    r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}',
+                    r'(?:January|February|March|April|May|June|July|August|September|'
+                    r'October|November|December)\s+20\d{2}',
                     cover_text
                 )
                 if date_match:
-                    chunk_before_date = cover_text[max(0, date_match.start() - 400) : date_match.start()]
+                    chunk_before_date = cover_text[max(0, date_match.start() - 600) : date_match.start()]
                     lines_before = [l.strip() for l in chunk_before_date.split('\n') if l.strip()]
+                    NAME_LINE_RE = re.compile(
+                        r'^[A-Z][a-zA-Z\-\.]+(?:\s+[A-Z][a-zA-Z\-\.]+){1,5}(?:\s+[A-Z]\.)?$'
+                    )
+                    NOISE_LINE_RE = re.compile(
+                        r'\b(University|College|Department|Campus|Cavite|Bachelor|'
+                        r'Science|Thesis|Capstone|Submitted|Partial|Fulfillment|'
+                        r'Requirements|Prepared|Supervision|Adviser|April|January|'
+                        r'February|March|May|June|July|August|September|October|'
+                        r'November|December)\b',
+                        re.IGNORECASE
+                    )
                     for line in reversed(lines_before):
-                        words = line.split()
-                        # Must be 2–4 words, each Title-cased or ALL CAPS, no digits, no noise
-                        if (2 <= len(words) <= 4
-                                and all(re.match(r'^[A-Z][a-zA-Z\-\.]+$', w) for w in words)):
+                        if NAME_LINE_RE.match(line) and not NOISE_LINE_RE.search(line):
                             detected_authors.insert(0, re.sub(r'\s+', ' ', line))
-                        else:
-                            # Stop as soon as we hit a non-name line coming upward
+                        elif detected_authors:
+                            # Stop only if we already collected some names — avoids
+                            # breaking too early on blank institutional lines
                             break
                     detected_authors = detected_authors[:5]
+
+            # Strategy 4: "LAST, FIRST" style anywhere near "by" / "Submitted by"
+            # Handles formats that introduce authors with an explicit label
+            if not detected_authors:
+                by_match = re.search(
+                    r'(?:by|submitted by|presented by|prepared by)[:\s]+'
+                    r'([A-Z][a-zA-Z\s\.\,]+?)'
+                    r'(?=\n|submitted|prepared|adviser|department|college|cavite|\Z)',
+                    cover_text, re.IGNORECASE
+                )
+                if by_match:
+                    raw_by = by_match.group(1).strip()
+                    # Split on newlines or common separators to get individual names
+                    candidates = [l.strip() for l in re.split(r'[\n;]', raw_by) if l.strip()]
+                    for c in candidates[:5]:
+                        if len(c.split()) >= 2:
+                            detected_authors.append(re.sub(r'\s+', ' ', c))
+
+            # Strategy 5: Look for "Contribution No." block — authors appear just before it
+            # Many CvSU theses have "...prepared under the supervision of -. Contribution No.__"
+            # and the authors are the 2–4 lines immediately before that block
+            if not detected_authors:
+                contrib_match = re.search(
+                    r'Contribution\s+No\.?',
+                    cover_text, re.IGNORECASE
+                )
+                if contrib_match:
+                    chunk = cover_text[max(0, contrib_match.start() - 500) : contrib_match.start()]
+                    clines = [l.strip() for l in chunk.split('\n') if l.strip()]
+                    NAME_LINE_RE2 = re.compile(
+                        r'^[A-Z][a-zA-Z\-\.]+(?:\s+[A-Z][a-zA-Z\-\.]+){1,5}(?:\s+[A-Z]\.)?$'
+                    )
+                    NOISE_LINE_RE2 = re.compile(
+                        r'\b(University|College|Department|Campus|Cavite|Bachelor|'
+                        r'Science|Thesis|Capstone|Submitted|Partial|Fulfillment|'
+                        r'Requirements|Prepared|Supervision|Adviser|undergraduate)\b',
+                        re.IGNORECASE
+                    )
+                    for line in reversed(clines):
+                        if NAME_LINE_RE2.match(line) and not NOISE_LINE_RE2.search(line):
+                            detected_authors.insert(0, re.sub(r'\s+', ' ', line))
+                        elif detected_authors:
+                            break
+                    detected_authors = detected_authors[:5]
+
+            # Deduplicate final author list (safety net for all strategies)
+            seen = set()
+            unique_authors = []
+            for a in detected_authors:
+                key = re.sub(r'\s+', ' ', a).strip().upper()
+                if key not in seen:
+                    unique_authors.append(a)
+                    seen.add(key)
+            detected_authors = unique_authors[:5]
 
             author_fallback = "The system couldn't confidently detect any authors. Please click '+ Add Another Author' below to enter them manually."
             final_author = " | ".join(detected_authors) if detected_authors else author_fallback
 
             # ── Abstract ──────────────────────────────────────────────────────
+            # Two boilerplate formats exist in CvSU theses:
+            #
+            #   Format A — separator line present:
+            #       ABSTRACT
+            #       ─────────────────────────────────
+            #       [Actual abstract prose starts here]
+            #
+            #   Format B — no separator (the problematic one shown in the image):
+            #       ABSTRACT
+            #
+            #       Author1, Author2, Author3
+            #       Title of Study. Degree. Institution. Month Year. Adviser: Name.
+            #
+            #       [Actual abstract prose starts here]
+            #
+            # In Format B the entire header block is 1–3 lines of continuous text.
+            # The approach:
+            #   Step 1 — strip the boilerplate PARAGRAPH as a whole chunk using
+            #            a terminus pattern (Adviser: ...) so we skip it entirely
+            #            even when it contains no newlines.
+            #   Step 2 — fall back to the line-by-line skip for any remaining
+            #            boilerplate lines that appear after the chunk.
+
+            # ── Boilerplate terminus patterns ─────────────────────────────────
+            # The inline boilerplate paragraph always ends with one of these:
+            #   "Adviser: Name."  /  "Adviser's Name."  /  "Month YYYY."
+            # Everything from the ABSTRACT keyword up to and including the
+            # terminus is discarded before the line-by-line pass runs.
+            # Takes the LAST terminus match — Adviser: always follows the date
+            # so we correctly skip past both when both are present.
+            BOILERPLATE_TERMINUS_RE = re.compile(
+                r'(?:'
+                r'Adviser\s*[:\s]+[A-Za-z][A-Za-z\s\.]{2,50}\.|'
+                r'(?:January|February|March|April|May|June|July|August|'
+                r'September|October|November|December)\s+20\d{2}\.'
+                r')',
+                re.IGNORECASE
+            )
+
+            # ── Line-level skip patterns ───────────────────────────────────────
+            ABSTRACT_SKIP_PATTERNS = [
+                r"An undergraduate thesis(?:\s+outline)?\s+submitted",
+                r"Cavite\s+State\s+University",
+                r"CvSU",
+                r"Imus\s+Campus",
+                r"Imus\s+City",
+                r"in\s+partial\s+fulfillment",
+                r"requirements\s+for\s+the\s+degree",
+                r"Bachelor\s+of\s+Science",
+                r"Prepared\s+under\s+the\s+supervision",
+                r"Adviser\s*:",
+                r"Department\s+of\s+[A-Za-z\s]+",
+                r"College\s+of\s+[A-Za-z\s]+",
+                r"Contribution\s+No\.?",
+                r"undergraduate\s+thesis",
+                r"^(?:January|February|March|April|May|June|July|August|"
+                r"September|October|November|December)\s+20\d{2}$",
+                r"^20[1-2]\d$",
+            ]
+            if detected_title and detected_title not in ("N/A", "Untitled", ""):
+                ABSTRACT_SKIP_PATTERNS.append(
+                    re.escape(detected_title.strip().rstrip("."))
+                )
+                for _frag in detected_title.split():
+                    if len(_frag) > 8:
+                        ABSTRACT_SKIP_PATTERNS.append(fr"^{re.escape(_frag)}$")
+            if detected_authors:
+                for _auth in detected_authors:
+                    ABSTRACT_SKIP_PATTERNS.append(re.escape(_auth.strip()))
+
+            def _is_abstract_boilerplate(line: str) -> bool:
+                """Return True if this line is institutional header content."""
+                if not line:
+                    return True
+                if re.match(r'^\d+$', line) or re.match(r'^[ivxIVX]+$', line):
+                    return True
+                if line.upper() in ("ABSTRACT", "SUMMARY", "ABSTRACT:", "SUMMARY:"):
+                    return True
+                if any(re.search(p, line, re.IGNORECASE) for p in ABSTRACT_SKIP_PATTERNS):
+                    return True
+                # ALL-CAPS author line  e.g. "BILLONES, PRINCE ISIAH R."
+                if re.match(r'^[A-Z]{2,}(?:\s+[A-Z]+)*,\s+[A-Z]+', line):
+                    return True
+                # Title-case author line  e.g. "Billones, Prince Isiah R."
+                if re.match(r'^[A-Z][a-z]+,\s+[A-Z][a-z]+', line):
+                    return True
+                return False
+
             abstract_text = ""
-            found_start = -1
+            found_start   = -1
             for pattern in [r'\bABSTRACT\b', r'\bSUMMARY\b', r'\bAbstract\b']:
                 match = re.search(pattern, meta_text)
                 if match:
@@ -183,55 +407,55 @@ class OCRService:
 
             if found_start != -1:
                 abstract_text_raw = meta_text[found_start:].strip()
-                raw_lines = abstract_text_raw.split('\n')
-                cleaned_lines = []
-                skip_patterns = [
-                    r"An undergraduate thesis (?:outline )?submitted to the faculty of.*",
-                    r"Cavite State University.*",
-                    r"in partial fulfillment of the requirements for the degree of.*",
-                    r"Bachelor of Science in [A-Za-z\s]+(?: with Contribution no.*)?",
-                    r"Prepared under the supervision of.*",
-                    r"Adviser:.*",
-                    r"Department of [A-Za-z\s]+",
-                    r"College of [A-Za-z\s]+",
-                    r"[A-Z][a-z]+ \d{4}",
-                    r"Imus Campus, Imus City, Cavite"
-                ]
-                if detected_title and detected_title != "Untitled":
-                    skip_patterns.append(fr"^{re.escape(detected_title.strip().rstrip('.'))}\.?")
-                    # Also strip each long word of the title appearing alone on a line
-                    for _frag in detected_title.split():
-                        if len(_frag) > 8:
-                            skip_patterns.append(fr"^{re.escape(_frag)}$")
-                # Strip author name lines from abstract
-                if detected_authors:
-                    for _auth in detected_authors:
-                        skip_patterns.append(re.escape(_auth.strip()))
 
+                # ── Step 1: strip inline boilerplate paragraph (Format B) ─────
+                # Find the last occurrence of a boilerplate terminus within the
+                # first 1200 chars (the header block is never longer than that).
+                # If found, discard everything up to and including that terminus.
+                search_window = abstract_text_raw[:1200]
+                last_terminus = None
+                for m in BOILERPLATE_TERMINUS_RE.finditer(search_window):
+                    last_terminus = m
+                if last_terminus:
+                    print(f"[OCR] Abstract boilerplate paragraph stripped "
+                          f"(terminus: {repr(last_terminus.group()[:60])})")
+                    abstract_text_raw = abstract_text_raw[last_terminus.end():].strip()
+
+                # ── Step 2: line-by-line skip for remaining boilerplate ────────
+                raw_lines     = abstract_text_raw.split('\n')
+                cleaned_lines = []
                 start_collecting = False
+
                 for line in raw_lines:
                     line = line.strip()
-                    if not line:
-                        continue
                     if not start_collecting:
-                        is_boilerplate = any(re.search(p, line, re.IGNORECASE) for p in skip_patterns)
-                        is_page_num    = re.match(r'^\d+$', line) or re.match(r'^[ivx]+$', line, re.IGNORECASE)
-                        is_short_label = (line.isupper() and len(line) < 100) or len(line) < 20
-                        if is_boilerplate or line.upper() == "ABSTRACT" or is_short_label or is_page_num:
+                        if _is_abstract_boilerplate(line):
                             continue
-                        else:
-                            start_collecting = True
+                        # Require ≥40 chars — prevents stray title fragments from
+                        # triggering collection prematurely
+                        if len(line) < 40:
+                            continue
+                        start_collecting = True
                     if start_collecting:
-                        if re.match(r'^\d+$', line) or re.match(r'^[ivx]+$', line, re.IGNORECASE):
+                        if re.match(r'^\d+$', line) or re.match(r'^[ivxIVX]+$', line):
                             continue
+                        # Stop at an ALL-CAPS section heading
+                        if re.match(r'^[A-Z][A-Z\s]{4,}$', line) and len(line) < 60:
+                            break
                         cleaned_lines.append(line)
 
                 abstract_text = " ".join(cleaned_lines)
-                for stop in ["TABLE OF CONTENTS", "ACKNOWLEDGMENTS", "LIST OF TABLES", "INTRODUCTION", "CHAPTER I"]:
+
+                # Hard stop at known section boundaries
+                for stop in [
+                    "TABLE OF CONTENTS", "ACKNOWLEDGMENT", "LIST OF TABLES",
+                    "LIST OF FIGURES", "INTRODUCTION", "CHAPTER I", "CHAPTER 1",
+                ]:
                     stop_idx = abstract_text.upper().find(stop)
                     if stop_idx != -1 and stop_idx > 100:
                         abstract_text = abstract_text[:stop_idx].strip()
                         break
+
                 abstract_text = abstract_text[:2500].strip()
 
             if not abstract_text or len(abstract_text) < 100 or len(meta_text) < 200:
@@ -283,13 +507,23 @@ class OCRService:
                     break
 
             # ── Keywords ──────────────────────────────────────────────────────
+            # Require keyword label at LINE START to avoid matching 'keyword'
+            # mid-sentence in abstract body (e.g. 'keyword-based search...')
             detected_keywords = ""
             kw_match = re.search(
-                r'[Kk]eywords?\s*[:\-–]\s*(.+?)(?:\n\n|\.\s+[A-Z]|$)',
+                r'(?:^|\n)[Kk]eywords?\s*[:\-\u2013]\s*(.+?)(?:\n\n|\n[A-Z]|$)',
                 meta_text, re.DOTALL
             )
             if kw_match:
-                detected_keywords = re.sub(r'\s+', ' ', kw_match.group(1).strip())[:300]
+                raw_kw = re.sub(r'\s+', ' ', kw_match.group(1).strip())
+                # Real keyword list has commas/semicolons separating short terms.
+                # Body text captured by mistake is long with no separators.
+                has_separator = bool(re.search(r'[,;]', raw_kw))
+                if has_separator or len(raw_kw) <= 80:
+                    detected_keywords = raw_kw[:300]
+                else:
+                    print(f"[OCR] Keyword match rejected (no separator, >80 chars): "
+                          f"{repr(raw_kw[:60])}")
 
             if not abstract_text or len(abstract_text.strip()) < 50:
                 abstract_text = "The author of this study doesn't provide any abstract, perhaps it is still in manuscript phase or incomplete study."
@@ -367,10 +601,20 @@ class OCRService:
                         )
                         if heading_start < cut_pos:
                             cut_pos = heading_start
-                if cut_pos < len(intro_raw):
+                # Only apply the cut if there is enough content before it.
+                # MIN_INTRO_BEFORE_CUT: the opening paragraph must be at least
+                # this many characters — if the sub-section heading appears
+                # earlier than this, the document's introduction IS the sub-sections
+                # (no separate opening paragraph) and we should not cut.
+                MIN_INTRO_BEFORE_CUT = 400
+                if cut_pos < len(intro_raw) and cut_pos >= MIN_INTRO_BEFORE_CUT:
                     print(f"[OCR] Introduction inline-trimmed at pos {cut_pos} "
                           f"('{intro_raw[cut_pos:cut_pos+40].strip()}')")
                     sections_raw["introduction"] = intro_raw[:cut_pos].rstrip(" .,;")
+                elif cut_pos < MIN_INTRO_BEFORE_CUT:
+                    print(f"[OCR] Introduction inline-trim SKIPPED — "
+                          f"cut_pos={cut_pos} < {MIN_INTRO_BEFORE_CUT} "
+                          f"(sub-section heading is the opening, keeping full intro)")
             sections_summary: dict = {}
             try:
                 sections_summary = imrad_summary_service.summarise_all(sections_raw)

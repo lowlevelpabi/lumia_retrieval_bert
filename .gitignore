@@ -23,3 +23,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints
+
+# Model weights and checkpoints
+imrad_nli_model/

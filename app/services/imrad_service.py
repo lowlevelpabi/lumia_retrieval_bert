@@ -205,7 +205,11 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"Cavite State University", r"CvSU", r"Imus Campus",
     r"Bachelor of Science", r"in partial fulfillment",
     r"requirements for the degree", r"prepared under the supervision",
-    r"Adviser\s*:", r"Department of ", r"College of ",
+    r"Adviser\s*:",
+    # Anchored so they only match standalone institutional lines,
+    # NOT body sentences like "The Department of Labor and Employment..."
+    r"^\s*Department of [A-Za-z\s]+$",
+    r"^\s*College of [A-Za-z\s]+$",
     r"Undergraduate Thesis", r"undergraduate thesis",
     r"submitted to the faculty", r"An undergraduate thesis",
     r"Contribution No\.",

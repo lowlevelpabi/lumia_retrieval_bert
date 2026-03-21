@@ -44,7 +44,7 @@ from typing import Dict, List, Optional, Tuple
 # ── Constants (previously imported from imrad_service — defined locally to avoid
 #    a circular/missing import that silently kills the whole module) ──────────
 IMRAD_SECTION_KEYS = ["introduction", "methods", "results", "discussion"]
-MIN_SECTION_CHARS  = 80   # minimum chars for a section to be worth summarising
+MIN_SECTION_CHARS  = 50   # minimum chars for a section to be worth summarising
 
 # Methodology sub-heading patterns used by _split_methods_by_subheadings.
 # Kept in sync with imrad_service.METHODOLOGY_SUBHEADINGS.
@@ -303,12 +303,45 @@ def _split_methods_by_subheadings(text: str) -> List[Tuple[str, str]]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _summarise_introduction(text: str) -> str:
-    # Summarise the Introduction as a single block.
-    # n=5: pick the 5 highest-scoring sentences from the pool. Even a short
-    # trimmed intro (~8 sentences) will produce a real 5-sentence summary
-    # rather than returning everything unchanged.
-    summary = _top_sentences(text, 5)
-    return _truncate_to_sentence(summary, MAX_SUMMARY_CHARS)
+    """
+    Summarise the Introduction section.
+
+    If the introduction has detectable sub-sections (Background of the Study,
+    Statement of the Problem, Objectives, etc.), summarise each sub-section
+    with a label — this handles documents where the intro consists entirely of
+    named sub-sections with no separate opening paragraph.
+
+    If no sub-sections are detected, summarise as a single prose block.
+    """
+    parts = _split_into_intro_subsections(text)
+
+    # Single block (no sub-sections found) — summarise as one paragraph
+    if len(parts) == 1 and parts[0][0] == "Introduction":
+        summary = _top_sentences(text, 5)
+        return _truncate_to_sentence(summary, MAX_SUMMARY_CHARS)
+
+    # Multiple sub-sections — summarise each with its label
+    blocks: list = []
+    for label, body in parts:
+        if not body or len(body.strip()) < MIN_SENTENCE_CHARS:
+            continue
+        sentences = _split_sentences(body)
+        # Take up to 3 sentences per sub-section, or all if fewer
+        n = min(3, len(sentences)) if sentences else 0
+        if n == 0:
+            # Body has no proper sentences — use first 200 chars as fallback
+            snippet = body.strip()[:200].rstrip(" ,;")
+            if snippet:
+                blocks.append(f"{label}\n{snippet}")
+        else:
+            ranked = _score_sentences(sentences)
+            top_idx = sorted([i for i, _ in ranked[:n]])
+            summary = " ".join(sentences[i] for i in top_idx)
+            if summary.strip():
+                blocks.append(f"{label}\n{summary.strip()}")
+
+    result = "\n\n".join(blocks)
+    return _truncate_to_sentence(result, MAX_SUMMARY_CHARS) if result.strip() else _truncate_to_sentence(text, MAX_SUMMARY_CHARS)
 
 
 def _summarise_methods(text: str) -> str:
