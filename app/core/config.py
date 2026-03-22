@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     
     QDRANT_PATH: str = "./qdrant_storage"
     COLLECTION_NAME: str = "thesis_papers"
+    DEFAULT_SEARCH_THRESHOLD: float = 0.15
     
     SECRET_KEY: str = "SUPER_SECRET_KEY_REPLACE_THIS_IN_PRODUCTION"
     ALGORITHM: str = "HS256"

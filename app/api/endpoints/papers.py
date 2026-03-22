@@ -7,6 +7,7 @@ import os
 import uuid
 from qdrant_client.http import models
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.paper import Paper
 from app.models.citation import UserCitation
@@ -261,7 +262,8 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
             "keywords": db_paper.keywords,
             "project_type": db_paper.project_type,
             "degree_program": db_paper.degree_program,
-            "citation_count": db_paper.citation_count
+            "citation_count": db_paper.citation_count,
+            "view_count": db_paper.view_count
         }
     )
 
@@ -271,10 +273,18 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
 async def list_papers(db: Session = Depends(get_db)):
     return db.query(Paper).all()
 
+@router.get("/search/config")
+async def get_search_config():
+    """Return the default search configuration (threshold, etc.) to the frontend."""
+    return {
+        "default_threshold": settings.DEFAULT_SEARCH_THRESHOLD
+    }
+
 @router.get("/search", response_model=List[SearchResult])
 async def search_papers(
-    query: str, 
-    threshold: float = 0.2, 
+    db: Session = Depends(get_db),
+    query: Optional[str] = None, 
+    threshold: Optional[float] = None, 
     author: Optional[str] = None,
     year: Optional[str] = None,
     min_year: Optional[int] = None,
@@ -282,109 +292,101 @@ async def search_papers(
     department: Optional[str] = None,
     project_type: Optional[str] = None,
     degree_program: Optional[str] = None,
-    section: Optional[str] = None,  # IMRAD section targeting: 'introduction','methods','results','discussion'
-    db: Session = Depends(get_db)
+    section: Optional[str] = None,
+    limit: int = 50
 ):
+    """
+    Unified search: handles both metadata filtering (Browse) and BERT-NLP semantic search.
+    - Uses SQL first to filter papers by metadata (author, year range, etc.).
+    - If query is provided, uses Qdrant to find semantic matches within the filtered IDs.
+    - If no query is provided, returns the filtered papers directly (Browse Mode).
+    """
     try:
-        print(f"--- Search started for query: '{query}' (Threshold: {threshold}) ---")
+        print(f"--- [Search] Unified search started ---")
+        print(f"    Query: '{query}'")
+        print(f"    Filters: min_yr={min_year}, max_yr={max_year}, dept={department}, type={project_type}")
         
-        # 1. Construct Metadata Filter for Qdrant
-        qdrant_filter = None
-        filter_conditions = []
-        if author:
-            filter_conditions.append(models.FieldCondition(key="author", match=models.MatchValue(value=author)))
-        if year:
-            filter_conditions.append(models.FieldCondition(key="year", match=models.MatchValue(value=year)))
-        if min_year:
-            # Qdrant supports range filtering on numeric fields, but year is currently a string in our metadata.
-            # For simplicity in this prototype, we'll convert to int if possible in Qdrant or use SQL filtering primarily.
-            # Let's assume the user mostly cares about the SQL side for year ranges in this prototype.
-            pass
-        if department:
-            filter_conditions.append(models.FieldCondition(key="department", match=models.MatchValue(value=department)))
-        if project_type:
-            filter_conditions.append(models.FieldCondition(key="project_type", match=models.MatchValue(value=project_type)))
-        if degree_program:
-            filter_conditions.append(models.FieldCondition(key="degree_program", match=models.MatchValue(value=degree_program)))
+        # 1. SQL Metadata-Only Filter
+        sql_query = db.query(Paper)
         
-        if filter_conditions:
-            qdrant_filter = models.Filter(must=filter_conditions)
-
-        # 2. Keyword search (Exact Match in SQLite)
-        # 2. Perform keyword search in DB (Metadata match)
-        print("Performing metadata keyword search...")
-        sql_query = db.query(Paper).filter(
-            (Paper.title.ilike(f"%{query}%")) | 
-            (Paper.abstract.ilike(f"%{query}%"))
-        )
-        
-        # Apply filters
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
-        if min_year: sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
-        if max_year: sql_query = sql_query.filter(Paper.year.cast(Integer) <= max_year)
+        
+        # Numeric Year Range Filter (CAST string column to Integer for the range check)
+        if min_year is not None:
+            sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
+        if max_year is not None:
+            sql_query = sql_query.filter(Paper.year.cast(Integer) <= max_year)
+            
         if department: sql_query = sql_query.filter(Paper.department == department)
         if project_type: sql_query = sql_query.filter(Paper.project_type == project_type)
         if degree_program: sql_query = sql_query.filter(Paper.degree_program == degree_program)
         
-        keyword_matches = {p.id: p for p in sql_query.all()}
+        # Get Candidate Paper IDs
+        candidate_papers = sql_query.all()
+        candidate_ids = [p.id for p in candidate_papers]
         
-        # 3. Generate query embedding for semantic search
-        print("Generating query embedding for semantic search...")
-        query_vector = embedding_service.get_embedding(query)
-        
-        # 4. Search in Qdrant (IMRAD multi-vector max-score, with optional section targeting)
-        print(f"Searching across IMRAD vectors in Qdrant (section={section})...")
-        semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section)
-        
-        combined_results = {}
-        
-        # Process Semantic Results first (detailed scores)
-        for hit in semantic_results:
-            paper_id = hit.id
-            bert_score = hit.score
+        print(f"[Search] SQL Pre-filter found {len(candidate_ids)} candidates: {candidate_ids[:10]}...")
+
+        # 2. Handle Search Mode (Semantic vs Browse)
+        if query and query.strip():
+            # ── SEMANTIC SEARCH (With Context) ──
+            if not candidate_ids:
+                return [] # Early exit if metadata filters already narrowed to zero
+                
+            print(f"Generating query embedding for pure BERT search: '{query}'...")
+            query_vector = embedding_service.get_embedding(query)
             
-            # Weighted Blend: 85% Semantic, 15% Metadata Bonus
-            is_keyword_match = paper_id in keyword_matches
-            metadata_bonus = 0.15 if is_keyword_match else 0.0
-            
-            final_score = (bert_score * 0.85) + metadata_bonus
-            
-            combined_results[paper_id] = SearchResult(
-                id=paper_id,
-                score=min(final_score, 1.0),
-                payload=hit.payload
+            # Constraint search to ONLY these paper IDs
+            qdrant_filter = models.Filter(
+                must=[models.HasIdCondition(has_id=candidate_ids)]
             )
             
-            # Mark as processed if it was in keyword matches
-            if is_keyword_match:
-                del keyword_matches[paper_id]
+            print(f"Searching across IMRAD vectors in Qdrant (constrained to {len(candidate_ids)} papers)...")
+            semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=limit)
+            
+            effective_threshold = threshold if threshold is not None else settings.DEFAULT_SEARCH_THRESHOLD
+            
+            search_results = []
+            for hit in semantic_results:
+                if hit.score >= effective_threshold:
+                    search_results.append(SearchResult(
+                        id=encode_id(hit.id),
+                        score=hit.score,
+                        payload=hit.payload
+                    ))
+            
+            # Sort by score descending
+            search_results.sort(key=lambda x: x.score, reverse=True)
+            return search_results
 
-        # Add remaining keyword-only matches (rare cases)
-        for paper_id, paper in keyword_matches.items():
-            # Fallback score for keyword-only matches
-            combined_results[paper_id] = SearchResult(
-                id=paper_id,
-                score=0.75, 
-                payload={
-                    "title": paper.title,
-                    "author": paper.author,
-                    "year": paper.year,
-                    "abstract": paper.abstract,
-                    "department": paper.department,
-                    "project_type": paper.project_type,
-                    "degree_program": paper.degree_program,
-                    "citation_count": paper.citation_count
-                }
-            )
-
-        # Convert to list and filter by threshold
-        search_results = [res for res in combined_results.values() if res.score >= threshold]
+        else:
+            # ── BROWSE MODE (Metadata Filtering Only) ──
+            # Return current candidate list as high-score matches
+            print(f"[Search] Returning {len(candidate_papers)} results for browse mode.")
+            browse_results = []
+            for paper in candidate_papers:
+                browse_results.append(SearchResult(
+                    id=encode_id(paper.id),
+                    score=1.0, # Browsing result — treat as perfect metadata match
+                    payload={
+                        "title": paper.title,
+                        "author": paper.author,
+                        "year": paper.year,
+                        "abstract": paper.abstract,
+                        "department": paper.department,
+                        "project_type": paper.project_type,
+                        "degree_program": paper.degree_program,
+                        "citation_count": paper.citation_count,
+                        "view_count": paper.view_count
+                    }
+                ))
+            
+            # Default sort for Browse: Newest Year first
+            browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+            return browse_results
         
-        # Sort by score descending
-        search_results.sort(key=lambda x: x.score, reverse=True)
-        
-        print(f"Search completed. Found {len(search_results)} relevant results.")
+        print(f"Search completed. Found {len(search_results)} relevant results via pure BERT.")
         return search_results
     except Exception as e:
         import traceback
@@ -518,7 +520,8 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
             "keywords": db_paper.keywords,
             "project_type": db_paper.project_type,
             "degree_program": db_paper.degree_program,
-            "citation_count": db_paper.citation_count
+            "citation_count": db_paper.citation_count,
+            "view_count": db_paper.view_count
         }
     )
 
