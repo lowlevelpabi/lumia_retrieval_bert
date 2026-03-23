@@ -9,8 +9,7 @@ from difflib import SequenceMatcher
 INCLUDE_ABSTRACT_VECTOR: bool = True
 IMRAD_SECTION_KEYS: List[str] = ["introduction", "methods", "results", "discussion"]
 
-# ── FIX #1: Raised MAX_SECTION_CHARS to allow multi-page Introduction sections.
-# Old value was 5000, which silently cut off long introductions.
+# Raised MAX_SECTION_CHARS to allow multi-page Introduction sections.-
 # 20000 chars ≈ ~3 dense pages; adjust higher if needed.
 MAX_SECTION_CHARS: int  = 20000
 MIN_SECTION_CHARS: int  = 100
@@ -23,11 +22,6 @@ EARLY_ACCEPT_THRESHOLD: float = 0.88
 FIRST_CANDIDATE_MIN_SCORE: float = 0.80
 MIN_HEADING_CHARS: int = 6
 
-# ── FIX #2: Expanded HEADING_KEYWORDS to support legacy (older) document formats.
-# Many older Filipino theses use "Chapter I", "Chapter II", "Chapter III", etc.
-# as their ONLY section heading — no "INTRODUCTION" label on the same page.
-# Also added numbered heading variants like "I.", "II.", "III.", "IV.", "V."
-# and common abbreviated forms found in pre-2015 documents.
 HEADING_KEYWORDS: Dict[str, List[str]] = {
     "introduction": [
         # Current format
@@ -115,11 +109,9 @@ FALSE_POSITIVE_KEYWORDS: List[str] = [
     "LIST OF APPENDICES", "TABLE OF CONTENTS", "ABSTRACT", "SYNTHESIS",
     "RESEARCH GAP",
     "CRITERIA", "RUBRIC", "EVALUATION", "RATING", "SCORE", "SUITABILITY",
-    # FIX #2: Prevent legacy sub-section labels from being scored as section headings
     "REVIEW OF RELATED LITERATURE AND STUDIES",
     "REVIEW OF LITERATURE",
-    "CHAPTER II", "CHAPTER 2", "CHAPTER TWO", "II.",  # Review of Literature chapter
-    # Project context / intro sub-sections that must not trigger a new section match
+    "CHAPTER II", "CHAPTER 2", "CHAPTER TWO", "II.",
     "PROJECT CONTEXT", "CONTEXT OF THE STUDY", "CONTEXT OF THE PROJECT",
     "PURPOSE OF THE STUDY", "PURPOSE OF THE PROJECT",
     "RELATED WORKS", "RELATED WORK",
@@ -135,18 +127,6 @@ BACK_MATTER_PAGE_PATTERNS: List[str] = [
     r"\bABOUT\s+THE\s+AUTHOR\b",
 ]
 
-# ── FIX #3: Revised INTRO_SUBSECTION_PATTERNS for Introduction end-page detection.
-#
-# ROOT CAUSE of the "Introduction capped at 1 page" bug:
-#   _find_intro_end_page() was scanning from intro_start+1 and stopping as soon
-#   as the TOP 400 chars of any page matched one of these patterns. In many
-#   documents, "Background of the Study" appears on the SAME page as
-#   "INTRODUCTION" (or the very next page), so the intro was truncated to 0–1 pages.
-#
-# FIX: We now ONLY stop the Introduction when a sub-section heading appears ALONE
-# at the very top of a page (first 150 chars) — meaning it is clearly a new
-# standalone heading page, not body text that happens to mention these phrases.
-# This allows multi-page introductions to be captured fully (up to 3 pages).
 INTRO_SUBSECTION_PATTERNS: List[str] = [
     r"^\s*Background\s+of\s+the\s+Study\b",
     r"^\s*Statement\s+of\s+the\s+Problem\b",
@@ -169,9 +149,6 @@ INTRO_SUBSECTION_PATTERNS: List[str] = [
     r"^\s*Related\s+(?:Works?|Studies|Literature)\b",
 ]
 
-# ── FIX #3 cont.: Maximum Introduction length in pages.
-# Even if no sub-section heading is detected, cap Introduction at this many pages
-# to prevent it from running into the Literature Review chapter.
 MAX_INTRO_PAGES: int = 3
 
 # TOC / rubric page skip patterns
@@ -206,8 +183,6 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"Bachelor of Science", r"in partial fulfillment",
     r"requirements for the degree", r"prepared under the supervision",
     r"Adviser\s*:",
-    # Anchored so they only match standalone institutional lines,
-    # NOT body sentences like "The Department of Labor and Employment..."
     r"^\s*Department of [A-Za-z\s]+$",
     r"^\s*College of [A-Za-z\s]+$",
     r"Undergraduate Thesis", r"undergraduate thesis",
@@ -358,13 +333,7 @@ def _find_intro_end_page(
     next_section_start: int,
 ) -> int:
     """
-    FIX #3: Revised Introduction end-page detection.
-
-    Old behaviour: stopped at the first page whose top-400-chars contained any
-    INTRO_SUBSECTION_PATTERN — this meant introductions were almost always cut
-    to 1 page because "Background of the Study" appears very early.
-
-    New behaviour:
+    updated behaviour:
     1. Only stop when a sub-section heading appears in the FIRST 150 chars of a
        page (i.e., it IS the page heading, not just mentioned in body text).
     2. Also enforce MAX_INTRO_PAGES as a hard cap so intros never bleed too far.
@@ -471,7 +440,7 @@ def _find_section_page(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# IMRAD Summary Helpers  (FIX #4)
+# IMRAD Summary Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _extract_intro_subsections(text: str) -> Dict[str, str]:
@@ -507,18 +476,9 @@ def _extract_intro_subsections(text: str) -> Dict[str, str]:
 
     return result
 
-
+'''
 def build_imrad_summary_prompt(section_key: str, content: str) -> str:
-    """
-    Build an AI summarisation prompt for a given IMRAD section.
-    Returns a prompt string ready to send to Claude API.
 
-    The output is formatted for 2-column IMRAD display:
-    - Introduction: bullet-summarise each sub-section (Background, Objectives, SOP, etc.)
-    - Methods: summarise each detected sub-heading
-    - Results: concise paragraph summary of key findings
-    - Discussion: concise paragraph summary of conclusions / recommendations
-    """
     # Truncate to 8000 chars (well within Claude's context) for efficiency
     content_truncated = content[:8000]
 
@@ -596,7 +556,7 @@ Respond with the summary paragraph only. No preamble."""
 
     else:
         return f"Summarise the following academic text in 3–5 sentences:\n\n{content_truncated}"
-
+'''
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Service
