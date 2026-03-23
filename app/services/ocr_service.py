@@ -126,11 +126,13 @@ class OCRService:
             detected_title = " ".join(title_lines).strip() if title_lines else os.path.basename(pdf_path)
             detected_title = re.sub(r'\s+', ' ', detected_title)
 
+            '''
             print(f"\n===== [OCR DIAGNOSIS] First 80 lines =====")
             for i, l in enumerate(lines[:80]):
                 print(f"  [{i:02d}] {repr(l)}")
             print("=====  [END DIAGNOSIS] =====\n")
-
+            '''
+            
             # ── Authors ───────────────────────────────────────────────────────
             # Step 1: truncate cover_text at the first biographical/back-matter
             # boundary. Everything after "BIOGRAPHICAL DATA", "BIOGRAPHY",
