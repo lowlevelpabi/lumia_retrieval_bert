@@ -19,6 +19,8 @@ class Paper(Base):
     citation_count = Column(Integer, default=0)
     view_count = Column(Integer, default=0)
     file_path = Column(String)
+    uploaded_by = Column(String, nullable=True)   # username of uploader
+    uploader_role = Column(String, nullable=True)
 
     # ── Full extracted text (shown in "Regular" / full-text view) ─────────────
     introduction = Column(Text, nullable=True)

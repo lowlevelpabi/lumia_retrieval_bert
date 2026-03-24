@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 import re
 from typing import List, Optional, Dict, Tuple
+from app.services.logging_service import log
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -127,9 +128,9 @@ def _get_keybert():
         try:
             from keybert import KeyBERT
             _keybert_model = KeyBERT(model=KEYBERT_MODEL)
-            print(f"[MLService] KeyBERT loaded ({KEYBERT_MODEL})")
+            log.ml_load(KEYBERT_MODEL, tier="KeyBERT")
         except Exception as e:
-            print(f"[MLService] KeyBERT unavailable: {e}")
+            log.ml_load_fail(KEYBERT_MODEL, e)
             _keybert_model = False
     return _keybert_model if _keybert_model is not False else None
 
@@ -145,9 +146,9 @@ def _get_zsc():
                 model=ZSC_MODEL,
                 device=-1,
             )
-            print(f"[MLService] General ZSC loaded ({ZSC_MODEL})")
+            log.ml_load(ZSC_MODEL, tier="Zero-shot (general)")
         except Exception as e:
-            print(f"[MLService] General ZSC unavailable: {e}")
+            log.ml_load_fail(ZSC_MODEL, e)
             _zsc_pipeline = False
     return _zsc_pipeline if _zsc_pipeline is not False else None
 
@@ -192,9 +193,9 @@ def _get_classifier_model():
                 last_weight_key = [k for k in state.keys() if "weight" in k][-1]
                 weight_var = state[last_weight_key].float().var().item()
                 if weight_var < 1e-3:
-                    print(f"[MLService] ⚠️  Classifier head appears untrained "
-                          f"(weight_var={weight_var:.2e} < 1e-3). "
-                          f"Falling back to NLI. Retrain: python imrad_trainer.py --classifier")
+                    log.ml_warn("Classifier head appears untrained — falling back to NLI",
+                                weight_var=f"{weight_var:.2e}",
+                                hint="retrain: python imrad_trainer.py --classifier")
                     _classifier_model = False
                     return None
 
@@ -244,19 +245,20 @@ def _get_classifier_model():
                 max_prob = dummy_probs.max().item()
                 spread   = dummy_probs.max().item() - dummy_probs.min().item()
                 if max_prob < 0.30 or spread < 0.05:
-                    print(f"[MLService] ⚠️  Classifier head outputs near-uniform predictions "
-                          f"(max_prob={max_prob:.2f}, spread={spread:.2f}). "
-                          f"Model did not train properly. Falling back to NLI. "
-                          f"Retrain: python imrad_trainer.py --classifier")
+                    log.ml_warn("Classifier head outputs near-uniform predictions — falling back to NLI",
+                                max_prob=f"{max_prob:.2f}", spread=f"{spread:.2f}",
+                                hint="retrain: python imrad_trainer.py --classifier")
                     _classifier_model = False
                     return None
 
                 _classifier_model = (backbone, head, tokenizer, label2id, id2label)
-                print(f"[MLService] IMRAD classifier head loaded "
-                      f"({num_classes} classes: {list(label2id.keys())}, "
-                      f"weight_var={weight_var:.4f}, max_prob={max_prob:.2f})")
+                log.ml_load(
+                    CLASSIFIER_HEAD_PATH,
+                    tier=f"Tier 1 — custom head  ({num_classes} classes, "
+                         f"weight_var={weight_var:.4f}, max_prob={max_prob:.2f})"
+                )
             except Exception as e:
-                print(f"[MLService] Classifier head failed to load: {e}")
+                log.error("Classifier head failed to load", exc=e)
                 _classifier_model = False
 
     return _classifier_model if _classifier_model is not False else None
@@ -284,18 +286,19 @@ def _get_imrad_pipeline():
                     device=-1,
                 )
                 tier = "Tier 1+2" if USE_CLASSIFIER_HEAD else "Tier 2"
-                print(f"[MLService] IMRAD NLI pipeline loaded ({tier}, "
-                      f"{FINETUNED_IMRAD_MODEL_PATH})")
+                log.ml_load(FINETUNED_IMRAD_MODEL_PATH,
+                            tier=f"{tier} — fine-tuned NLI")
             except Exception as e:
-                print(f"[MLService] Fine-tuned model failed: {e}. Falling back to base NLI.")
+                log.ml_load_fail(FINETUNED_IMRAD_MODEL_PATH, e)
+                log.warn("Falling back to base NLI (Tier 3)")
                 _imrad_pipeline = False
 
         if _imrad_pipeline is None or _imrad_pipeline is False:
             base = _get_zsc()
             if base is not None:
                 _imrad_pipeline = base
-                print("[MLService] IMRAD using base NLI (Tier 3). "
-                      "Run train_imrad_nli.py for better accuracy.")
+                log.ml_load(ZSC_MODEL,
+                            tier="Tier 3 — base NLI zero-shot  (run train_imrad_nli.py for better accuracy)")
             else:
                 _imrad_pipeline = False
 
@@ -327,11 +330,10 @@ def extract_keywords(text: str, existing: str = "") -> str:
         )
         keywords = [phrase for phrase, score in keyphrases if score >= 0.2]
         if keywords:
-            result = ", ".join(keywords)
-            print(f"[MLService] Keywords: {result}")
-            return result
+            log.ml_keywords(keywords)
+            return ", ".join(keywords)
     except Exception as e:
-        print(f"[MLService] Keyword extraction error: {e}")
+        log.error("Keyword extraction failed", exc=e)
 
     return existing
 
@@ -347,11 +349,13 @@ def classify_department(title: str, abstract: str, existing: str = "N/A") -> str
         result     = zsc(text, candidate_labels=DEPARTMENT_LABELS, multi_label=False)
         top_label  = result["labels"][0]
         top_score  = result["scores"][0]
-        print(f"[MLService] Department → '{top_label}' ({top_score:.2f})")
         if top_score >= ZSC_MIN_CONFIDENCE:
+            log.ml_classify("Department", top_label, top_score)
             return top_label
+        log.ml_warn("Department score below threshold — keeping existing",
+                    score=f"{top_score:.2f}", label=top_label)
     except Exception as e:
-        print(f"[MLService] Department classification error: {e}")
+        log.error("Department classification failed", exc=e)
 
     return existing
 
@@ -368,11 +372,13 @@ def classify_degree(title: str, abstract: str, existing: str = "N/A") -> str:
         top_idx   = DEGREE_PHRASES.index(result["labels"][0])
         top_score = result["scores"][0]
         top_code  = DEGREE_LABELS[top_idx]
-        print(f"[MLService] Degree → '{top_code}' ({top_score:.2f})")
         if top_score >= ZSC_MIN_CONFIDENCE:
+            log.ml_classify("Degree program", top_code, top_score)
             return top_code
+        log.ml_warn("Degree score below threshold — keeping existing",
+                    score=f"{top_score:.2f}", label=top_code)
     except Exception as e:
-        print(f"[MLService] Degree classification error: {e}")
+        log.error("Degree classification failed", exc=e)
 
     return existing
 
@@ -389,11 +395,13 @@ def classify_project_type(title: str, abstract: str, existing: str = "Thesis") -
         top_idx   = PROJECT_TYPE_PHRASES.index(result["labels"][0])
         top_score = result["scores"][0]
         top_label = PROJECT_TYPE_LABELS[top_idx]
-        print(f"[MLService] Project type → '{top_label}' ({top_score:.2f})")
         if top_score >= ZSC_MIN_CONFIDENCE:
+            log.ml_classify("Project type", top_label, top_score)
             return top_label
+        log.ml_warn("Project type score below threshold — keeping existing",
+                    score=f"{top_score:.2f}", label=top_label)
     except Exception as e:
-        print(f"[MLService] Project type classification error: {e}")
+        log.error("Project type classification failed", exc=e)
 
     return existing
 
@@ -441,10 +449,11 @@ def classify_heading(heading_text: str) -> Tuple[Optional[str], float]:
             top_idx     = probs.argmax().item()
             top_score   = probs[top_idx].item()
             section_key = id2label[top_idx]
-            print(f"[MLService][clf] '{text[:50]}' → '{section_key}' ({top_score:.2f})")
+            log.ml_classify(f"Verdict — '{text[:45]}'", section_key, top_score,
+                            tier="Tier 1 — custom head")
             return section_key, top_score
         except Exception as e:
-            print(f"[MLService] Classifier head inference error: {e}")
+            log.error("Classifier head inference failed", exc=e)
 
     # ── Tier 2/3: NLI pipeline ────────────────────────────────────────────────
     pipe = _get_imrad_pipeline()
@@ -462,12 +471,13 @@ def classify_heading(heading_text: str) -> Tuple[Optional[str], float]:
         top_idx        = _IMRAD_HYPOTHESES_LIST.index(top_hypothesis)
         section_key    = IMRAD_SECTION_KEYS[top_idx]
 
-        tag = "ft" if USE_FINETUNED_IMRAD_MODEL else "zs"
-        print(f"[MLService][{tag}] '{text[:50]}' → '{section_key}' ({top_score:.2f})")
+        tier_label = "Tier 2 — fine-tuned NLI" if USE_FINETUNED_IMRAD_MODEL else "Tier 3 — base NLI"
+        log.ml_classify(f"Verdict — '{text[:45]}'", section_key, top_score,
+                        tier=tier_label)
         return section_key, top_score
 
     except Exception as e:
-        print(f"[MLService] Heading classification error: {e}")
+        log.error("Heading classification failed", exc=e)
         return None, 0.0
 
 

@@ -1,7 +1,13 @@
-import pytesseract
+import easyocr
+import numpy as np
+from PIL import Image
 from pdf2image import convert_from_path
 import os
 from typing import Dict, Any, List, Optional
+
+# ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
+FORCE_OCR: bool = True
+# ─────────────────────────────────────────────────────────────────────────────
 
 import re
 import base64
@@ -9,39 +15,19 @@ from io import BytesIO
 from pypdf import PdfReader
 from app.services.imrad_service import imrad_service
 from app.services.imrad_summary_service import imrad_summary_service
+from app.services.logging_service import log
 
 
 class OCRService:
     def __init__(self):
-        tesseract_paths = [
-            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-            '/usr/bin/tesseract'
-        ]
-
+        log.info("Initializing EasyOCR (English)")
         try:
-            import getpass
-            user = getpass.getuser()
-            tesseract_paths.append(fr'C:\Users\{user}\AppData\Local\Tesseract-OCR\tesseract.exe')
-        except Exception:
-            pass
-
-        self.tesseract_available = False
-
-        try:
-            import subprocess
-            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
-            self.tesseract_available = True
-            print("Tesseract detected in system PATH.")
-        except (Exception, FileNotFoundError):
-            for path in tesseract_paths:
-                if os.path.exists(path):
-                    pytesseract.pytesseract.tesseract_cmd = path
-                    self.tesseract_available = True
-                    print(f"Tesseract detected at: {path}")
-                    break
-
-        if not self.tesseract_available:
-            print("⚠️ Tesseract OCR not found. OCR features will be disabled.")
+            self.reader = easyocr.Reader(['en'], gpu=False)
+            self.ocr_available = True
+            log.success("EasyOCR initialized")
+        except Exception as e:
+            log.error("EasyOCR initialization failed", exc=e)
+            self.ocr_available = False
 
     async def extract_metadata(self, pdf_path: str) -> Dict[str, Any]:
         """
@@ -57,12 +43,12 @@ class OCRService:
           (first PREVIEW_PAGES_PER_SECTION pages of each section) used by
           extract_page_previews() to filter thumbnails.
         """
-        print(f"--- Starting extraction for: {os.path.basename(pdf_path)} ---")
+        log.section(f"Extracting — {os.path.basename(pdf_path)}")
         try:
-            print("Attempting direct text extraction via pypdf...")
+            log.info("Direct text extraction via pypdf...")
             reader = PdfReader(pdf_path)
             num_pages = len(reader.pages)
-            print(f"PDF has {num_pages} pages.")
+            log.info("PDF loaded", pages=num_pages)
 
             # ── Full page map for IMRAD (all pages) ───────────────────────────
             page_text_map: Dict[int, str] = {}
@@ -71,25 +57,59 @@ class OCRService:
                 if p_text:
                     page_text_map[i + 1] = p_text
 
+            # ── EasyOCR supplement for pages where pypdf returned no/poor text ─
+            # Scanned PDFs often have pages with no text layer (pypdf returns "").
+            # For those pages, run EasyOCR so IMRAD heading detection can still
+            # find real chapter headings (e.g. METHODOLOGY on the correct page)
+            # instead of accidentally picking up running headers on richer pages.
+            # We process one page at a time (first_page=N, last_page=N) so memory
+            # stays low even for large documents.
+            if self.ocr_available:
+                empty_pages = [
+                    pg for pg in range(1, num_pages + 1)
+                    if len(page_text_map.get(pg, "").strip()) < 30
+                ]
+                if empty_pages:
+                    log.info("Running EasyOCR on low-text pages",
+                             count=len(empty_pages), pages=str(empty_pages[:10]))
+                    for pg_num in empty_pages:
+                        try:
+                            imgs = convert_from_path(
+                                pdf_path, dpi=150,
+                                first_page=pg_num, last_page=pg_num,
+                            )
+                            if imgs:
+                                img_np = np.array(imgs[0])
+                                ocr_results = self.reader.readtext(img_np, detail=0)
+                                ocr_text = "\n".join(ocr_results).strip()
+                                if ocr_text:
+                                    page_text_map[pg_num] = ocr_text
+                        except Exception as pg_err:
+                            log.error(f"EasyOCR supplement failed", exc=pg_err, page=pg_num)
+                    log.info("Page map after OCR supplement",
+                             covered=f"{len(page_text_map)}/{num_pages}")
+
             # ── Meta text for title/author/abstract (first 10 pages only) ────
             meta_text = ""
             for i in range(min(10, num_pages)):
                 meta_text += page_text_map.get(i + 1, "") + "\n"
 
-            print(f"Extracted {len(meta_text)} characters via pypdf (meta pages).")
+            log.info("pypdf meta text extracted", chars=len(meta_text))
 
-            if len(meta_text.strip()) < 50:
-                print("Direct extraction insufficient. Falling back to OCR...")
-                if self.tesseract_available:
+            if FORCE_OCR or len(meta_text.strip()) < 50:
+                log.warn("Direct extraction insufficient — falling back to EasyOCR")
+                if self.ocr_available:
                     try:
                         images = convert_from_path(pdf_path, first_page=1, last_page=3)
                         for i, img in enumerate(images):
-                            print(f"OCR processing page {i+1}...")
-                            meta_text += pytesseract.image_to_string(img)
+                            log.info(f"EasyOCR processing page", page=i+1)
+                            img_np = np.array(img)
+                            results = self.reader.readtext(img_np, detail=0)
+                            meta_text += "\n".join(results) + "\n"
                     except Exception as ocr_err:
-                        print(f"OCR Error (likely missing Poppler): {ocr_err}")
+                        log.error("EasyOCR fallback failed", exc=ocr_err)
                 else:
-                    print("OCR requested but Tesseract not found.")
+                    log.warn("EasyOCR requested but not available")
 
             lines = [line.strip() for line in meta_text.split('\n') if line.strip()]
 
@@ -156,8 +176,9 @@ class OCRService:
             if roman_pg:
                 cover_text = cover_text[:roman_pg.start()].strip()
 
-            print(f"[OCR] Author scan region: {len(cover_text)} chars "
-                  f"({'truncated at: ' + repr(end_match.group().strip()[:30]) if end_match else 'full cover'})")
+            log.regex("Author scan region",
+                      chars=len(cover_text),
+                      truncated_at=repr(end_match.group().strip()[:30]) if end_match else "none")
 
             detected_authors = []
 
@@ -419,8 +440,7 @@ class OCRService:
                 for m in BOILERPLATE_TERMINUS_RE.finditer(search_window):
                     last_terminus = m
                 if last_terminus:
-                    print(f"[OCR] Abstract boilerplate paragraph stripped "
-                          f"(terminus: {repr(last_terminus.group()[:60])})")
+                    log.regex("Abstract boilerplate paragraph stripped")
                     abstract_text_raw = abstract_text_raw[last_terminus.end():].strip()
 
                 # ── Step 2: line-by-line skip for remaining boilerplate ────────
@@ -461,7 +481,7 @@ class OCRService:
                 abstract_text = abstract_text[:2500].strip()
 
             if not abstract_text or len(abstract_text) < 100 or len(meta_text) < 200:
-                print("Abstract extraction insufficient — no OCR fallback available for text-based PDFs.")
+                log.warn("Abstract extraction insufficient — no OCR fallback for text-based PDFs")
 
             # ── Degree ────────────────────────────────────────────────────────
             detected_degree = "N/A"
@@ -524,8 +544,8 @@ class OCRService:
                 if has_separator or len(raw_kw) <= 80:
                     detected_keywords = raw_kw[:300]
                 else:
-                    print(f"[OCR] Keyword match rejected (no separator, >80 chars): "
-                          f"{repr(raw_kw[:60])}")
+                    log.regex("Keyword match rejected — no separator and >80 chars",
+                              sample=repr(raw_kw[:60]))
 
             if not abstract_text or len(abstract_text.strip()) < 50:
                 abstract_text = "The author of this study doesn't provide any abstract, perhaps it is still in manuscript phase or incomplete study."
@@ -549,81 +569,23 @@ class OCRService:
                     methods_pages=methods_pages,
                 )
             except Exception as imrad_err:
-                print(f"[IMRAD] Extraction failed (non-fatal): {type(imrad_err).__name__} - {imrad_err}")
+                log.error("IMRAD extraction failed (non-fatal)", exc=imrad_err)
 
             # ── Pre-generate IMRAD summaries ──────────────────────────────────
             # Done HERE (during preview) so the uploader sees summaries in
             # Step 2 and can correct them before confirming the upload.
-            # The summaries travel back to the frontend in sections_summary
-            # and are stored to DB in papers.py confirm_upload.
+            # Sub-section content (Background, Objectives, Significance, etc.)
+            # is intentionally preserved. The summariser in imrad_summary_service
+            # detects and summarises each sub-section from the full text.
             sections_raw: dict = extracted_imrad.get("sections", {})
 
-            # ── Inline intro truncation ───────────────────────────────────────
-            # When OCR merges a sub-section heading inline with the paragraph
-            # above it (e.g. "...(Dupont, 2024). Project Context Identifying...")
-            # the page-level boundary detection in imrad_service never fires.
-            # Cut the introduction at the first heading that appears at a sentence
-            # or paragraph boundary (after ". ", "! ", "? ", or a newline).
-            # Using boundary anchors prevents cutting on phrases that appear
-            # naturally mid-sentence, e.g. "...systems relying on related studies,
-            # or requiring exact word matching..." should NOT be cut.
-            intro_raw: str = sections_raw.get("introduction", "")
-            if intro_raw:
-                # Each pattern requires the heading to follow a sentence-end or newline.
-                # (?:^|\.\s+|\!\s+|\?\s+|\n\s*) = start of string OR end of sentence.
-                INTRO_INLINE_CUT = [
-                    # Distinctive phrases — safe to match anywhere after a boundary
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Background\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Project\s+Context\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Context\s+of\s+the\s+(?:Study|Project)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Purpose\s+of\s+the\s+(?:Study|Project)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Statement\s+of\s+the\s+Problem\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Objectives?\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Objectives?\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Significance\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Scope\s+and\s+(?:Delimitation|Limitation)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Definition\s+of\s+Terms\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Conceptual\s+Framework\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Theoretical\s+Framework\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Review\s+of\s+(?:Related\s+)?Literature\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Related\s+(?:Works?|Studies)\s+(?:and\s+Literature\s+)?(?:show|discuss|suggest|indicate|reveal|demonstrate|present|provide|highlight|support|confirm|show|include)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Hypothes[ie]s\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Locale\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Questions?\b",
-                ]
-                cut_pos = len(intro_raw)
-                for pat in INTRO_INLINE_CUT:
-                    m = re.search(pat, intro_raw, re.IGNORECASE | re.MULTILINE)
-                    if m:
-                        # Find the first alpha character in the match — that's
-                        # where the heading word actually starts (skip ". " etc.)
-                        heading_start = next(
-                            (ci for ci in range(m.start(), m.end()) if intro_raw[ci].isalpha()),
-                            m.start(),
-                        )
-                        if heading_start < cut_pos:
-                            cut_pos = heading_start
-                # Only apply the cut if there is enough content before it.
-                # MIN_INTRO_BEFORE_CUT: the opening paragraph must be at least
-                # this many characters — if the sub-section heading appears
-                # earlier than this, the document's introduction IS the sub-sections
-                # (no separate opening paragraph) and we should not cut.
-                MIN_INTRO_BEFORE_CUT = 400
-                if cut_pos < len(intro_raw) and cut_pos >= MIN_INTRO_BEFORE_CUT:
-                    print(f"[OCR] Introduction inline-trimmed at pos {cut_pos} "
-                          f"('{intro_raw[cut_pos:cut_pos+40].strip()}')")
-                    sections_raw["introduction"] = intro_raw[:cut_pos].rstrip(" .,;")
-                elif cut_pos < MIN_INTRO_BEFORE_CUT:
-                    print(f"[OCR] Introduction inline-trim SKIPPED — "
-                          f"cut_pos={cut_pos} < {MIN_INTRO_BEFORE_CUT} "
-                          f"(sub-section heading is the opening, keeping full intro)")
             sections_summary: dict = {}
             try:
                 sections_summary = imrad_summary_service.summarise_all(sections_raw)
-                print(f"[IMRADSummary] Preview summaries generated: "
-                      f"{[k for k, v in sections_summary.items() if v]}")
+                log.success("IMRAD summaries generated",
+                            sections=str([k for k, v in sections_summary.items() if v]))
             except Exception as sum_err:
-                print(f"[IMRADSummary] Preview generation failed (non-fatal): {sum_err}")
+                log.error("IMRAD summary generation failed (non-fatal)", exc=sum_err)
 
             metadata = {
                 "title":                detected_title,
@@ -644,11 +606,11 @@ class OCRService:
                 "imrad_pages":          extracted_imrad.get("imrad_pages", []),
             }
 
-            print("Successfully finished extraction.")
+            log.success("Extraction complete", file=os.path.basename(pdf_path))
             return metadata
 
         except Exception as e:
-            print(f"CRITICAL Extraction Error: {type(e).__name__} - {e}")
+            log.error("CRITICAL extraction error", exc=e)
             return {
                 "title":          os.path.basename(pdf_path),
                 "author":         "Unknown",
@@ -708,7 +670,7 @@ class OCRService:
                         images[0].save(buffered, format="JPEG", quality=60)
                         img_str = base64.b64encode(buffered.getvalue()).decode()
                 except Exception as page_err:
-                    print(f"Thumbnail error on page {page_num}: {page_err}")
+                    log.error(f"Thumbnail render failed", exc=page_err, page=page_num)
                     from PIL import Image as PILImage
                     placeholder = PILImage.new("RGB", (1, 1), color=(200, 200, 200))
                     buffered    = BytesIO()
@@ -722,7 +684,7 @@ class OCRService:
                 })
 
         except Exception as e:
-            print(f"Error extracting page previews: {e}")
+            log.error("Page preview extraction failed", exc=e)
 
         return previews
 

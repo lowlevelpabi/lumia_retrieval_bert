@@ -8,7 +8,7 @@ class UserCitation(Base):
     __tablename__ = "user_citations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     paper_id = Column(Integer, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 

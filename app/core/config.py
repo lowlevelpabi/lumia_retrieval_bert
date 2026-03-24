@@ -1,6 +1,6 @@
 import os
+import secrets
 from pydantic_settings import BaseSettings
-
 from pydantic import model_validator
 
 class Settings(BaseSettings):
@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     COLLECTION_NAME: str = "thesis_papers"
     DEFAULT_SEARCH_THRESHOLD: float = 0.15
     
-    SECRET_KEY: str = "SUPER_SECRET_KEY_REPLACE_THIS_IN_PRODUCTION"
+    # SECRET_KEY must be set in .env for production.
+    # Falls back to a random key for local dev (tokens won't survive restarts).
+    SECRET_KEY: str = secrets.token_hex(32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 

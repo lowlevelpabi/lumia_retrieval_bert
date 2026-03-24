@@ -1,16 +1,13 @@
 from sqlalchemy import Column, Integer, String
-from app.models.paper import Base
+from app.core.database import Base
 from app.models.enums import UserRole
 
-class Student(Base):
-    __tablename__ = "students"
+class AuthorizedUser(Base):
+    __tablename__ = "authorized_users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     full_name = Column(String, nullable=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-
-    @property
-    def role(self):
-        return UserRole.USER
+    role = Column(String) # Admin or Faculty

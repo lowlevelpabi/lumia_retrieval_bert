@@ -7,7 +7,7 @@ qdrant-client
 transformers
 torch
 sentence-transformers
-pytesseract
+easyocr
 pdf2image
 python-multipart
 python-dotenv

@@ -2,9 +2,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.models.paper import Base
-from app.models.user import User  # Import to register with Base
+from app.models.user import Student
+from app.models.authorized_user import AuthorizedUser
 from app.models.citation import UserCitation  # Import to register with Base
-from app.models.borrowing import BorrowRecord, Penalty # Import to register with Base
 
 engine = create_engine(
     settings.DATABASE_URL,

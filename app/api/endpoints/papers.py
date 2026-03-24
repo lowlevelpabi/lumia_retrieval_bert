@@ -23,6 +23,7 @@ from app.services.imrad_summary_service import imrad_summary_service
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 from app.core.hash import encode_id, decode_id
+from app.models.activity_log import ActivityLog
 
 router = APIRouter()
 
@@ -128,10 +129,14 @@ async def upload_preview(
     }
 
 @router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
-async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
+async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Step 2: Finalize upload with corrected metadata and selected pages.
     """
+    print(f"[confirm_upload] current_user = {current_user}")
+    print(f"[confirm_upload] username = {getattr(current_user, 'username', None)}")
+    print(f"[confirm_upload] full_name = {getattr(current_user, 'full_name', None)}")
+    
     # Find the temp file
     temp_files = [f for f in os.listdir(TEMP_UPLOAD_DIR) if f.startswith(data.session_id)]
     if not temp_files:
@@ -168,6 +173,8 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
         degree_program=data.metadata.get("degree_program", "N/A"),
         citation_count=data.metadata.get("citation_count", 0),
         file_path=final_path,
+        uploaded_by=current_user.full_name or current_user.username,
+        uploader_role=current_user.role,
 
         # Save IMRAD sections (manual overrides or defaults)
         introduction=data.introduction,
@@ -184,6 +191,14 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
     db.add(db_paper)
     db.commit()
     db.refresh(db_paper)
+
+    db.add(ActivityLog(
+        action="Upload",
+        paper_title=db_paper.title,
+        performed_by=current_user.full_name or current_user.username,
+        performed_by_role=current_user.role,
+    ))
+    db.commit()
 
     # Use provided IMRAD sections or fallback to extraction if not provided
     imrad_sections = {
@@ -263,7 +278,9 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db)):
             "project_type": db_paper.project_type,
             "degree_program": db_paper.degree_program,
             "citation_count": db_paper.citation_count,
-            "view_count": db_paper.view_count
+            "view_count": db_paper.view_count,
+            "uploaded_by": db_paper.uploaded_by,
+            "uploader_role": db_paper.uploader_role
         }
     )
 
@@ -378,7 +395,9 @@ async def search_papers(
                         "project_type": paper.project_type,
                         "degree_program": paper.degree_program,
                         "citation_count": paper.citation_count,
-                        "view_count": paper.view_count
+                        "view_count": paper.view_count,
+                        "uploaded_by": paper.uploaded_by,
+                        "uploader_role": paper.uploader_role
                     }
                 ))
             
@@ -447,8 +466,8 @@ async def get_paper_recommendations(
 
 
 
-@router.delete("/{paper_id}", dependencies=[Depends(admin_required)])
-async def delete_paper(paper_id: str, db: Session = Depends(get_db)):
+@router.delete("/{paper_id}", dependencies=[Depends(faculty_or_admin_required)])
+async def delete_paper(paper_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     real_id = decode_id(paper_id)
     if real_id is None:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -456,6 +475,15 @@ async def delete_paper(paper_id: str, db: Session = Depends(get_db)):
     db_paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not db_paper:
         raise HTTPException(status_code=404, detail="Paper not found")
+
+    # Log before deletion so the title is still available
+    db.add(ActivityLog(
+        action="Delete",
+        paper_title=db_paper.title,
+        performed_by=current_user.full_name or current_user.username,
+        performed_by_role=current_user.role,
+    ))
+    db.commit()
 
     # 1. Delete from Qdrant
     try:
@@ -477,7 +505,7 @@ async def delete_paper(paper_id: str, db: Session = Depends(get_db)):
     return {"message": f"Paper {paper_id} deleted successfully"}
 
 @router.put("/{paper_id}", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
-async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depends(get_db)):
+async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     real_id = decode_id(paper_id)
     if real_id is None:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -521,14 +549,21 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
             "project_type": db_paper.project_type,
             "degree_program": db_paper.degree_program,
             "citation_count": db_paper.citation_count,
-            "view_count": db_paper.view_count
+            "view_count": db_paper.view_count,
+            "uploaded_by": db_paper.uploaded_by,
+            "uploader_role": db_paper.uploader_role
         }
     )
 
+    db.add(ActivityLog(
+        action="Edit",
+        paper_title=db_paper.title,
+        performed_by=current_user.full_name or current_user.username,
+        performed_by_role=current_user.role,
+    ))
+    db.commit()
+
     return db_paper
-
-
-
 @router.get("/{paper_id}", response_model=PaperResponse)
 async def get_paper(paper_id: str, db: Session = Depends(get_db)):
     """Fetch a single paper by its ID."""

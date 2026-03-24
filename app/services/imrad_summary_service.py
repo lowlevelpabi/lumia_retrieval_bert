@@ -40,6 +40,7 @@ import re
 import math
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
+from app.services.logging_service import log
 
 # ── Constants (previously imported from imrad_service — defined locally to avoid
 #    a circular/missing import that silently kills the whole module) ──────────
@@ -87,6 +88,8 @@ INTRO_SUBSECTIONS: List[Dict] = [
             r"Background\s+of\s+the\s+Study",
             r"Introduction\s+and\s+Background",
             r"Background\s+and\s+Rationale",
+            r"Project\s+Context",
+            r"Context\s+of\s+the\s+(?:Study|Project)",
         ],
     },
     {
@@ -105,6 +108,8 @@ INTRO_SUBSECTIONS: List[Dict] = [
             r"Aims?\s+(?:and\s+Objectives?|of\s+the\s+Study)",
             r"General\s+Objective",
             r"Specific\s+Objectives?",
+            r"Purpose\s+and\s+Description",
+            r"Purpose\s+of\s+the\s+(?:Study|Project)",
         ],
     },
     {
@@ -249,6 +254,7 @@ def _split_into_intro_subsections(text: str) -> List[Tuple[str, str]]:
     hits: List[Tuple[int, str]] = []
     for sub in INTRO_SUBSECTIONS:
         for pat in sub["patterns"]:
+            # Heading should be at start of line or preceded by newline
             m = re.search(pat, text, re.IGNORECASE)
             if m:
                 hits.append((m.start(), sub["label"]))
@@ -259,16 +265,36 @@ def _split_into_intro_subsections(text: str) -> List[Tuple[str, str]]:
 
     hits.sort(key=lambda x: x[0])
     parts: List[Tuple[str, str]] = []
+    
+    # Pre-heading text (if any)
+    pre = text[:hits[0][0]].strip()
+    if pre and len(pre) > MIN_SENTENCE_CHARS:
+        parts.append(("Introduction", pre))
+
     for i, (start, label) in enumerate(hits):
         end = hits[i + 1][0] if i + 1 < len(hits) else len(text)
         body = text[start:end].strip()
-        body = re.sub(r"^.{0,80}\n", "", body, count=1).strip()
+        
+        # Aggressively remove the heading line
+        # headings are often short lines at the start of the block
+        lines = body.split("\n")
+        if lines:
+            first_line = lines[0].strip()
+            # If the first line is short and contains the label, or looks like a heading
+            label_pat = label.lower().replace(" ", r"\s*")
+            if (len(first_line) < 100 and 
+                (re.search(label_pat, first_line.lower()) or 
+                 re.match(r"^(?:[IVXLC]+|\d+)[\.\s]*$", first_line))):
+                body = "\n".join(lines[1:]).strip()
+            else:
+                # Fallback: try to re.sub it from the start of the whole block
+                clean_label = re.escape(label)
+                body = re.sub(r"^(?:[IVXLC]+|\d+)[\.\s]*" + clean_label + r"[:\s\-]*(?:\n|$)", "", body, flags=re.IGNORECASE | re.MULTILINE).strip()
+                # If it still starts with a number like "3. ", strip it if followed by a newline or start of prose
+                body = re.sub(r"^(?:[IVXLC]+|\d+)[\.\s]+(?=[A-Z])", "", body).strip()
+        
         if body:
             parts.append((label, body))
-
-    pre = text[:hits[0][0]].strip()
-    if pre and len(pre) > MIN_SENTENCE_CHARS:
-        parts.insert(0, ("Introduction", pre))
 
     return parts or [("Introduction", text)]
 
@@ -291,7 +317,21 @@ def _split_methods_by_subheadings(text: str) -> List[Tuple[str, str]]:
     for i, (start, label) in enumerate(hits):
         end = hits[i + 1][0] if i + 1 < len(hits) else len(text)
         body = text[start:end].strip()
-        body = re.sub(r"^.{0,80}\n", "", body, count=1).strip()
+
+        # Aggressively remove the heading line
+        lines = body.split("\n")
+        if lines:
+            first_line = lines[0].strip()
+            label_pat = label.lower().replace(" ", r"\s*")
+            if (len(first_line) < 100 and 
+                (re.search(label_pat, first_line.lower()) or 
+                 re.match(r"^(?:[IVXLC]+|\d+)[\.\s]*$", first_line))):
+                body = "\n".join(lines[1:]).strip()
+            else:
+                clean_label = re.escape(label)
+                body = re.sub(r"^(?:[IVXLC]+|\d+)[\.\s]*" + clean_label + r"[:\s\-]*(?:\n|$)", "", body, flags=re.IGNORECASE | re.MULTILINE).strip()
+                body = re.sub(r"^(?:[IVXLC]+|\d+)[\.\s]+(?=[A-Z])", "", body).strip()
+
         if body:
             parts.append((label, body))
 
@@ -320,7 +360,7 @@ def _summarise_introduction(text: str) -> str:
         summary = _top_sentences(text, 5)
         return _truncate_to_sentence(summary, MAX_SUMMARY_CHARS)
 
-    # Multiple sub-sections — summarise each with its label
+    # Multiple sub-sections — summarise each and join into a single prose block
     blocks: list = []
     for label, body in parts:
         if not body or len(body.strip()) < MIN_SENTENCE_CHARS:
@@ -332,16 +372,20 @@ def _summarise_introduction(text: str) -> str:
             # Body has no proper sentences — use first 200 chars as fallback
             snippet = body.strip()[:200].rstrip(" ,;")
             if snippet:
-                blocks.append(f"{label}\n{snippet}")
+                blocks.append(snippet)
         else:
             ranked = _score_sentences(sentences)
             top_idx = sorted([i for i, _ in ranked[:n]])
             summary = " ".join(sentences[i] for i in top_idx)
             if summary.strip():
-                blocks.append(f"{label}\n{summary.strip()}")
+                blocks.append(summary.strip())
 
-    result = "\n\n".join(blocks)
-    return _truncate_to_sentence(result, MAX_SUMMARY_CHARS) if result.strip() else _truncate_to_sentence(text, MAX_SUMMARY_CHARS)
+    result = " ".join(blocks)
+    # Final cleanup: remove any leftover numbering markers from the start of sentences in the prose
+    result = re.sub(r"(?<=\. )(?:\d+[\.\s]+|§\s*)", "", result)
+    result = re.sub(r"^(?:\d+[\.\s]+|§\s*)", "", result)
+    
+    return _truncate_to_sentence(result.strip(), MAX_SUMMARY_CHARS) if result.strip() else _truncate_to_sentence(text, MAX_SUMMARY_CHARS)
 
 
 def _summarise_methods(text: str) -> str:
@@ -350,8 +394,10 @@ def _summarise_methods(text: str) -> str:
     for label, body in parts:
         summary = _top_sentences(body, METHODS_SENTENCES_PER_SUBHEADING)
         if summary.strip():
-            blocks.append(f"{label}\n{summary.strip()}")
-    return _truncate_to_sentence("\n\n".join(blocks), MAX_SUMMARY_CHARS)
+            blocks.append(summary.strip())
+    
+    result = " ".join(blocks)
+    return _truncate_to_sentence(result, MAX_SUMMARY_CHARS)
 
 
 def _summarise_results(text: str) -> str:
@@ -395,10 +441,10 @@ class IMRADSummaryService:
             return None
         try:
             result = fn(content)
-            print(f"[IMRADSummary] '{section_key}' → {len(result)} chars (local)")
+            log.ml_summary(section_key, len(result))
             return result if result.strip() else None
         except Exception as e:
-            print(f"[IMRADSummary] Error on '{section_key}': {type(e).__name__} — {e}")
+            log.error(f"Summary failed — '{section_key}'", exc=e)
             return None
 
     def summarise_all(self, sections: Dict[str, str]) -> Dict[str, Optional[str]]:

@@ -1,6 +1,7 @@
 import re
 from typing import Dict, List, Optional, Union
 from difflib import SequenceMatcher
+from app.services.logging_service import log
 
 # ─────────────────────────────────────────────────────────────────────────────
 # IMRAD Configuration
@@ -128,6 +129,24 @@ BACK_MATTER_PAGE_PATTERNS: List[str] = [
 ]
 
 INTRO_SUBSECTION_PATTERNS: List[str] = [
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Background\s+of\s+the\s+Study\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Statement\s+of\s+the\s+Problem\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Research\s+(?:Objectives?|Questions?)\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Objectives?\s+of\s+the\s+Study\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Significance\s+of\s+the\s+Study\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Scope\s+and\s+(?:Delimitation|Limitation)\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Definition\s+of\s+Terms\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Conceptual\s+Framework\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Theoretical\s+Framework\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Review\s+of\s+(?:Related\s+)?Literature\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Hypothes[ie]s\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Scope\s+and\s+Delimitation\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Research\s+Locale\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Project\s+Context\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Context\s+of\s+the\s+(?:Study|Project)\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Purpose\s+of\s+the\s+(?:Study|Project)\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Related\s+(?:Works?|Studies|Literature)\b",
+    # Original patterns without numbers
     r"^\s*Background\s+of\s+the\s+Study\b",
     r"^\s*Statement\s+of\s+the\s+Problem\b",
     r"^\s*Research\s+(?:Objectives?|Questions?)\b",
@@ -139,17 +158,15 @@ INTRO_SUBSECTION_PATTERNS: List[str] = [
     r"^\s*Theoretical\s+Framework\b",
     r"^\s*Review\s+of\s+(?:Related\s+)?Literature\b",
     r"^\s*Hypothes[ie]s\b",
-    # Legacy sub-section starts that clearly open a new section page
     r"^\s*Scope\s+and\s+Delimitation\b",
     r"^\s*Research\s+Locale\b",
-    # Project context / related works sub-sections
     r"^\s*Project\s+Context\b",
     r"^\s*Context\s+of\s+the\s+(?:Study|Project)\b",
     r"^\s*Purpose\s+of\s+the\s+(?:Study|Project)\b",
     r"^\s*Related\s+(?:Works?|Studies|Literature)\b",
 ]
 
-MAX_INTRO_PAGES: int = 3
+MAX_INTRO_PAGES: int = 15
 
 # TOC / rubric page skip patterns
 SKIP_PAGE_PATTERNS: List[str] = [
@@ -232,12 +249,12 @@ def _strip_page_header(
 
     if earliest_pos != -1:
         result = text[earliest_pos + earliest_len:].strip()
-        print(f"[IMRAD][strip] Cut header at pos {earliest_pos}, "
-              f"heading='{text[earliest_pos:earliest_pos+earliest_len]}', "
-              f"body starts: {repr(result[:60])}")
+        log.regex("Header stripped", pos=earliest_pos,
+                  heading=text[earliest_pos:earliest_pos+earliest_len],
+                  body_start=repr(result[:50]))
         return result
 
-    print("[IMRAD][strip] No heading anchor found — falling back to phrase stripping")
+    log.regex("No heading anchor — using phrase stripping fallback")
     result = text
 
     if title and title not in ("N/A", ""):
@@ -333,30 +350,18 @@ def _find_intro_end_page(
     next_section_start: int,
 ) -> int:
     """
-    updated behaviour:
-    1. Only stop when a sub-section heading appears in the FIRST 150 chars of a
-       page (i.e., it IS the page heading, not just mentioned in body text).
-    2. Also enforce MAX_INTRO_PAGES as a hard cap so intros never bleed too far.
-    3. Start scanning from intro_start + 1 as before.
+    Returns the last page of the Introduction section.
+    Uses next_section_start as the hard boundary (the IMRAD methods page),
+    capped at MAX_INTRO_PAGES from the intro start so very long Chapter I
+    sections don't consume the entire document.
+    Sub-section headings (Background, Objectives, etc.) are intentionally
+    included — they are part of Chapter I and should be captured.
     """
     hard_cap = min(intro_start + MAX_INTRO_PAGES, next_section_start - 1)
-
-    for pg in range(intro_start + 1, next_section_start):
-        if pg > hard_cap:
-            print(f"[IMRAD] Introduction capped at page {hard_cap} "
-                  f"(MAX_INTRO_PAGES={MAX_INTRO_PAGES})")
-            return hard_cap
-
-        text = page_text_map.get(pg, "")
-        # Check only the very top of the page (first 150 chars) for a standalone
-        # sub-section heading. This avoids false-cuts when body text mentions
-        # "Background of the Study" in passing.
-        top = _normalize_text(text)[:150]
-        if any(re.search(pat, top, re.IGNORECASE | re.MULTILINE) for pat in INTRO_SUBSECTION_PATTERNS):
-            print(f"[IMRAD] Introduction ends at page {pg - 1} "
-                  f"(sub-section heading detected at top of page {pg})")
-            return pg - 1
-
+    if hard_cap < intro_start + MAX_INTRO_PAGES:
+        pass  # capped by next section
+    else:
+        log.regex("Introduction capped at MAX_INTRO_PAGES", page=hard_cap, cap=MAX_INTRO_PAGES)
     return hard_cap
 
 
@@ -369,15 +374,30 @@ def _find_section_page(
     page_text_map: Dict[int, str],
     min_page: int = 1,
 ) -> Optional[int]:
+    """
+    Two-phase heading detection:
+
+    Phase 1 — Regex hunter
+        Scans every line on every page using fuzzy keyword matching.
+        Produces a shortlist of (page, line, score) nominees that cleared
+        the fuzzy threshold. Does NOT make the final call.
+
+    Phase 2 — NLI judge
+        Receives every nominee from Phase 1 and classifies it semantically
+        using the fine-tuned IMRAD model. Confirms or rejects each nominee.
+        The first nominee the NLI agrees with becomes the section page.
+        If NLI is unavailable, falls back to the highest-scoring regex nominee.
+    """
+    from app.services.ml_service import classify_heading
+
     keywords = HEADING_KEYWORDS.get(section_key, [])
     if not keywords:
         return None
 
-    first_candidate_page  : Optional[int] = None
-    first_candidate_score : float         = 0.0
-    first_candidate_line  : str           = ""
+    # ── Phase 1: Regex hunts for nominees ────────────────────────────────────
+    log.subsection(f"Phase 1 · Regex hunting '{section_key}'  (min_page={min_page})")
 
-    print(f"\n[IMRAD][score] ── Scoring pages for '{section_key}' (min_page={min_page}) ──")
+    nominees: list = []   # [(page_num, clean_line, penalised_score)]
 
     for page_num in sorted(page_text_map.keys()):
         if page_num < min_page:
@@ -387,7 +407,7 @@ def _find_section_page(
         normalized = _normalize_text(raw_text)
 
         if _is_skip_page(normalized):
-            print(f"  page {page_num:>3} │ [SKIPPED — TOC/appendix/rubric page]")
+            log.regex_skip(page_num, "TOC / appendix / rubric")
             continue
 
         for line in normalized.split('\n'):
@@ -417,26 +437,54 @@ def _find_section_page(
             if penalised < FUZZY_THRESHOLD:
                 continue
 
-            print(f"  page {page_num:>3} │ {repr(clean):<45} "
-                  f"target={target_score:.2f} fp={fp_score:.2f} → {penalised:.2f}")
+            log.regex_hit(page_num, clean, target_score, fp_score, penalised)
+            nominees.append((page_num, clean, penalised))
 
-            if penalised >= EARLY_ACCEPT_THRESHOLD:
-                print(f"[IMRAD][score] '{section_key}' → page {page_num} "
-                      f"(early accept, score={penalised:.2f})\n")
-                return page_num
+    if not nominees:
+        log.regex_not_found(section_key)
+        return None
 
-            if first_candidate_page is None and penalised >= FIRST_CANDIDATE_MIN_SCORE:
-                first_candidate_page  = page_num
-                first_candidate_score = penalised
-                first_candidate_line  = clean
+    log.regex(f"Nominated {len(nominees)} candidate(s) for NLI review",
+              section=section_key)
 
-    if first_candidate_page is not None:
-        print(f"[IMRAD][score] '{section_key}' → page {first_candidate_page} "
-              f"(first candidate, score={first_candidate_score:.2f})\n")
-        return first_candidate_page
+    # ── Phase 2: NLI judges every nominee ────────────────────────────────────
+    log.subsection(f"Phase 2 · NLI judging '{section_key}' nominees")
 
-    print(f"[IMRAD][score] '{section_key}' → NOT FOUND\n")
-    return None
+    best_fallback_page  : Optional[int] = nominees[0][0]
+    best_fallback_score : float         = nominees[0][2]
+
+    for page_num, clean, regex_score in nominees:
+        ml_section, ml_score = classify_heading(clean)
+
+        if ml_section is None:
+            # NLI unavailable — log and fall back to regex ranking
+            log.ml("NLI unavailable — using regex fallback",
+                   page=page_num, line=f'"{clean[:40]}"')
+            log.regex_accept(section_key, best_fallback_page,
+                             best_fallback_score, reason="regex fallback (no NLI)")
+            return best_fallback_page
+
+        # NLI agrees if it maps to the same section key
+        agreed = (ml_section == section_key)
+
+        if agreed:
+            log.ml_classify(
+                f"Verdict CONFIRMED — '{clean[:45]}'",
+                ml_section, ml_score,
+                tier=f"pg={page_num}  regex={regex_score:.2f}",
+            )
+            return page_num
+        else:
+            log.ml_classify(
+                f"Verdict REJECTED — '{clean[:45]}'",
+                ml_section, ml_score,
+                tier=f"pg={page_num}  regex={regex_score:.2f}  expected={section_key}",
+            )
+
+    # All nominees rejected by NLI
+    log.warn(f"NLI rejected all nominees for '{section_key}' — using top regex nominee as fallback",
+             page=best_fallback_page, score=f"{best_fallback_score:.2f}")
+    return best_fallback_page
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -476,7 +524,6 @@ def _extract_intro_subsections(text: str) -> Dict[str, str]:
 
     return result
 
-'''
 def build_imrad_summary_prompt(section_key: str, content: str) -> str:
 
     # Truncate to 8000 chars (well within Claude's context) for efficiency
@@ -556,7 +603,7 @@ Respond with the summary paragraph only. No preamble."""
 
     else:
         return f"Summarise the following academic text in 3–5 sentences:\n\n{content_truncated}"
-'''
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Service
@@ -608,10 +655,10 @@ class IMRADService:
                 min_page = pg + 1
 
         if not section_start_pages:
-            print("[IMRAD] ⚠️  No sections detected.")
+            log.warn("No IMRAD sections detected")
             return {"sections": {}, "section_pages": {}, "imrad_pages": []}
 
-        print(f"[IMRAD] Final section pages: {section_start_pages}")
+        log.regex("Section start pages resolved", pages=str(section_start_pages))
 
         # ── 2. Find the back-matter boundary ─────────────────────────────────
         first_imrad_page = min(section_start_pages.values())
@@ -619,7 +666,7 @@ class IMRADService:
             page_text_map, after_page=first_imrad_page + 1
         )
         if back_matter_start:
-            print(f"[IMRAD] Back-matter boundary detected at page {back_matter_start}")
+            log.regex("Back-matter boundary detected", page=back_matter_start)
         last_valid_page = (back_matter_start - 1) if back_matter_start else all_pages[-1]
 
         # ── 3. Extract text per section ───────────────────────────────────────
@@ -670,6 +717,7 @@ class IMRADService:
                 page_text = _normalize_text(page_text_map.get(pg, ""))
                 if idx_pg == 0:
                     page_text = _strip_page_header(page_text, title=title, authors=authors)
+                
                 pg_lines = []
                 for line in page_text.split("\n"):
                     line = line.strip()
@@ -679,8 +727,25 @@ class IMRADService:
                         continue
                     if re.fullmatch(r'[\divxIVX]+', line):
                         continue
-                    pg_lines.append(line)
+                    
+                    # If this line is a sub-heading, ensure it has a newline before it
+                    is_heading = False
+                    if section_key == "introduction":
+                        is_heading = any(re.search(pat, line, re.IGNORECASE) for pat in INTRO_SUBSECTION_PATTERNS)
+                    elif section_key == "methods":
+                        # Check against generic methodology headings too
+                        is_heading = any(re.search(r"\b" + entry["patterns"][0] + r"\b", line, re.IGNORECASE) 
+                                       for entry in METHODOLOGY_SUBHEADINGS)
+
+                    if is_heading:
+                        if pg_lines:
+                            pg_lines[-1] = pg_lines[-1] + "\n"
+                        pg_lines.append(line + "\n")
+                    else:
+                        pg_lines.append(line)
+
                 if pg_lines:
+                    # Use a space separator for flow, but newlines from is_heading are preserved
                     pg_text_joined = " ".join(pg_lines)
                     if cleaned_lines:
                         running_chars += 1  # space separator between pages
@@ -689,66 +754,20 @@ class IMRADService:
                 page_cleaned_chars.append(running_chars)
 
             final_content = " ".join(cleaned_lines)
+            # Replace the " \n" artifacts from joining
+            final_content = final_content.replace(" \n", "\n").replace("\n ", "\n")
 
-            # ── Inline intro truncation ───────────────────────────────────────
-            # Page-level detection only fires when a heading is at the TOP of a
-            # new page. When sub-section labels appear mid-paragraph (e.g. OCR
-            # runs them inline), cut at the first heading that follows a sentence
-            # boundary — not on phrases that appear naturally mid-sentence.
-            if section_key == "introduction":
-                INTRO_INLINE_CUT = [
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Background\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Project\s+Context\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Context\s+of\s+the\s+(?:Study|Project)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Purpose\s+of\s+the\s+(?:Study|Project)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Statement\s+of\s+the\s+Problem\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Objectives?\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Objectives?\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Significance\s+of\s+the\s+Study\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Scope\s+and\s+(?:Delimitation|Limitation)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Definition\s+of\s+Terms\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Conceptual\s+Framework\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Theoretical\s+Framework\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Review\s+of\s+(?:Related\s+)?Literature\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Related\s+(?:Works?|Studies)\s+(?:and\s+Literature\s+)?(?:show|discuss|suggest|indicate|reveal|demonstrate|present|provide|highlight|support|confirm|include)\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Hypothes[ie]s\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Locale\b",
-                    r"(?:^|\.\s+|\!\s+|\?\s+|\n\s*)Research\s+Questions?\b",
-                ]
-                cut_pos = len(final_content)
-                for pat in INTRO_INLINE_CUT:
-                    m = re.search(pat, final_content, re.IGNORECASE | re.MULTILINE)
-                    if m:
-                        heading_start = next(
-                            (ci for ci in range(m.start(), m.end()) if final_content[ci].isalpha()),
-                            m.start(),
-                        )
-                        if heading_start < cut_pos:
-                            cut_pos = heading_start
-                if cut_pos < len(final_content):
-                    trimmed = final_content[:cut_pos].rstrip(" .,;")
-                    print(f"[IMRAD] Introduction inline-trimmed at pos {cut_pos} "
-                          f"('{final_content[cut_pos:cut_pos+40].strip()}')")
-                    final_content = trimmed
-                    # Prune section_page_nums to only pages whose content
-                    # falls within the kept portion of text.
-                    kept_pages = []
-                    prev = 0
-                    for pi, pg in enumerate(section_page_nums):
-                        page_end = page_cleaned_chars[pi] if pi < len(page_cleaned_chars) else len(final_content)
-                        if prev < cut_pos:
-                            kept_pages.append(pg)
-                        prev = page_end
-                    if kept_pages:
-                        section_page_nums = kept_pages
-                        print(f"[IMRAD] Introduction pages pruned to {section_page_nums} after inline trim")
+            # Sub-section content is intentionally kept intact. The summariser
+            # in imrad_summary_service.py detects and summarises each sub-section
+            # (Background, Objectives, Significance, etc.) from the full text.
 
             if len(final_content) >= MIN_SECTION_CHARS:
                 # FIX #1: Store full content (up to MAX_SECTION_CHARS = 20000)
                 result_sections[section_key] = final_content[:MAX_SECTION_CHARS]
                 result_pages[section_key]    = section_page_nums
-                print(f"[IMRAD] '{section_key}' → pages {section_page_nums}, "
-                      f"{len(final_content)} chars (stored {min(len(final_content), MAX_SECTION_CHARS)})")
+                log.info(f"Section extracted — '{section_key}'",
+                         pages=str(section_page_nums),
+                         chars=f"{len(final_content)} → stored {min(len(final_content), MAX_SECTION_CHARS)}")
 
         # ── 4. Build preview structures ───────────────────────────────────────
         preview_sec_pages: Dict[str, List[int]] = {
@@ -762,7 +781,7 @@ class IMRADService:
             for pg in pages_list
         ))
 
-        print(f"[IMRAD] Preview pages for frontend: {preview_pages}")
+        log.info("Frontend preview pages", pages=str(preview_pages))
 
         return {
             "sections":           result_sections,
@@ -780,22 +799,22 @@ class IMRADService:
     ) -> List[str]:
         """Detect Methodology sub-headings using only the methods section pages."""
         if not methods_pages:
-            print("[IMRAD][sub] No methods pages supplied — skipping.")
+            log.warn("detect_subheadings — no methods pages supplied, skipping")
             return []
 
         search_text = ""
         for pg in sorted(methods_pages):
             search_text += _normalize_text(page_text_map.get(pg, "")) + "\n\n"
 
-        print(f"[IMRAD][sub] Scanning {len(search_text)} chars across "
-              f"{len(methods_pages)} methods pages.")
+        log.regex("Scanning for methodology sub-headings",
+                  chars=len(search_text), pages=len(methods_pages))
 
         detected: List[str] = []
         for entry in METHODOLOGY_SUBHEADINGS:
             for pat in entry["patterns"]:
                 if re.search(r"\b" + pat + r"\b", search_text, re.IGNORECASE):
                     detected.append(entry["label"])
-                    print(f"[IMRAD][sub] Found: {entry['label']}")
+                    log.regex("Sub-heading matched", label=entry["label"])
                     break
 
         return detected
@@ -847,7 +866,7 @@ class IMRADService:
             ):
                 vectors[section_key] = embedding_service.get_embedding(content)
 
-        print(f"[IMRAD] Built vectors for: {list(vectors.keys())}")
+        log.ml("Vectors built", keys=str(list(vectors.keys())))
         return vectors
 
     def get_summary_prompts(self, sections: Dict[str, str]) -> Dict[str, str]:

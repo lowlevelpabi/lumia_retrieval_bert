@@ -15,6 +15,8 @@ class PaperBase(BaseModel):
     degree_program: Optional[str] = "N/A"
     citation_count: Optional[int] = 0
     view_count: Optional[int] = 0
+    uploaded_by: Optional[str] = None
+    uploader_role: Optional[str] = None
 
     # Full extracted text (regular view)
     introduction: Optional[str] = None
