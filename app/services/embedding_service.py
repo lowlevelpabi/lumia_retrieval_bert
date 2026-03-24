@@ -1,11 +1,15 @@
 from sentence_transformers import SentenceTransformer
 from typing import List
+import os
 
 model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
 model.save("./models/multi-qa-MiniLM-L6-cos-v1")
 
 class EmbeddingService:
-    def __init__(self, model_name: str = "multi-qa-MiniLM-L6-cos-v1"):
+    def __init__(self):
+        local_path = "./models/multi-qa-MiniLM-L6-cos-v1"
+        model_name = local_path if os.path.exists(local_path) else "multi-qa-MiniLM-cos-v1"
+
         print(f"Loading Multi-Vector Search Model: {model_name}...")
 
         self.model = SentenceTransformer(model_name)
