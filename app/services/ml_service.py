@@ -1,27 +1,3 @@
-"""
-ml_service.py
-─────────────
-Local ML enhancements for OCR metadata extraction. Zero API cost.
-Uses HuggingFace transformers + KeyBERT — all run offline.
-
-Provides:
-  1. keyword_extraction    — KeyBERT extracts meaningful keywords from abstract/text
-  2. classify_department   — zero-shot NLI classifies department from title+abstract
-  3. classify_degree       — zero-shot NLI classifies degree program
-  4. classify_project_type — zero-shot NLI: Thesis vs Capstone
-  5. classify_heading      — fine-tuned NLI classifies IMRAD section from a heading line
-                             Falls back to base zero-shot NLI if fine-tuned model is absent.
-
-Models used:
-  - all-MiniLM-L6-v2              (KeyBERT / sentence-transformers) ~90 MB
-  - cross-encoder/nli-MiniLM2-L6-H768  (zero-shot ZSC, base)       ~90 MB
-  - ./imrad_nli_model/            (fine-tuned IMRAD classifier)     ~90 MB
-      → produced by train_imrad_nli.py; same architecture, domain-adapted weights
-
-Install:
-    pip install keybert sentence-transformers transformers torch
-"""
-
 from __future__ import annotations
 import os
 import re
@@ -37,24 +13,41 @@ LIGHTWEIGHT_MODEL     = "cross-encoder/nli-MiniLM2-L6-H768"
 
 ZSC_MODEL = LIGHTWEIGHT_MODEL if USE_LIGHTWEIGHT_ZSC else BART_MODEL
 
+# ── DistilBERT 9-class sequence classifier (Tier 0) ───────────────────────────
+# Check for both default and clean folder names
+_MODEL_CLEAN = "./distilbert_imrad_model_clean"
+_MODEL_STD = "./distilbert_imrad_model"
+DISTILBERT_IMRAD_PATH: str  = _MODEL_CLEAN if os.path.isdir(_MODEL_CLEAN) else _MODEL_STD
+USE_DISTILBERT_IMRAD:  bool = os.path.isdir(DISTILBERT_IMRAD_PATH)
+
+# Maps the 9-class labels back to the 4 section keys used by imrad_service.py
+# Sub-headings resolve to their parent section so downstream code needs no change.
+_DISTILBERT_SECTION_MAP: dict = {
+    "heading_intro":      "introduction",
+    "subheading_intro":   "introduction",
+    "heading_methods":    "methods",
+    "subheading_methods": "methods",
+    "heading_results":    "results_and_discussion",
+    "subheading_results": "results_and_discussion",
+    "heading_other":      None,   # not an IMRaD section
+    "body_text":          None,
+    "junk":               None,
+}
+
 # Path to the fine-tuned IMRAD heading model produced by train_imrad_nli.py.
 FINETUNED_IMRAD_MODEL_PATH: str  = "./imrad_nli_model"
 USE_FINETUNED_IMRAD_MODEL:  bool = os.path.isdir(FINETUNED_IMRAD_MODEL_PATH)
 
 # Path to the custom classifier head produced by train_imrad_nli.py --classifier
-# When present, this replaces the NLI zero-shot approach with a dedicated
-# 5-class classification head — higher confidence scores, cleaner predictions.
 CLASSIFIER_HEAD_PATH: str  = "./imrad_nli_model/imrad_classifier_head.pt"
 USE_CLASSIFIER_HEAD:  bool = os.path.isfile(CLASSIFIER_HEAD_PATH)
 
 # Confidence thresholds
 ZSC_MIN_CONFIDENCE:          float = 0.45
-# IMRAD thresholds apply to the COMBINED score (ml*0.6 + rx*0.4).
-# With 5 labels the model spreads probability more — top scores of 0.25-0.50
-# are expected. The regex validation guard ensures ML picks with rx=0.0 are
-# always rejected, so a lower IMRAD_MIN_CONFIDENCE is safe.
-IMRAD_MIN_CONFIDENCE:        float = 0.28   # combined score to record a candidate
-IMRAD_EARLY_ACCEPT:          float = 0.50   # combined score for immediate accept
+
+# Threshold for Tier 0 ML. 0.25 is safe for 9 classes as long as it's the top.
+IMRAD_MIN_CONFIDENCE:        float = 0.25   # score to record a candidate
+IMRAD_EARLY_ACCEPT:          float = 0.50   # score for immediate accept
 
 MAX_KEYWORDS: int = 8
 
@@ -63,15 +56,9 @@ MAX_KEYWORDS: int = 8
 DEPARTMENT_LABELS: List[str] = [
     "Department of Computer Science",
     "Department of Information Technology",
-    "Department of Information Systems",
-    "Department of Computer Engineering",
-    "College of Engineering",
-    "College of Education",
-    "College of Business",
-    "College of Arts and Sciences",
 ]
 
-DEGREE_LABELS: List[str] = ["BSCS", "BSIT", "BSIS", "BSCpE"]
+DEGREE_LABELS: List[str] = ["BSCS", "BSIT"]
 
 DEGREE_PHRASES: List[str] = [
     "computer science algorithms data structures software engineering",
@@ -87,14 +74,6 @@ PROJECT_TYPE_PHRASES: List[str] = [
 ]
 
 # ── IMRAD heading hypotheses ──────────────────────────────────────────────────
-# These must exactly match the hypotheses used in train_imrad_nli.py.
-# IMPORTANT: "results_and_discussion" is a 5th label — many Filipino theses
-# combine Results and Discussion into one chapter. The service detects this
-# combined heading first, then falls back to separate results/discussion.
-#
-# Introduction hypothesis was broadened from "problem statement" to cover
-# standalone "INTRODUCTION" headings that don't reference the problem —
-# the old narrow hypothesis caused the model to misclassify them as discussion.
 
 IMRAD_SECTION_KEYS: List[str] = [
     "introduction", "methods", "results", "results_and_discussion", "discussion",
@@ -116,10 +95,11 @@ _IMRAD_HYPOTHESES_LIST: List[str] = [
 
 # ── Lazy-loaded singletons ────────────────────────────────────────────────────
 
-_keybert_model      = None
-_zsc_pipeline       = None    # general-purpose ZSC (base model)
-_imrad_pipeline     = None    # IMRAD-specific ZSC (fine-tuned or base fallback)
-_classifier_model   = None    # custom classification head (highest accuracy tier)
+_keybert_model        = None
+_zsc_pipeline         = None    # general-purpose ZSC (base model)
+_imrad_pipeline       = None    # IMRAD-specific ZSC (fine-tuned or base fallback)
+_classifier_model     = None    # custom NLI classification head
+_distilbert_clf       = None    # DistilBERT 9-class sequence classifier (Tier 0)
 
 
 def _get_keybert():
@@ -181,14 +161,6 @@ def _get_classifier_model():
                 num_classes = len(label2id)
 
                 # ── Sanity check: reject untrained / collapsed checkpoints ─────
-                # A properly trained head has output weights with meaningful spread.
-                # Thresholds (empirically calibrated):
-                #   weight_var < 1e-3  → weights nearly uniform, model did not learn
-                #   weight_var = 0.0009 was observed from a bad training run that
-                #     oscillated acc 0.44→0.22→0.22→0.55 — still essentially random.
-                # We also run a quick forward pass on a dummy input and check that
-                # the predicted class probability spread is > 0.05, meaning the model
-                # actually picks a winner rather than assigning ~0.20 to every class.
                 state = ckpt["state_dict"]
                 last_weight_key = [k for k in state.keys() if "weight" in k][-1]
                 weight_var = state[last_weight_key].float().var().item()
@@ -200,8 +172,6 @@ def _get_classifier_model():
                     return None
 
                 # ── Load backbone from NLI checkpoint ─────────────────────────
-                # Must use AutoModelForSequenceClassification (not AutoModel) to
-                # get the properly initialized pooler. Extract base encoder only.
                 tokenizer  = AutoTokenizer.from_pretrained(FINETUNED_IMRAD_MODEL_PATH)
                 full_model = AutoModelForSequenceClassification.from_pretrained(
                     FINETUNED_IMRAD_MODEL_PATH, ignore_mismatched_sizes=True,
@@ -425,7 +395,48 @@ def classify_heading(heading_text: str) -> Tuple[Optional[str], float]:
 
     text = heading_text.strip()
 
-    # ── Tier 1: Custom classification head ───────────────────────────────────
+    # ── Tier 0: DistilBERT 9-class sequence classifier (highest accuracy) ────
+    if USE_DISTILBERT_IMRAD:
+        global _distilbert_clf
+        if _distilbert_clf is None:
+            try:
+                from transformers import pipeline as hf_pipeline
+                _distilbert_clf = hf_pipeline(
+                    "text-classification",
+                    model=DISTILBERT_IMRAD_PATH,
+                    tokenizer=DISTILBERT_IMRAD_PATH,
+                    device=-1,          # CPU — safe on Ryzen 7
+                    truncation=True,
+                    max_length=128,
+                )
+                log.ml_load(DISTILBERT_IMRAD_PATH, tier="Tier 0 — DistilBERT 9-class")
+            except Exception as e:
+                log.ml_load_fail(DISTILBERT_IMRAD_PATH, e)
+                _distilbert_clf = False
+
+        if _distilbert_clf and _distilbert_clf is not False:
+            try:
+                result      = _distilbert_clf(text[:512])[0]
+                raw_label   = result["label"]   # e.g. "heading_methods"
+                score       = result["score"]
+                section_key = _DISTILBERT_SECTION_MAP.get(raw_label)  # map to section key
+
+                log.ml_classify(
+                    f"Verdict — '{text[:45]}'",
+                    f"{raw_label} → {section_key}",
+                    score,
+                    tier="Tier 0 — DistilBERT",
+                )
+
+                if section_key is not None and score >= IMRAD_MIN_CONFIDENCE:
+                    return section_key, score
+                # heading_other / body_text / junk → not a heading
+                if section_key is None:
+                    return None, score
+            except Exception as e:
+                log.error("DistilBERT inference failed", exc=e)
+
+    # ── Tier 1: Custom NLI classification head ────────────────────────────────
     clf = _get_classifier_model()
     if clf is not None:
         try:
@@ -439,7 +450,6 @@ def classify_heading(heading_text: str) -> Tuple[Optional[str], float]:
             )
             with torch.no_grad():
                 out = backbone(**enc)
-                # Mean pooling (matches training in train_imrad_nli.py)
                 token_emb    = out.last_hidden_state
                 mask_exp     = enc["attention_mask"].unsqueeze(-1).float()
                 pooled       = (token_emb * mask_exp).sum(1) / mask_exp.sum(1).clamp(min=1e-9)
@@ -450,7 +460,7 @@ def classify_heading(heading_text: str) -> Tuple[Optional[str], float]:
             top_score   = probs[top_idx].item()
             section_key = id2label[top_idx]
             log.ml_classify(f"Verdict — '{text[:45]}'", section_key, top_score,
-                            tier="Tier 1 — custom head")
+                            tier="Tier 1 — custom NLI head")
             return section_key, top_score
         except Exception as e:
             log.error("Classifier head inference failed", exc=e)

@@ -5,10 +5,6 @@ from pdf2image import convert_from_path
 import os
 from typing import Dict, Any, List, Optional
 
-# ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
-FORCE_OCR: bool = True
-# ─────────────────────────────────────────────────────────────────────────────
-
 import re
 import base64
 from io import BytesIO
@@ -16,7 +12,18 @@ from pypdf import PdfReader
 from app.services.imrad_service import imrad_service
 from app.services.imrad_summary_service import imrad_summary_service
 from app.services.logging_service import log
+from app.core.task_manager import task_manager
 
+# ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
+# WARNING: Kung gusto nyo masayang ang inyong mga precious time, i-True nyo yung value
+# sa ibaba or ng variable FORCE_OCR: bool :) Happy waiting and wasting time kneegers.
+FORCE_OCR: bool = True
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Extraction Controls
+# ─────────────────────────────────────────────────────────────────────────────
+ENABLE_TABLE_EXTRACTION: bool = False
 
 class OCRService:
     def __init__(self):
@@ -29,26 +36,19 @@ class OCRService:
             log.error("EasyOCR initialization failed", exc=e)
             self.ocr_available = False
 
-    async def extract_metadata(self, pdf_path: str) -> Dict[str, Any]:
-        """
-        Extracts metadata, IMRAD sections, and prepares the imrad_pages list
-        for thumbnail filtering.
+    async def extract_metadata(self, pdf_path: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+        import asyncio
+        return await asyncio.to_thread(self.extract_metadata_sync, pdf_path, session_id)
 
-        Changes from original:
-        - page_text_map is built from ALL pages (not just first 10) so IMRAD
-          detection covers the full document.
-        - meta_text still uses only first 10 pages for title/author/abstract.
-        - detect_subheadings() receives page_text_map + methods_pages directly.
-        - Returns 'imrad_pages' key: a short list of preview pages per section
-          (first PREVIEW_PAGES_PER_SECTION pages of each section) used by
-          extract_page_previews() to filter thumbnails.
-        """
+    def extract_metadata_sync(self, pdf_path: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         log.section(f"Extracting — {os.path.basename(pdf_path)}")
         try:
             log.info("Direct text extraction via pypdf...")
+            if session_id: task_manager.update_task(session_id, 10, "Loading PDF...")
             reader = PdfReader(pdf_path)
             num_pages = len(reader.pages)
             log.info("PDF loaded", pages=num_pages)
+            # ... all the existing logic from extract_metadata ...
 
             # ── Full page map for IMRAD (all pages) ───────────────────────────
             page_text_map: Dict[int, str] = {}
@@ -57,37 +57,57 @@ class OCRService:
                 if p_text:
                     page_text_map[i + 1] = p_text
 
-            # ── EasyOCR supplement for pages where pypdf returned no/poor text ─
-            # Scanned PDFs often have pages with no text layer (pypdf returns "").
-            # For those pages, run EasyOCR so IMRAD heading detection can still
-            # find real chapter headings (e.g. METHODOLOGY on the correct page)
-            # instead of accidentally picking up running headers on richer pages.
-            # We process one page at a time (first_page=N, last_page=N) so memory
-            # stays low even for large documents.
-            if self.ocr_available:
-                empty_pages = [
-                    pg for pg in range(1, num_pages + 1)
-                    if len(page_text_map.get(pg, "").strip()) < 30
-                ]
-                if empty_pages:
-                    log.info("Running EasyOCR on low-text pages",
-                             count=len(empty_pages), pages=str(empty_pages[:10]))
-                    for pg_num in empty_pages:
-                        try:
-                            imgs = convert_from_path(
-                                pdf_path, dpi=150,
-                                first_page=pg_num, last_page=pg_num,
-                            )
-                            if imgs:
-                                img_np = np.array(imgs[0])
-                                ocr_results = self.reader.readtext(img_np, detail=0)
-                                ocr_text = "\n".join(ocr_results).strip()
-                                if ocr_text:
-                                    page_text_map[pg_num] = ocr_text
-                        except Exception as pg_err:
-                            log.error(f"EasyOCR supplement failed", exc=pg_err, page=pg_num)
-                    log.info("Page map after OCR supplement",
-                             covered=f"{len(page_text_map)}/{num_pages}")
+            MAX_OCR_SUPPLEMENT_PAGES = 30
+
+            empty_pages = [
+                pg for pg in range(1, num_pages + 1)
+                if len(page_text_map.get(pg, "").strip()) < 150
+            ]
+
+            if empty_pages:
+                if session_id: task_manager.update_task(session_id, 20, f"OCR Supplement: {len(empty_pages)} scanned pages...")
+                capped = empty_pages[:MAX_OCR_SUPPLEMENT_PAGES]
+                log.info("Running OCR supplement on low-text pages",
+                         total=len(empty_pages), processing=len(capped),
+                         pages=str(capped[:10]))
+
+                # Probe Tesseract once before the loop
+                _tesseract_ok = False
+                try:
+                    import pytesseract
+                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # wag nyo baguhin to, default na yan kung san naka lagay tesseract nyo
+                    pytesseract.get_tesseract_version()
+                    _tesseract_ok = True
+                    log.info("OCR supplement engine: Tesseract (fast)")
+                except Exception:
+                    log.info("Tesseract not found — OCR supplement engine: EasyOCR (slow)")
+
+                for pg_num in capped:
+                    try:
+                        imgs = convert_from_path(
+                            pdf_path, dpi=150,
+                            first_page=pg_num, last_page=pg_num,
+                        )
+                        if not imgs:
+                            continue
+                        ocr_text = ""
+                        if _tesseract_ok:
+                            import pytesseract
+                            ocr_text = pytesseract.image_to_string(
+                                imgs[0],
+                                config="--psm 6 --oem 1",
+                            ).strip()
+                        elif self.ocr_available:
+                            img_np = np.array(imgs[0])
+                            ocr_results = self.reader.readtext(img_np, detail=0)
+                            ocr_text = "\n".join(ocr_results).strip()
+                        if ocr_text:
+                            page_text_map[pg_num] = ocr_text
+                    except Exception as pg_err:
+                        log.error("OCR supplement failed", exc=pg_err, page=pg_num)
+
+            log.info("Page map after OCR supplement",
+                     covered=f"{len(page_text_map)}/{num_pages}")
 
             # ── Meta text for title/author/abstract (first 10 pages only) ────
             meta_text = ""
@@ -97,19 +117,43 @@ class OCRService:
             log.info("pypdf meta text extracted", chars=len(meta_text))
 
             if FORCE_OCR or len(meta_text.strip()) < 50:
-                log.warn("Direct extraction insufficient — falling back to EasyOCR")
-                if self.ocr_available:
+                log.warn("Direct extraction insufficient — falling back to OCR for meta pages")
+                # Tesseract first (milliseconds/page); EasyOCR only if unavailable.
+                # Only pages 1-3 needed for title / author / abstract.
+                _meta_tess_ok = False
+                try:
+                    import pytesseract
+                    pytesseract.get_tesseract_version()
+                    _meta_tess_ok = True
+                except Exception:
+                    pass
+
+                if _meta_tess_ok:
                     try:
+                        import pytesseract
+                        log.info("Meta OCR engine: Tesseract")
+                        images = convert_from_path(pdf_path, dpi=200,
+                                                   first_page=1, last_page=3)
+                        for i, img in enumerate(images):
+                            log.info("Tesseract processing page", page=i + 1)
+                            meta_text += pytesseract.image_to_string(
+                                img, config="--psm 6 --oem 1"
+                            ).strip() + "\n"
+                    except Exception as tess_err:
+                        log.error("Tesseract meta fallback failed", exc=tess_err)
+                elif self.ocr_available:
+                    try:
+                        log.info("Meta OCR engine: EasyOCR")
                         images = convert_from_path(pdf_path, first_page=1, last_page=3)
                         for i, img in enumerate(images):
-                            log.info(f"EasyOCR processing page", page=i+1)
+                            log.info("EasyOCR processing page", page=i + 1)
                             img_np = np.array(img)
                             results = self.reader.readtext(img_np, detail=0)
                             meta_text += "\n".join(results) + "\n"
                     except Exception as ocr_err:
-                        log.error("EasyOCR fallback failed", exc=ocr_err)
+                        log.error("EasyOCR meta fallback failed", exc=ocr_err)
                 else:
-                    log.warn("EasyOCR requested but not available")
+                    log.warn("No OCR engine available for meta extraction")
 
             lines = [line.strip() for line in meta_text.split('\n') if line.strip()]
 
@@ -154,11 +198,6 @@ class OCRService:
             '''
             
             # ── Authors ───────────────────────────────────────────────────────
-            # Step 1: truncate cover_text at the first biographical/back-matter
-            # boundary. Everything after "BIOGRAPHICAL DATA", "BIOGRAPHY",
-            # "ACKNOWLEDGMENT", page-number-only lines like "iii", or approval
-            # sheet anchors is noise — addresses, dates, and place names in bios
-            # look exactly like author names to any regex.
             COVER_END_ANCHORS = re.compile(
                 r'(?:^|\n)(?:'
                 r'BIOGRAPHICAL\s+DATA|BIOGRAPHY|ABOUT\s+THE\s+AUTHORS?|'
@@ -186,7 +225,7 @@ class OCRService:
             # Tightened regex: last name is 2–20 chars (prevents long noise words
             # like DEVELOPMENTAL prepending to a real name), and the whole match
             # must sit on its own line (anchored by line boundaries or newlines).
-            # e.g. BILLONES, PRINCE ISIAH R.  /  DELA CRUZ, JUAN CARLO
+            # e.g. REYES, YNAA MARUF A.  /  DELA CRUZ, JUAN CARLO
             all_caps_names = re.findall(
                 # Use [ ]+ (literal space) not \s+ so the regex never
                 # crosses newlines and merges two author names into one.
@@ -332,36 +371,6 @@ class OCRService:
             final_author = " | ".join(detected_authors) if detected_authors else author_fallback
 
             # ── Abstract ──────────────────────────────────────────────────────
-            # Two boilerplate formats exist in CvSU theses:
-            #
-            #   Format A — separator line present:
-            #       ABSTRACT
-            #       ─────────────────────────────────
-            #       [Actual abstract prose starts here]
-            #
-            #   Format B — no separator (the problematic one shown in the image):
-            #       ABSTRACT
-            #
-            #       Author1, Author2, Author3
-            #       Title of Study. Degree. Institution. Month Year. Adviser: Name.
-            #
-            #       [Actual abstract prose starts here]
-            #
-            # In Format B the entire header block is 1–3 lines of continuous text.
-            # The approach:
-            #   Step 1 — strip the boilerplate PARAGRAPH as a whole chunk using
-            #            a terminus pattern (Adviser: ...) so we skip it entirely
-            #            even when it contains no newlines.
-            #   Step 2 — fall back to the line-by-line skip for any remaining
-            #            boilerplate lines that appear after the chunk.
-
-            # ── Boilerplate terminus patterns ─────────────────────────────────
-            # The inline boilerplate paragraph always ends with one of these:
-            #   "Adviser: Name."  /  "Adviser's Name."  /  "Month YYYY."
-            # Everything from the ABSTRACT keyword up to and including the
-            # terminus is discarded before the line-by-line pass runs.
-            # Takes the LAST terminus match — Adviser: always follows the date
-            # so we correctly skip past both when both are present.
             BOILERPLATE_TERMINUS_RE = re.compile(
                 r'(?:'
                 r'Adviser\s*[:\s]+[A-Za-z][A-Za-z\s\.]{2,50}\.|'
@@ -554,29 +563,37 @@ class OCRService:
             extracted_imrad = {"sections": {}, "section_pages": {}, "imrad_pages": []}
             detected_subs   = []
             try:
+                # 1. Primary extraction (identify sections and pages)
+                if session_id: task_manager.update_task(session_id, 45, "Identifying IMRaD sections...")
                 extracted_imrad = imrad_service.extract_sections(
                     page_text_map,
                     title=detected_title,
-                    authors=final_author,
+                    authors=final_author
                 )
 
-                # Use full_section_pages for subheading detection so we scan
-                # the complete methods section, not just the preview pages.
+                # 2. Section pages for specialized scans
                 full_sec_pages = extracted_imrad.get("full_section_pages", {})
                 methods_pages = full_sec_pages.get("methods") or extracted_imrad.get("section_pages", {}).get("methods", [])
+                results_pages = (
+                    full_sec_pages.get("results_and_discussion")
+                    or full_sec_pages.get("results")
+                    or extracted_imrad.get("section_pages", {}).get("results_and_discussion", [])
+                    or extracted_imrad.get("section_pages", {}).get("results", [])
+                )
+
+                # 3. Media (Disabled)
+                extracted_imrad["media"] = {}
+
                 detected_subs = imrad_service.detect_subheadings(
                     page_text_map=page_text_map,
                     methods_pages=methods_pages,
+                    results_pages=results_pages,
                 )
             except Exception as imrad_err:
                 log.error("IMRAD extraction failed (non-fatal)", exc=imrad_err)
 
             # ── Pre-generate IMRAD summaries ──────────────────────────────────
-            # Done HERE (during preview) so the uploader sees summaries in
-            # Step 2 and can correct them before confirming the upload.
-            # Sub-section content (Background, Objectives, Significance, etc.)
-            # is intentionally preserved. The summariser in imrad_summary_service
-            # detects and summarises each sub-section from the full text.
+            if session_id: task_manager.update_task(session_id, 85, "Summarizing academic content...")
             sections_raw: dict = extracted_imrad.get("sections", {})
 
             sections_summary: dict = {}
@@ -601,8 +618,7 @@ class OCRService:
                 "sections":             sections_raw,
                 "sections_summary":     sections_summary,
                 "section_pages":        extracted_imrad.get("section_pages", {}),
-                # Flat list of preview page numbers — popped in papers.py before
-                # the response is sent to the frontend.
+                "media":                extracted_imrad.get("media", {}),
                 "imrad_pages":          extracted_imrad.get("imrad_pages", []),
             }
 
@@ -628,21 +644,17 @@ class OCRService:
         self,
         pdf_path: str,
         imrad_pages: Optional[List[int]] = None,
+        session_id: Optional[str] = None
     ):
-        """
-        Extracts base64 thumbnails and text snippets for PDF pages.
+        import asyncio
+        return await asyncio.to_thread(self.extract_page_previews_sync, pdf_path, imrad_pages, session_id)
 
-        Args:
-            pdf_path:    Path to the PDF.
-            imrad_pages: If supplied, only these page numbers are rendered.
-                         Pass None to render all pages (fallback/manual mode).
-
-        Fixes vs original:
-        - Converts one page at a time (first_page=N, last_page=N) so page N
-          always maps to the correct image regardless of Poppler behaviour.
-        - Accepts imrad_pages to skip non-IMRAD pages entirely, so the
-          frontend review screen only shows relevant pages.
-        """
+    def extract_page_previews_sync(
+        self,
+        pdf_path: str,
+        imrad_pages: Optional[List[int]] = None,
+        session_id: Optional[str] = None
+    ):
         previews = []
         try:
             reader    = PdfReader(pdf_path)
@@ -687,6 +699,5 @@ class OCRService:
             log.error("Page preview extraction failed", exc=e)
 
         return previews
-
 
 ocr_service = OCRService()

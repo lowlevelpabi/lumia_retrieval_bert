@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy import Integer
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -20,10 +21,13 @@ from app.services.embedding_service import embedding_service
 from app.services.vector_db import vector_db
 from app.services.imrad_service import imrad_service
 from app.services.imrad_summary_service import imrad_summary_service
+from app.services.imrad_structure_service import imrad_structure_service
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 from app.core.hash import encode_id, decode_id
 from app.models.activity_log import ActivityLog
+from app.services.imrad_structure_service import imrad_structure_service
+from app.core.task_manager import task_manager
 
 router = APIRouter()
 
@@ -32,8 +36,19 @@ TEMP_UPLOAD_DIR = "uploads/temp"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 
+@router.get("/upload/status/{session_id}")
+async def upload_status(session_id: str):
+    """
+    Step 1b: Stream real-time progress for a specific upload session.
+    """
+    return StreamingResponse(
+        task_manager.subscribe(session_id),
+        media_type="text/event-stream"
+    )
+
 @router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(faculty_or_admin_required)])
 async def upload_preview(
+    session_id: Optional[str] = None,
     file: UploadFile = File(...),
     auto_extract: bool = True
 ):
@@ -43,15 +58,18 @@ async def upload_preview(
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
-    session_id = str(uuid.uuid4())
+    if not session_id:
+        session_id = str(uuid.uuid4())
     temp_path = os.path.join(TEMP_UPLOAD_DIR, f"{session_id}_{file.filename}")
     
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     # 1. Extract Metadata (Only if requested)
+    task_manager.update_task(session_id, 5, "Initializing extraction...")
     if auto_extract:
-        metadata = await ocr_service.extract_metadata(temp_path)
+        import asyncio
+        metadata = await asyncio.to_thread(ocr_service.extract_metadata_sync, temp_path, session_id)
     else:
         # Default metadata for manual review
         metadata = {
@@ -106,7 +124,8 @@ async def upload_preview(
 
     if auto_extract and imrad_pages:
         # Normal path: smart IMRAD-filtered thumbnails
-        pages = await ocr_service.extract_page_previews(temp_path, imrad_pages=imrad_pages)
+        import asyncio
+        pages = await asyncio.to_thread(ocr_service.extract_page_previews_sync, temp_path, imrad_pages, session_id)
     else:
         # Manuscript or manual path: show only the first N pages, not the whole doc
         try:
@@ -114,10 +133,13 @@ async def upload_preview(
         except Exception:
             _num_pages = MAX_MANUSCRIPT_PREVIEW
         preview_range = list(range(1, min(_num_pages, MAX_MANUSCRIPT_PREVIEW) + 1))
-        pages = await ocr_service.extract_page_previews(temp_path, imrad_pages=preview_range)
+        import asyncio
+        pages = await asyncio.to_thread(ocr_service.extract_page_previews_sync, temp_path, preview_range, session_id)
 
     # Attach manuscript flag so the frontend can show a specific notice
     metadata["is_manuscript"] = is_manuscript
+    
+    task_manager.update_task(session_id, 100, "Extraction complete", status="completed")
 
     return {
         "session_id": session_id,
@@ -187,10 +209,16 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         methods_summary=data.sections_summary.get("methods") if data.sections_summary else None,
         results_summary=data.sections_summary.get("results") if data.sections_summary else None,
         discussion_summary=data.sections_summary.get("discussion") if data.sections_summary else None,
+
+        # Save visual snippets (base64 images)
+        media=data.media
     )
     db.add(db_paper)
     db.commit()
     db.refresh(db_paper)
+    
+    if db_paper.media:
+        print(f"[confirm_upload] Saved {len(db_paper.media)} visual table snippets.")
 
     db.add(ActivityLog(
         action="Upload",
@@ -574,6 +602,12 @@ async def get_paper(paper_id: str, db: Session = Depends(get_db)):
     paper = db.query(Paper).filter(Paper.id == real_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
+
+    # Build structured IMRAD blocks at response time — no DB writes needed.
+    # The frontend receives pre-parsed typed blocks instead of flat strings,
+    # eliminating the need for client-side regex parsing.
+    paper.__dict__["imrad_structured"] = imrad_structure_service.build(paper)
+
     return paper
 
 
@@ -644,9 +678,11 @@ async def get_section_pages(
         if not pages_for_section:
             return {"pages": [], "message": f"No pages detected for section '{section}'"}
 
-        thumbnails = await ocr_service.extract_page_previews(
+        import asyncio
+        thumbnails = await asyncio.to_thread(
+            ocr_service.extract_page_previews_sync,
             paper.file_path,
-            imrad_pages=pages_for_section,
+            pages_for_section,
         )
         return {"pages": thumbnails, "section": section}
 

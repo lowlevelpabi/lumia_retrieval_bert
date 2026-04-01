@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -21,6 +21,7 @@ class Paper(Base):
     file_path = Column(String)
     uploaded_by = Column(String, nullable=True)   # username of uploader
     uploader_role = Column(String, nullable=True)
+    media = Column(JSON, nullable=True)           # Dictionary of {Table_ID: Base64_Image}
 
     # ── Full extracted text (shown in "Regular" / full-text view) ─────────────
     introduction = Column(Text, nullable=True)

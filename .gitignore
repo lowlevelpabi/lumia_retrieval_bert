@@ -26,4 +26,6 @@ Thumbs.db
 
 # Model weights and checkpoints
 imrad_nli_model/
-models/
+distilbert_imrad_model_clean/
+sample_documents/
+extracted_data_heading/

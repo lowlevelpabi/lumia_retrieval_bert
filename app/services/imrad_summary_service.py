@@ -50,13 +50,19 @@ MIN_SECTION_CHARS  = 50   # minimum chars for a section to be worth summarising
 # Methodology sub-heading patterns used by _split_methods_by_subheadings.
 # Kept in sync with imrad_service.METHODOLOGY_SUBHEADINGS.
 METHODOLOGY_SUBHEADINGS = [
-    {"label": "Research Design",       "patterns": ["Research\\s+Design", "Study\\s+Design"]},
-    {"label": "Participants",          "patterns": ["Participants?", "Respondents?", "Subjects?", "Sample"]},
-    {"label": "Data Collection",       "patterns": ["Data\\s+Collection", "Instrumentation", "Instruments?"]},
-    {"label": "Data Analysis",         "patterns": ["Data\\s+Anal(?:ysis|ytic)", "Statistical\\s+(?:Analysis|Treatment)"]},
-    {"label": "Procedure",             "patterns": ["Procedure", "Research\\s+Procedure", "Methodology"]},
-    {"label": "Materials",             "patterns": ["Materials?\\s+(?:and|&)\\s+Methods?", "Materials?"]},
-    {"label": "Ethical Considerations","patterns": ["Ethical\\s+Consid", "Ethics"]},
+    {"label": "Research Design",                            "patterns": ["Research\\s+(?:Approach\\s+(?:and\\s+)?)?Design", "Research\\s+Design"]},
+    {"label": "Research Approach",                          "patterns": ["Research\\s+Approach(?:\\s+and\\s+Design)?"]},
+    {"label": "Research Settings",                          "patterns": ["Research\\s+Settings?"]},
+    {"label": "Business Process",                           "patterns": ["Business\\s+Process"]},
+    {"label": "Participants of the Study",                  "patterns": ["Participants?\\s+of\\s+the\\s+Study", "Participants?", "Respondents?"]},
+    {"label": "Sampling Technique",                         "patterns": ["Stratified\\s+Sampl(?:ing|e)", "Sampling\\s+Technique"]},
+    {"label": "Research Instruments",                       "patterns": ["Research\\s+Instruments?"]},
+    {"label": "Data Collection, Instrument, and Procedure", "patterns": ["Data\\s+Collection,?\\s+Instrument,?\\s+and\\s+Procedure", "Data\\s+Collection"]},
+    {"label": "Sources of Data",                            "patterns": ["Sources?\\s+of\\s+Data", "Data\\s+to\\s+be\\s+[Gg]athered"]},
+    {"label": "Statistical Treatment of Data",              "patterns": ["Statistical\\s+Treatment\\s+of\\s+Data", "Statistical\\s+Treatment"]},
+    {"label": "Data Analysis",                              "patterns": ["Data\\s+Anal(?:ysis|ytic)", "Statistical\\s+(?:Analysis|Treatment)"]},
+    {"label": "Ethical Considerations",                     "patterns": ["Ethical\\s+Consid", "Ethics"]},
+    {"label": "Development Model",                          "patterns": ["Development\\s+Model"]},
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -389,26 +395,32 @@ def _summarise_introduction(text: str) -> str:
 
 
 def _summarise_methods(text: str) -> str:
-    parts = _split_methods_by_subheadings(text)
-    blocks: List[str] = []
-    for label, body in parts:
-        summary = _top_sentences(body, METHODS_SENTENCES_PER_SUBHEADING)
-        if summary.strip():
-            blocks.append(summary.strip())
-    
-    result = " ".join(blocks)
-    return _truncate_to_sentence(result, MAX_SUMMARY_CHARS)
+    # Raw pass-through — Methods section is stored as-is with subheading
+    # line breaks already embedded. No extractive summarisation: the full
+    # structured text is more useful than a compressed version, and the
+    # frontend renders subheadings visually from the raw text.
+    return _truncate_to_sentence(text.strip(), MAX_SUMMARY_CHARS)
 
 
 def _summarise_results(text: str) -> str:
-    return _truncate_to_sentence(_top_sentences(text, RESULTS_TOP_N), MAX_SUMMARY_CHARS)
+    # Raw pass-through — same rationale as Methods. Results sections often
+    # contain evaluation tables and structured data that extractive sentence
+    # scoring destroys. Return the full text up to the char cap.
+    return _truncate_to_sentence(text.strip(), MAX_SUMMARY_CHARS)
 
 
 def _summarise_discussion(text: str) -> str:
-    return _truncate_to_sentence(
-        _top_sentences(text, DISCUSSION_TOP_N, boost_signals=CONCLUSION_SIGNALS),
-        MAX_SUMMARY_CHARS,
-    )
+    # Raw pass-through for combined RAD documents. For pure Discussion/Conclusion
+    # sections (Chapter V), use extractive scoring to surface key sentences.
+    sentences = _split_sentences(text)
+    # Heuristic: if very few sentences, it's likely a pure conclusion section
+    # → extractive is fine. If many sentences, it's a combined RAD → raw.
+    if len(sentences) <= 8:
+        return _truncate_to_sentence(
+            _top_sentences(text, DISCUSSION_TOP_N, boost_signals=CONCLUSION_SIGNALS),
+            MAX_SUMMARY_CHARS,
+        )
+    return _truncate_to_sentence(text.strip(), MAX_SUMMARY_CHARS)
 
 
 _SUMMARISERS = {

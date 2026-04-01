@@ -17,6 +17,7 @@ class PaperBase(BaseModel):
     view_count: Optional[int] = 0
     uploaded_by: Optional[str] = None
     uploader_role: Optional[str] = None
+    media: Optional[Dict[str, str]] = None
 
     # Full extracted text (regular view)
     introduction: Optional[str] = None
@@ -180,3 +181,4 @@ class UploadConfirm(BaseModel):
 
     # Pre-generated summaries from the preview step — saved directly to DB
     sections_summary: Optional[Dict[str, Optional[str]]] = None
+    media: Optional[Dict[str, str]] = None

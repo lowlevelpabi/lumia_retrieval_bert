@@ -128,6 +128,29 @@ BACK_MATTER_PAGE_PATTERNS: List[str] = [
     r"\bABOUT\s+THE\s+AUTHOR\b",
 ]
 
+# Patterns that signal the start of a Conclusions/Chapter V section.
+# We use two tiers to balance detection vs false-positives:
+# 1. STRICT: Must be standalone or at the start of a line (short markers).
+# 2. FLEXIBLE: Can match anywhere in a line (long, unique phrases).
+RAD_STOP_PATTERNS_STRICT: List[str] = [
+    r"^\s*(?:CHAPTER\s+(?:V|5|FIVE))\s*$",
+    r"^\s*V\.\s*$",
+    r"^\s*RECOMMENDATIONS?\s*$",
+    r"^\s*CONCLUSIONS?\s*$",
+]
+
+RAD_STOP_PATTERNS_FLEX: List[str] = [
+    r"\bSUMMARY\W*CONCLUSIONS?\W*AND\W*RECOMMENDATIONS?\b",
+    r"\bSUMMARY\s+AND\s+CONCLUSIONS?\b",
+    r"\bCONCLUSIONS?\s+AND\s+RECOMMENDATIONS?\b",
+    r"\bCONCLUSION\s+AND\s+RECOMMENDATION\b",
+    r"\bIMPLICATIONS?\s+AND\s+RECOMMENDATIONS?\b",
+    r"\bSUMMARY\s+OF\s+FINDINGS\b",
+    r"\bSUMMARY\W*FINDINGS\W*CONCLUSIONS?\W*AND\W*RECOMMENDATIONS?\b",
+    r"\bSUMMARY\s+AND\s+RECOMMENDATION\b",
+    r"\bSUMMARY\s+OF\s+THE\s+STUDY\b",
+]
+
 INTRO_SUBSECTION_PATTERNS: List[str] = [
     r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Background\s+of\s+the\s+Study\b",
     r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Statement\s+of\s+the\s+Problem\b",
@@ -166,6 +189,18 @@ INTRO_SUBSECTION_PATTERNS: List[str] = [
     r"^\s*Related\s+(?:Works?|Studies|Literature)\b",
 ]
 
+# RRL boundary patterns — content from here onward belongs to Chapter II, not
+# the Introduction. Captured as a module-level constant so _find_intro_end_page
+# and the extraction loop can both reference it.
+RRL_BOUNDARY_PATTERNS: List[str] = [
+    r"^\s*(?:[IVXLC]+|\d+)[\.]?\s*Review\s+of\s+(?:Related\s+)?Literature\b",
+    r"^\s*Review\s+of\s+(?:Related\s+)?Literature\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.]?\s*Review\s+of\s+Related\s+(?:Literature|Studies)\b",
+    r"^\s*Review\s+of\s+Related\s+(?:Literature|Studies)\b",
+    r"^\s*Related\s+(?:Works?|Literature|Studies)\b",
+    r"^\s*(?:[IVXLC]+|\d+)[\.]?\s*Related\s+(?:Works?|Literature|Studies)\b",
+]
+
 MAX_INTRO_PAGES: int = 15
 
 # TOC / rubric page skip patterns
@@ -183,16 +218,66 @@ SKIP_PAGE_PATTERNS: List[str] = [
 
 # Methodology sub-heading checklist
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
-    {"label": "Research Design",            "patterns": [r"Research\s+Design"]},
-    {"label": "Research Approach",          "patterns": [r"Research\s+Approach"]},
-    {"label": "Research Settings",          "patterns": [r"Research\s+Setting"]},
-    {"label": "Participants / Respondents", "patterns": [r"Participants?", r"Respondents?"]},
-    {"label": "Research Instruments",       "patterns": [r"Research\s+Instruments?"]},
-    {"label": "Data Collection Procedure",  "patterns": [r"Data\s+Collection"]},
-    {"label": "Data Analysis Techniques",   "patterns": [r"Data\s+Analy(?:sis|tical)(?:\s+Techni(?:que|cal)?)?",
-                                                          r"Data\s+Analysis"]},
-    {"label": "Ethical Considerations",     "patterns": [r"Ethical\s+Considerations?"]},
-    {"label": "Development Model",          "patterns": [r"Development\s+Model"]},
+    {"label": "Research Design",                            "patterns": [r"Research\s+(?:Approach\s+(?:and\s+)?)?Design",
+                                                                         r"Research\s+Design"]},
+    {"label": "Research Approach",                          "patterns": [r"Research\s+Approach(?:\s+and\s+Design)?"]},
+    {"label": "Research Settings",                          "patterns": [r"Research\s+Settings?"]},
+    {"label": "Business Process",                           "patterns": [r"Business\s+Process"]},
+    {"label": "Participants of the Study",                  "patterns": [r"Participants?\s+of\s+the\s+Study",
+                                                                         r"Participants?", r"Respondents?"]},
+    {"label": "Sampling Technique",                         "patterns": [r"Stratified\s+Sampl(?:ing|e)",
+                                                                         r"Sampling\s+Technique"]},
+    {"label": "Research Instruments",                       "patterns": [r"Research\s+Instruments?"]},
+    {"label": "Data Collection, Instrument, and Procedure", "patterns": [r"Data\s+Collection,?\s+Instrument,?\s+and\s+Procedure",
+                                                                         r"Data\s+Collection"]},
+    {"label": "Sources of Data",                            "patterns": [r"Sources?\s+of\s+Data",
+                                                                         r"Data\s+to\s+be\s+[Gg]athered"]},
+    {"label": "Statistical Treatment of Data",              "patterns": [r"Statistical\s+Treatment\s+of\s+Data",
+                                                                         r"Statistical\s+Treatment"]},
+    {"label": "Data Analysis",                              "patterns": [r"Data\s+Analy(?:sis|tical)(?:\s+Techni(?:que|cal)?)?",
+                                                                         r"Data\s+Analysis"]},
+    {"label": "Ethical Considerations",                     "patterns": [r"Ethical\s+Considerations?"]},
+    {"label": "Development Model",                          "patterns": [r"Development\s+Model"]},
+    # Capstone-specific additions (Methodology)
+    {"label": "Design Software, System, Product and/or Process", "patterns": [r"Design\s+Software,?\s+System,?\s+Product\s+and/or\s+Process"]},
+    {"label": "Requirement Analysis",                       "patterns": [r"Requirement\s+Analysis"]},
+    {"label": "Requirement Documentation",                  "patterns": [r"Requirement\s+Documentation"]},
+    {"label": "System Development",                         "patterns": [r"System\s+Development"]},
+    {"label": "System Evaluation",                          "patterns": [r"System\s+Evaluation"]},
+    {"label": "Data Analysis Plan",                         "patterns": [r"Data\s+Analysis\s+Plan"]},
+    {"label": "Implementation Plan",                        "patterns": [r"Implementation\s+Plan"]},
+]
+
+# Results / Results-and-Discussion sub-heading checklist
+RESULTS_SUBHEADINGS: List[Dict] = [
+    {"label": "Discussion of the Methodology Phases",       "patterns": [r"Discussion\s+of\s+(?:the\s+)?Methodology\s+Phases?"]},
+    {"label": "Discussion of Findings",                     "patterns": [r"Discussion\s+of\s+(?:the\s+)?(?:Findings?|Results?)"]},
+    {"label": "Participation in the Study",                 "patterns": [r"Participation\s+in\s+the\s+Study"]},
+    {"label": "System Software Evaluation Results",         "patterns": [r"System\s+(?:Software\s+)?Evaluation\s+Results?",
+                                                                         r"Software\s+Evaluation\s+Results?"]},
+    {"label": "Functional Requirements",                    "patterns": [r"Functional\s+Requirements?"]},
+    {"label": "Non-Functional Requirements",                "patterns": [r"Non[-\s]Functional\s+Requirements?"]},
+    {"label": "System Testing",                             "patterns": [r"System\s+Testing"]},
+    {"label": "User Acceptance Testing",                    "patterns": [r"User\s+Acceptance\s+(?:Testing|Test)",
+                                                                         r"\bUAT\b"]},
+    {"label": "Functionality",                              "patterns": [r"^Functionality$"]},
+    {"label": "Reliability",                                "patterns": [r"^Reliability$"]},
+    {"label": "Usability",                                  "patterns": [r"^Usability$"]},
+    {"label": "Efficiency",                                 "patterns": [r"^Efficiency$"]},
+    {"label": "Portability",                                "patterns": [r"^Portability$"]},
+    {"label": "Maintainability",                            "patterns": [r"^Maintainability$"]},
+    {"label": "Descriptive Statistics",                     "patterns": [r"Descriptive\s+Statistics"]},
+    {"label": "Hypothesis Testing",                         "patterns": [r"Hypothesis\s+Testing",
+                                                                         r"Test\s+of\s+(?:Significant\s+)?Difference"]},
+    {"label": "Correlation Analysis",                       "patterns": [r"Correlation\s+Analysis"]},
+    {"label": "Interpretation",                             "patterns": [r"^Interpretation$",
+                                                                         r"Interpretation\s+of\s+(?:Data|Results?)"]},
+    # Capstone-specific additions (Results)
+    {"label": "System Design",                              "patterns": [r"System\s+Design"]},
+    {"label": "System Development",                         "patterns": [r"System\s+Development"]},
+    {"label": "System Testing",                             "patterns": [r"System\s+Testing"]},
+    {"label": "System Evaluation",                          "patterns": [r"System\s+Evaluation"]},
+    {"label": "Implementation Results",                     "patterns": [r"Implementation\s+Results?"]},
 ]
 
 BOILERPLATE_PATTERNS: List[str] = [
@@ -209,6 +294,16 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"^\s*[ivxIVX]+\s*$",
 ]
 
+# Flat set of all IMRAD section heading strings (uppercased).
+# Used during line-by-line extraction to skip lines that ARE the section
+# heading itself — prevents "METHODOLOGY", "RESULTS AND DISCUSSION" etc.
+# from appearing as the first line of the body text.
+_SECTION_HEADING_LINES: set = {
+    kw.upper()
+    for kws in HEADING_KEYWORDS.values()
+    for kw in kws
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -216,8 +311,13 @@ BOILERPLATE_PATTERNS: List[str] = [
 
 def _normalize_text(text: str) -> str:
     text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Rejoin hyphenated line-breaks (e.g. "meth-\nodology" → "methodology")
     text = re.sub(r'-\n\s*', '', text)
-    text = re.sub(r'([a-z\.,])([A-Z]{2,})', r'\1\n\2', text)
+    # Fix pypdf spacing artefacts: uppercase words split by a stray space
+    # e.g. "METHODOLOG Y" → "METHODOLOGY", "DISCUSSIO N" → "DISCUSSION"
+    # narrowed to 1-2 char segments to avoid joining "RESULTS AND" → "RESULTSAND"
+    text = re.sub(r'\b([A-Z]{3,})\s([A-Z]{1,2})\b', lambda m: m.group(1) + m.group(2), text)
+    # Collapse multiple spaces/tabs on a single line — preserve newlines
     text = re.sub(r'[^\S\n]+', ' ', text)
     return text
 
@@ -248,18 +348,53 @@ def _strip_page_header(
             earliest_len = len(heading)
 
     if earliest_pos != -1:
-        result = text[earliest_pos + earliest_len:].strip()
-        log.regex("Header stripped", pos=earliest_pos,
-                  heading=text[earliest_pos:earliest_pos+earliest_len],
-                  body_start=repr(result[:50]))
-        return result
+        # Guard: only treat the match as a heading anchor when it sits on its
+        # own short line. If the keyword is found inside a long body sentence
+        # (e.g. "...examination of the proposal methodology is presented...")
+        # slicing from there drops the start of the paragraph. That happens
+        # when _find_section_page detected the heading on the last line of the
+        # previous page and start_pg therefore begins with body text.
+        match_line_start = text.rfind('\n', 0, earliest_pos) + 1   # 0 if no prior \n
+        match_line_end   = text.find('\n', earliest_pos + earliest_len)
+        if match_line_end == -1:
+            match_line_end = len(text)
+        match_line = text[match_line_start:match_line_end].strip()
+
+        heading_is_standalone = (
+            len(match_line) <= 80
+            and (earliest_len / max(len(match_line), 1)) >= 0.50
+        )
+
+        if heading_is_standalone:
+            # Slice off the heading line; body starts on the very next line.
+            result = text[match_line_end:].strip()
+            log.regex("Header stripped (standalone heading)",
+                      pos=earliest_pos,
+                      heading=match_line,
+                      body_start=repr(result[:50]))
+            return result
+        else:
+            log.regex(
+                "Heading anchor rejected — keyword inside body text, "
+                "falling through to phrase-stripping fallback",
+                match_line=repr(match_line[:60]),
+            )
+    # falls through to phrase-stripping fallback below
 
     log.regex("No heading anchor — using phrase stripping fallback")
     result = text
 
     if title and title not in ("N/A", ""):
-        title_normalized = re.sub(r"\s+", r"\s+", re.escape(title.strip()))
-        result = re.sub(title_normalized, " ", result[:800], flags=re.IGNORECASE) + result[800:]
+        # re.escape turns spaces into '\ ' (escaped space). Replace each of
+        # those with \s+ so the pattern flexibly matches any whitespace run.
+        # Do NOT use re.sub(r"\s+", r"\s+", escaped) — that injects a raw
+        # '\s+' string which Python 3.12+ rejects as a bad escape sequence.
+        title_escaped    = re.escape(title.strip())
+        title_normalized = re.sub(r'\\ ', r'\\s+', title_escaped)
+        try:
+            result = re.sub(title_normalized, " ", result[:800], flags=re.IGNORECASE) + result[800:]
+        except re.error:
+            result = result.replace(title.strip(), " ", 1)
 
     if authors and authors not in ("N/A", ""):
         for author in authors.split("|"):
@@ -447,44 +582,60 @@ def _find_section_page(
     log.regex(f"Nominated {len(nominees)} candidate(s) for NLI review",
               section=section_key)
 
-    # ── Phase 2: NLI judges every nominee ────────────────────────────────────
-    log.subsection(f"Phase 2 · NLI judging '{section_key}' nominees")
+    # ── Phase 2: ML Judging ──────────────────────────────────────────────────
+    log.subsection(f"Phase 2 · ML Judging '{section_key}' nominees")
 
     best_fallback_page  : Optional[int] = nominees[0][0]
     best_fallback_score : float         = nominees[0][2]
 
+    # Sort nominees by regex score to check most likely headings first
+    nominees.sort(key=lambda x: x[2], reverse=True)
+
     for page_num, clean, regex_score in nominees:
         ml_section, ml_score = classify_heading(clean)
 
-        if ml_section is None:
-            # NLI unavailable — log and fall back to regex ranking
-            log.ml("NLI unavailable — using regex fallback",
-                   page=page_num, line=f'"{clean[:40]}"')
-            log.regex_accept(section_key, best_fallback_page,
-                             best_fallback_score, reason="regex fallback (no NLI)")
-            return best_fallback_page
-
-        # NLI agrees if it maps to the same section key
-        agreed = (ml_section == section_key)
-
-        if agreed:
+        # ── ML-First Logic ──
+        # If Tier 0 ML confirms the section, we take it immediately.
+        if ml_section == section_key:
             log.ml_classify(
                 f"Verdict CONFIRMED — '{clean[:45]}'",
                 ml_section, ml_score,
-                tier=f"pg={page_num}  regex={regex_score:.2f}",
+                tier=f"pg={page_num} (ML-First)",
             )
             return page_num
-        else:
-            log.ml_classify(
-                f"Verdict REJECTED — '{clean[:45]}'",
-                ml_section, ml_score,
-                tier=f"pg={page_num}  regex={regex_score:.2f}  expected={section_key}",
-            )
 
-    # All nominees rejected by NLI
-    log.warn(f"NLI rejected all nominees for '{section_key}' — using top regex nominee as fallback",
-             page=best_fallback_page, score=f"{best_fallback_score:.2f}")
-    return best_fallback_page
+        # If ML is broken (None, 0.0), only then we follow fallback rules
+        if ml_section is None and ml_score == 0.0:
+            log.ml_warn("ML engine unavailable — using safety fallback",
+                        page=page_num, line=f'"{clean[:40]}"')
+            if best_fallback_score >= 0.85:
+                return best_fallback_page
+            continue
+
+        # If ML definitively said 'junk' or wrong section, we REJECT it.
+        # This is where the transition to Pure ML happens.
+        if ml_section != section_key:
+             log.ml_classify(
+                f"Verdict REJECTED — '{clean[:45]}'",
+                ml_section or "junk", ml_score,
+                tier=f"pg={page_num} (ML-Decision)",
+            )
+             # If Regex is VERY sure (e.g. 0.98), we might consider it, 
+             # but normally we trust the ML's rejection.
+             if regex_score >= 0.95:
+                 log.regex(f"Regex override applied for perfect match", page=page_num)
+                 return page_num
+             continue
+
+    # Final logic: if all ML checks failed/rejected, but we found a perfect 
+    # regex match earlier, use it as a last resort.
+    if best_fallback_score >= 0.92:
+        log.regex_accept(section_key, best_fallback_page,
+                         best_fallback_score, reason="Perfect regex match (ML unsure)")
+        return best_fallback_page
+
+    log.warn(f"Section '{section_key}' not found by ML ranking.")
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -719,6 +870,8 @@ class IMRADService:
                     page_text = _strip_page_header(page_text, title=title, authors=authors)
                 
                 pg_lines = []
+                _intro_rrl_hit = False   # set True once we reach the RRL boundary
+                _rad_stop_hit  = False   # set True when summary/conclusion heading found in RAD
                 for line in page_text.split("\n"):
                     line = line.strip()
                     if not line:
@@ -727,39 +880,138 @@ class IMRADService:
                         continue
                     if re.fullmatch(r'[\divxIVX]+', line):
                         continue
-                    
-                    # If this line is a sub-heading, ensure it has a newline before it
-                    is_heading = False
-                    if section_key == "introduction":
-                        is_heading = any(re.search(pat, line, re.IGNORECASE) for pat in INTRO_SUBSECTION_PATTERNS)
-                    elif section_key == "methods":
-                        # Check against generic methodology headings too
-                        is_heading = any(re.search(r"\b" + entry["patterns"][0] + r"\b", line, re.IGNORECASE) 
-                                       for entry in METHODOLOGY_SUBHEADINGS)
 
-                    if is_heading:
-                        if pg_lines:
-                            pg_lines[-1] = pg_lines[-1] + "\n"
-                        pg_lines.append(line + "\n")
-                    else:
-                        pg_lines.append(line)
+                    # ── Skip the section heading line itself ──────────────────
+                    # Prevents "METHODOLOGY", "RESULTS AND DISCUSSION" etc.
+                    # from leaking into the body text as a first line.
+                    if line.upper() in _SECTION_HEADING_LINES:
+                        continue
+
+                    # ── Introduction: stop at RRL boundary ───────────────────
+                    if section_key == "introduction":
+                        if any(re.search(pat, line, re.IGNORECASE)
+                               for pat in RRL_BOUNDARY_PATTERNS):
+                            _intro_rrl_hit = True
+                            log.regex("Introduction: RRL boundary reached — "
+                                      "stopping intro extraction",
+                                      line=repr(line[:60]))
+                            break
+
+                    # ── Introduction: stop at first sub-heading ───────────────
+                    if section_key == "introduction":
+                        if any(re.search(pat, line, re.IGNORECASE)
+                               for pat in INTRO_SUBSECTION_PATTERNS):
+                            _intro_rrl_hit = True
+                            log.regex(
+                                "Introduction: sub-heading boundary reached — "
+                                "stopping intro extraction",
+                                line=repr(line[:60]),
+                            )
+                            break
+
+                    # ── Results/RAD: stop at Summary/Conclusion heading ───────
+                    # Prevents CHAPTER V content from being absorbed into the
+                    # Results and Discussion section when both share the same
+                    # page range (no separate chapter detected).
+                    if section_key in ("results", "results_and_discussion"):
+                        # Tier 1: Strict Check (standalone)
+                        if any(re.search(pat, line, re.IGNORECASE)
+                               for pat in RAD_STOP_PATTERNS_STRICT):
+                            _rad_stop_hit = True
+                            log.regex("Results/RAD: conclusion boundary reached (STRICT) — stopping",
+                                      line=repr(line[:60]))
+                            break
+                        
+                        # Tier 2: Flexible Check (can be inline, but must be uppercase or long)
+                        # We only check FLEX if the line is not short to avoid false-positives
+                        # like mid-sentence "summary" mentions.
+                        for pat in RAD_STOP_PATTERNS_FLEX:
+                            match = re.search(pat, line, re.IGNORECASE)
+                            if match:
+                                # Secondary guard: if it's long prose and the match is NOT uppercase,
+                                # it's almost certainly body text, not a heading.
+                                found_match = match.group()
+                                if len(line) > 100 and found_match != found_match.upper():
+                                    continue
+                                
+                                # FIX: Split the line at the start of the match.
+                                # Keep the part before the match if it belongs to Results.
+                                text_before = line[:match.start()].strip()
+                                if text_before and len(text_before) > 3:
+                                    pg_lines.append(text_before)
+                                    log.regex("Results: kept text before inline heading", 
+                                              text=repr(text_before[:60]))
+
+                                _rad_stop_hit = True
+                                log.regex("Results/RAD: conclusion boundary reached (FLEX) — stopping",
+                                          line=repr(line[:60]))
+                                break
+                        if _rad_stop_hit:
+                            break
+
+                    # For methods AND results: insert a newline before each
+                    # sub-heading so the frontend can distinguish sections cleanly.
+                    is_section_subheading = False
+                    if section_key == "methods":
+                        is_section_subheading = any(
+                            re.search(r"\b" + entry["patterns"][0] + r"\b", line, re.IGNORECASE)
+                            for entry in METHODOLOGY_SUBHEADINGS
+                        )
+                    elif section_key in ("results", "results_and_discussion", "discussion"):
+                        is_section_subheading = any(
+                            re.search(r"\b" + entry["patterns"][0] + r"\b", line, re.IGNORECASE)
+                            for entry in RESULTS_SUBHEADINGS
+                        )
+
+                    if is_section_subheading:
+                        pg_lines.append("\n" + line.strip() + "\n")
+                        continue
+
+                    pg_lines.append(line)
 
                 if pg_lines:
-                    # Use a space separator for flow, but newlines from is_heading are preserved
                     pg_text_joined = " ".join(pg_lines)
                     if cleaned_lines:
-                        running_chars += 1  # space separator between pages
+                        running_chars += 1
                     cleaned_lines.extend(pg_lines)
                     running_chars += len(pg_text_joined)
                 page_cleaned_chars.append(running_chars)
 
-            final_content = " ".join(cleaned_lines)
-            # Replace the " \n" artifacts from joining
-            final_content = final_content.replace(" \n", "\n").replace("\n ", "\n")
+                # Stop collecting pages once the RRL boundary was hit
+                if section_key == "introduction" and _intro_rrl_hit:
+                    log.regex("Introduction page collection halted at RRL boundary",
+                              page=pg)
+                    break
 
-            # Sub-section content is intentionally kept intact. The summariser
-            # in imrad_summary_service.py detects and summarises each sub-section
-            # (Background, Objectives, Significance, etc.) from the full text.
+                # Stop collecting pages once summary/conclusion boundary hit in RAD
+                if section_key in ("results", "results_and_discussion") and _rad_stop_hit:
+                    log.regex("Results/RAD page collection halted at conclusion boundary",
+                              page=pg)
+                    break
+
+            # Join lines intelligently:
+            # - Lines ending with \n are subheadings → keep on their own line
+            # - All other lines are paragraph text → join with space
+            parts = []
+            buffer: List[str] = []
+            for ln in cleaned_lines:
+                if ln.endswith("\n"):
+                    if buffer:
+                        parts.append(" ".join(buffer))
+                        buffer = []
+                    parts.append(ln.rstrip("\n"))
+                else:
+                    buffer.append(ln)
+            if buffer:
+                parts.append(" ".join(buffer))
+
+            final_content = "\n".join(parts)
+            final_content = re.sub(r'\n{3,}', '\n\n', final_content).strip()
+
+            # Introduction extraction stops at the first sub-heading (Option A).
+            # sections["introduction"] now contains only the pure opening narrative.
+            # If the AI summariser needs sub-section content it should receive the
+            # full page_text_map range directly, not sections["introduction"].
 
             if len(final_content) >= MIN_SECTION_CHARS:
                 # FIX #1: Store full content (up to MAX_SECTION_CHARS = 20000)
@@ -796,33 +1048,50 @@ class IMRADService:
         self,
         page_text_map: Dict[int, str],
         methods_pages: List[int],
+        results_pages: List[int] = None,
     ) -> List[str]:
-        """Detect Methodology sub-headings using only the methods section pages."""
-        if not methods_pages:
-            log.warn("detect_subheadings — no methods pages supplied, skipping")
-            return []
-
-        search_text = ""
-        for pg in sorted(methods_pages):
-            search_text += _normalize_text(page_text_map.get(pg, "")) + "\n\n"
-
-        log.regex("Scanning for methodology sub-headings",
-                  chars=len(search_text), pages=len(methods_pages))
-
+        """Detect Methodology and Results sub-headings using section-specific pages."""
         detected: List[str] = []
-        for entry in METHODOLOGY_SUBHEADINGS:
-            for pat in entry["patterns"]:
-                if re.search(r"\b" + pat + r"\b", search_text, re.IGNORECASE):
-                    detected.append(entry["label"])
-                    log.regex("Sub-heading matched", label=entry["label"])
-                    break
 
+        # 1. Methodology Scan
+        if methods_pages:
+            m_text = ""
+            for pg in sorted(methods_pages):
+                m_text += _normalize_text(page_text_map.get(pg, "")) + "\n\n"
+            
+            for entry in METHODOLOGY_SUBHEADINGS:
+                for pat in entry["patterns"]:
+                    if re.search(r"\b" + pat + r"\b", m_text, re.IGNORECASE):
+                        detected.append(entry["label"])
+                        break
+
+        # 2. Results/Discussion Scan
+        if results_pages:
+            r_text = ""
+            for pg in sorted(results_pages):
+                r_text += _normalize_text(page_text_map.get(pg, "")) + "\n\n"
+            
+            for entry in RESULTS_SUBHEADINGS:
+                # Avoid duplicate labels (some subheadings appear in both lists)
+                if entry["label"] in detected:
+                    continue
+                for pat in entry["patterns"]:
+                    if re.search(r"\b" + pat + r"\b", r_text, re.IGNORECASE):
+                        detected.append(entry["label"])
+                        break
+
+        if detected:
+            log.regex("Sub-headings detected", count=len(detected), labels=str(detected))
+        
         return detected
 
     # ─────────────────────────────────────────────────────────────────────────
 
     def get_all_subheading_labels(self) -> List[str]:
-        return [entry["label"] for entry in METHODOLOGY_SUBHEADINGS]
+        m_labels = [entry["label"] for entry in METHODOLOGY_SUBHEADINGS]
+        r_labels = [entry["label"] for entry in RESULTS_SUBHEADINGS]
+        # Return unique combined list
+        return list(dict.fromkeys(m_labels + r_labels))
 
     def get_all_vector_names(self) -> List[str]:
         names = ["title"]
