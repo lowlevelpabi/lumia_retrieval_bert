@@ -1,0 +1,179 @@
+Table: papers
+CREATE TABLE papers (
+	id INTEGER NOT NULL, 
+	title VARCHAR, 
+	author VARCHAR, 
+	year VARCHAR, 
+	abstract TEXT, 
+	department VARCHAR, 
+	keywords TEXT, 
+	project_type VARCHAR, 
+	degree_program VARCHAR, 
+	citation_count INTEGER, 
+	view_count INTEGER, 
+	file_path VARCHAR, 
+	created_at DATETIME, 
+	updated_at DATETIME, 
+	PRIMARY KEY (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'title', 'VARCHAR', 0, None, 0)
+  (2, 'author', 'VARCHAR', 0, None, 0)
+  (3, 'year', 'VARCHAR', 0, None, 0)
+  (4, 'abstract', 'TEXT', 0, None, 0)
+  (5, 'department', 'VARCHAR', 0, None, 0)
+  (6, 'keywords', 'TEXT', 0, None, 0)
+  (7, 'project_type', 'VARCHAR', 0, None, 0)
+  (8, 'degree_program', 'VARCHAR', 0, None, 0)
+  (9, 'citation_count', 'INTEGER', 0, None, 0)
+  (10, 'view_count', 'INTEGER', 0, None, 0)
+  (11, 'file_path', 'VARCHAR', 0, None, 0)
+  (12, 'created_at', 'DATETIME', 0, None, 0)
+  (13, 'updated_at', 'DATETIME', 0, None, 0)
+============================================================
+
+Table: users
+CREATE TABLE users (
+	id INTEGER NOT NULL, 
+	username VARCHAR, 
+	email VARCHAR, 
+	hashed_password VARCHAR, 
+	role VARCHAR, 
+	PRIMARY KEY (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'username', 'VARCHAR', 0, None, 0)
+  (2, 'email', 'VARCHAR', 0, None, 0)
+  (3, 'hashed_password', 'VARCHAR', 0, None, 0)
+  (4, 'role', 'VARCHAR', 0, None, 0)
+============================================================
+
+Table: user_citations
+CREATE TABLE user_citations (
+	id INTEGER NOT NULL, 
+	user_id INTEGER NOT NULL, 
+	paper_id INTEGER NOT NULL, 
+	created_at DATETIME, 
+	PRIMARY KEY (id), 
+	CONSTRAINT unique_user_paper_citation UNIQUE (user_id, paper_id), 
+	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE, 
+	FOREIGN KEY(paper_id) REFERENCES papers (id) ON DELETE CASCADE
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'user_id', 'INTEGER', 1, None, 0)
+  (2, 'paper_id', 'INTEGER', 1, None, 0)
+  (3, 'created_at', 'DATETIME', 0, None, 0)
+============================================================
+
+Table: borrow_records
+CREATE TABLE borrow_records (
+	id INTEGER NOT NULL, 
+	paper_id INTEGER, 
+	user_id INTEGER, 
+	borrow_date DATETIME, 
+	due_date DATETIME, 
+	return_date DATETIME, 
+	status VARCHAR, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(paper_id) REFERENCES papers (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'paper_id', 'INTEGER', 0, None, 0)
+  (2, 'user_id', 'INTEGER', 0, None, 0)
+  (3, 'borrow_date', 'DATETIME', 0, None, 0)
+  (4, 'due_date', 'DATETIME', 0, None, 0)
+  (5, 'return_date', 'DATETIME', 0, None, 0)
+  (6, 'status', 'VARCHAR', 0, None, 0)
+============================================================
+
+Table: penalties
+CREATE TABLE penalties (
+	id INTEGER NOT NULL, 
+	user_id INTEGER, 
+	borrow_record_id INTEGER, 
+	amount FLOAT, 
+	reason VARCHAR, 
+	status VARCHAR, 
+	created_at DATETIME, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(user_id) REFERENCES users (id), 
+	FOREIGN KEY(borrow_record_id) REFERENCES borrow_records (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'user_id', 'INTEGER', 0, None, 0)
+  (2, 'borrow_record_id', 'INTEGER', 0, None, 0)
+  (3, 'amount', 'FLOAT', 0, None, 0)
+  (4, 'reason', 'VARCHAR', 0, None, 0)
+  (5, 'status', 'VARCHAR', 0, None, 0)
+  (6, 'created_at', 'DATETIME', 0, None, 0)
+============================================================
+
+Table: students
+CREATE TABLE students (
+	id INTEGER NOT NULL, 
+	username VARCHAR, 
+	full_name VARCHAR, 
+	email VARCHAR, 
+	hashed_password VARCHAR, 
+	PRIMARY KEY (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'username', 'VARCHAR', 0, None, 0)
+  (2, 'full_name', 'VARCHAR', 0, None, 0)
+  (3, 'email', 'VARCHAR', 0, None, 0)
+  (4, 'hashed_password', 'VARCHAR', 0, None, 0)
+============================================================
+
+Table: authorized_users
+CREATE TABLE authorized_users (
+	id INTEGER NOT NULL, 
+	username VARCHAR, 
+	full_name VARCHAR, 
+	email VARCHAR, 
+	hashed_password VARCHAR, 
+	role VARCHAR, 
+	PRIMARY KEY (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'username', 'VARCHAR', 0, None, 0)
+  (2, 'full_name', 'VARCHAR', 0, None, 0)
+  (3, 'email', 'VARCHAR', 0, None, 0)
+  (4, 'hashed_password', 'VARCHAR', 0, None, 0)
+  (5, 'role', 'VARCHAR', 0, None, 0)
+============================================================
+
+Table: activity_logs
+CREATE TABLE activity_logs (
+	id INTEGER NOT NULL, 
+	action VARCHAR NOT NULL, 
+	paper_title VARCHAR NOT NULL, 
+	performed_by VARCHAR NOT NULL, 
+	performed_by_role VARCHAR, 
+	performed_at DATETIME, 
+	PRIMARY KEY (id)
+)
+----------------------------------------
+Columns:
+  (0, 'id', 'INTEGER', 1, None, 1)
+  (1, 'action', 'VARCHAR', 1, None, 0)
+  (2, 'paper_title', 'VARCHAR', 1, None, 0)
+  (3, 'performed_by', 'VARCHAR', 1, None, 0)
+  (4, 'performed_by_role', 'VARCHAR', 0, None, 0)
+  (5, 'performed_at', 'DATETIME', 0, None, 0)
+============================================================
+

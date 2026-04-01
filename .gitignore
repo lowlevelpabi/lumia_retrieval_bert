@@ -10,6 +10,7 @@ qdrant_storage/
 
 # Databases
 thesis.db
+*.db.bak
 
 # Uploads
 uploads/
@@ -27,5 +28,7 @@ Thumbs.db
 # Model weights and checkpoints
 imrad_nli_model/
 distilbert_imrad_model_clean/
+distilbert_imrad_model/
 sample_documents/
 extracted_data_heading/
+sample_data/
