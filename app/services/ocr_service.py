@@ -568,7 +568,8 @@ class OCRService:
                 extracted_imrad = imrad_service.extract_sections(
                     page_text_map,
                     title=detected_title,
-                    authors=final_author
+                    authors=final_author,
+                    pdf_path=pdf_path
                 )
 
                 # 2. Section pages for specialized scans
@@ -580,9 +581,6 @@ class OCRService:
                     or extracted_imrad.get("section_pages", {}).get("results_and_discussion", [])
                     or extracted_imrad.get("section_pages", {}).get("results", [])
                 )
-
-                # 3. Media (Disabled)
-                extracted_imrad["media"] = {}
 
                 detected_subs = imrad_service.detect_subheadings(
                     page_text_map=page_text_map,

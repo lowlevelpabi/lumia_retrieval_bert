@@ -4,19 +4,6 @@ imrad_structure_service.py
 Transforms flat extracted-text columns from SQL into structured JSON blocks
 before sending to the frontend. No database schema changes required — this
 runs at response time on the already-stored text strings.
-
-Output format per section:
-    [
-        {"type": "subheading",   "text": "Research Design"},
-        {"type": "text",         "text": "The study used a descriptive quantitative approach..."},
-        {"type": "table-label",  "text": "Table 1. Distribution of Respondents"},
-        {"type": "text",         "text": "The weighted mean of 4.54 indicates..."},
-    ]
-
-Usage:
-    from app.services.imrad_structure_service import imrad_structure_service
-    structured = imrad_structure_service.build(paper)
-    # → {"introduction": [...], "methods": [...], "results": [...], "discussion": [...]}
 """
 
 from __future__ import annotations
@@ -42,7 +29,7 @@ RESULTS_LABELS: List[str] = [
     "System Testing", "User Acceptance Testing",
     "Functionality", "Reliability", "Usability", "Efficiency",
     "Portability", "Maintainability", "Descriptive Statistics",
-    "Hypothesis Testing", "Correlation Analysis", "Interpretation",
+    "Hypothesis Testing", "Correlation Analysis",
 ]
 
 ALL_SUBHEADING_LABELS: List[str] = METHODOLOGY_LABELS + RESULTS_LABELS
@@ -59,9 +46,11 @@ _SECTION_HEADING_EXACT = {
     "CHAPTER 1", "CHAPTER 2", "CHAPTER 3", "CHAPTER 4", "CHAPTER 5",
 }
 
-# Table / Figure caption — only short standalone lines (≤ 80 chars)
+# Table / Figure caption — requires punctuation (. or :) after the number
+# to distinguish true captions ("Table 6. General rating...") from inline
+# paragraph references ("Table 6 below shows the interpretation of...").
 _TABLE_FIGURE_RE = re.compile(
-    r'^(?:Table|Figure|Fig\.?)\s+\d+[\.\:]\s*.{0,60}$',
+    r'^(?:Table|Figure|Fig\.?)\s+\d+[\.\:]\s*.{0,120}$',
     re.IGNORECASE,
 )
 
@@ -71,28 +60,32 @@ _TABLE_FIGURE_RE = re.compile(
 def _structure_section(
     text: str,
     section_key: str,
-) -> List[Dict[str, str]]:
+    media: Optional[Dict[str, str]] = None,
+    pages: Optional[List[int]] = None,
+) -> List[Dict[str, Any]]:
     """
     Split a flat text string into a list of typed blocks.
-
+    
     Block types:
       "subheading"  — known IMRAD sub-heading line
       "table-label" — Table N. / Figure N. caption (short standalone line)
+      "table-image" — base64 visual snippet from paper.media (emitted after label)
       "text"        — normal paragraph text (lines joined with spaces)
     """
     if not text or not text.strip():
         return []
 
-    # Choose which subheading labels are relevant for this section
+    # Choose relevant subheading labels
     if section_key == "methods":
         labels = METHODOLOGY_LABELS
     elif section_key in ("results", "results_and_discussion", "discussion"):
         labels = RESULTS_LABELS
     else:
-        labels = []  # introduction — no subheading splitting needed
+        labels = []
 
-    blocks: List[Dict[str, str]] = []
+    blocks: List[Dict[str, Any]] = []
     buffer: List[str] = []
+    pending_media: List[Dict[str, Any]] = []
 
     def flush_buffer() -> None:
         if buffer:
@@ -101,34 +94,114 @@ def _structure_section(
                 blocks.append({"type": "text", "text": joined.strip()})
             buffer.clear()
 
+    def flush_pending_media() -> None:
+        """Emit any queued images immediately at the current position in the stream."""
+        if pending_media:
+            blocks.extend(pending_media)
+            pending_media.clear()
+
+    media = media or {}
+    pages = pages or []
+
+    # ── Media Pool Management ────────────────────────────────────────────────
+    section_media_pool = {
+        mid: b64 for mid, b64 in media.items()
+        if any(mid.startswith(f"T_{p}_") or mid.startswith(f"F_{p}_") for p in pages)
+    }
+    consumed_pool_ids = set()
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Regex for placeholders (supports [...] and [[...]])
+    MARKER_RE = re.compile(r'(\[{1,2}(?:TABLE|FIGURE)_IMAGE:.*?\]{1,2})', re.IGNORECASE)
+
+    # If the section text already contains inline markers from spatial extraction,
+    # disable the caption-fallback path (Path 2) entirely. Using both simultaneously
+    # causes intro sentences like "Table 6 below shows..." to incorrectly pull images
+    # from the pool on the same pass that markers are already handling placement.
+    has_inline_markers = bool(MARKER_RE.search(text))
+
     for line in text.split("\n"):
         stripped = line.strip()
-
-        # Skip empty lines and exact section headings
         if not stripped:
+            # Significant break! Flush text, then emit any queued images immediately
+            flush_buffer()
+            flush_pending_media()
             continue
+            
         if stripped.upper() in _SECTION_HEADING_EXACT:
+            flush_buffer()
             continue
 
-        # Known subheading — line must closely match a label (± 15 chars)
+        # 1. Check for standalone subheading
+        is_subheading = False
         if labels:
             matched_label = next(
-                (
-                    label for label in labels
-                    if label.lower() in stripped.lower()
-                    and len(stripped) <= len(label) + 15
-                ),
-                None,
+                (label for label in labels
+                 if label.lower() in stripped.lower() and len(stripped) <= len(label) + 15),
+                None
             )
             if matched_label:
-                flush_buffer()
+                flush_buffer()         # Flush existing paragraph text
+                flush_pending_media()  # Emit any images that belong BEFORE this subheading
                 blocks.append({"type": "subheading", "text": stripped})
-                continue
+                is_subheading = True
+        
+        if is_subheading:
+            continue
 
-        # Regular text — accumulate into buffer
-        buffer.append(stripped)
+        # 2. Check for Table/Figure Label (Caption) — only when no inline markers exist.
+        # If the section has [[TABLE_IMAGE:X]] markers, spatial extraction handled placement;
+        # running this fallback simultaneously causes intro sentences to wrongly pull images.
+        if not has_inline_markers and _TABLE_FIGURE_RE.match(stripped):
+            # Flush any accumulated paragraph text first
+            flush_buffer()
+            # Fallback caption matching
+            is_table = stripped.upper().startswith("TABLE")
+            prefix = "T_" if is_table else "F_"
+            pool_keys = sorted(section_media_pool.keys(), key=lambda x: [int(c) if c.isdigit() else c for c in re.split('([0-9]+)', x)])
+            match_id = next((pk for pk in pool_keys if pk.startswith(prefix) and pk not in consumed_pool_ids), None)
+            
+            if match_id:
+                # Emit the image immediately at this exact position in the stream
+                blocks.append({
+                    "type": "table-image", 
+                    "id": match_id, 
+                    "text": section_media_pool[match_id]
+                })
+                consumed_pool_ids.add(match_id)
+            else:
+                # No image found, keep the text label as a fallback
+                blocks.append({"type": "table-label", "text": stripped})
+            continue
+
+        # 3. Handle mixed text and markers (Inline support)
+        # We split the line by any markers, keeping the markers as parts
+        parts = MARKER_RE.split(stripped)
+        for part in parts:
+            p_stripped = part.strip()
+            if not p_stripped:
+                continue
+                
+            m_match = MARKER_RE.match(p_stripped)
+            if m_match:
+                # This part is a marker — flush accumulated text first, then emit image immediately
+                flush_buffer()
+                id_match = re.search(r':(.*?)[\]]', p_stripped)
+                if id_match:
+                    m_id = id_match.group(1).strip()
+                    if m_id in media and m_id not in consumed_pool_ids:
+                        blocks.append({
+                            "type": "table-image",
+                            "id": m_id,
+                            "text": media[m_id]
+                        })
+                        consumed_pool_ids.add(m_id)
+            else:
+                # This part is regular text
+                buffer.append(p_stripped)
 
     flush_buffer()
+    flush_pending_media()  # Safety net: emit any images that were never flushed
     return blocks
 
 
@@ -140,7 +213,7 @@ class IMRADStructureService:
     Called at response time in the papers router — no DB writes required.
     """
 
-    def build(self, paper: Any) -> Dict[str, List[Dict[str, str]]]:
+    def build(self, paper: Any) -> Dict[str, List[Dict[str, Any]]]:
         """
         Accepts a Paper SQLAlchemy model (or any object with .methods / .results
         / .discussion / .introduction attributes) and returns a dict of
@@ -149,7 +222,11 @@ class IMRADStructureService:
         Introduction is returned as a single text block (it uses the summary
         in the IMRAD view, not the structured raw text).
         """
-        result: Dict[str, List[Dict[str, str]]] = {}
+        result: Dict[str, List[Dict[str, Any]]] = {}
+
+        # The media store is a JSON dict mapping IDs to base64 images
+        media = getattr(paper, "media", {}) or {}
+        section_pages = getattr(paper, "section_pages", {}) or {}
 
         section_map = {
             "introduction": getattr(paper, "introduction", None),
@@ -160,7 +237,8 @@ class IMRADStructureService:
 
         for key, text in section_map.items():
             if text and text.strip():
-                result[key] = _structure_section(text, key)
+                pages_for_sec = section_pages.get(key, [])
+                result[key] = _structure_section(text, key, media=media, pages=pages_for_sec)
 
         return result
 

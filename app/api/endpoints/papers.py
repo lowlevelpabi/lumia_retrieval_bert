@@ -147,7 +147,8 @@ async def upload_preview(
         "pages": pages,
         "sections": metadata.get("sections", {}),
         "sections_summary": metadata.get("sections_summary", {}),
-        "section_pages": metadata.get("section_pages", {})
+        "section_pages": metadata.get("section_pages", {}),
+        "media": metadata.get("media", {}),
     }
 
 @router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
@@ -312,6 +313,8 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         }
     )
 
+    # Build structured IMRAD blocks for the immediate response
+    db_paper.__dict__["imrad_structured"] = imrad_structure_service.build(db_paper)
     return db_paper
 
 @router.get("/", response_model=List[PaperResponse])

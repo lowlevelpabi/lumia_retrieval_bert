@@ -15,7 +15,7 @@ ZSC_MODEL = LIGHTWEIGHT_MODEL if USE_LIGHTWEIGHT_ZSC else BART_MODEL
 
 # ── DistilBERT 9-class sequence classifier (Tier 0) ───────────────────────────
 # Check for both default and clean folder names
-_MODEL_CLEAN = "./distilbert_imrad_model_"
+_MODEL_CLEAN = "./distilbert_imrad_model"
 _MODEL_STD = "./distilbert_imrad_model"
 DISTILBERT_IMRAD_PATH: str  = _MODEL_CLEAN if os.path.isdir(_MODEL_CLEAN) else _MODEL_STD
 USE_DISTILBERT_IMRAD:  bool = os.path.isdir(DISTILBERT_IMRAD_PATH)

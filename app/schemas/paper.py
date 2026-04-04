@@ -4,6 +4,12 @@ from datetime import datetime
 from app.core.hash import encode_id
 
 
+class ImradBlock(BaseModel):
+    type: str  # 'subheading' | 'table-label' | 'text' | 'table-image'
+    text: str
+    id: Optional[str] = None
+
+
 class PaperBase(BaseModel):
     title: str
     author: Optional[str] = None
@@ -30,6 +36,9 @@ class PaperBase(BaseModel):
     methods_summary: Optional[str] = None
     results_summary: Optional[str] = None
     discussion_summary: Optional[str] = None
+
+    # Structured IMRAD blocks — pre-parsed by backend, ready for direct rendering
+    imrad_structured: Optional[Dict[str, List[ImradBlock]]] = None
 
 
 class PaperCreate(PaperBase):
