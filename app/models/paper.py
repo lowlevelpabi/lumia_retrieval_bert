@@ -38,8 +38,8 @@ class Paper(Base):
     results_summary = Column(Text, nullable=True)
     discussion_summary = Column(Text, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
+    updated_at = Column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now)
 
     # ── Soft-delete / Recycle Bin ─────────────────────────────────────────────
     # deleted_at = None  → paper is active (normal state)

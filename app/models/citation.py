@@ -10,7 +10,7 @@ class UserCitation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     paper_id = Column(Integer, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=datetime.now)
 
     __table_args__ = (
         UniqueConstraint("user_id", "paper_id", name="unique_user_paper_citation"),

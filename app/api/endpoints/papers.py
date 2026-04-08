@@ -319,7 +319,8 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
             "citation_count": db_paper.citation_count,
             "view_count": db_paper.view_count,
             "uploaded_by": db_paper.uploaded_by,
-            "uploader_role": db_paper.uploader_role
+            "uploader_role": db_paper.uploader_role,
+            "created_at": db_paper.created_at.isoformat() if db_paper.created_at else None
         }
     )
 
@@ -332,7 +333,11 @@ async def list_trash(db: Session = Depends(get_db)):
     """
     Returns all soft-deleted papers (deleted_at IS NOT NULL), newest deletion first.
     Visible to Admin and Faculty only.
+    Enforces expiration check on-demand.
     """
+    from app.services.cleanup_service import perform_purge
+    perform_purge(db)
+
     return (
         db.query(Paper)
         .filter(Paper.deleted_at.isnot(None))
@@ -366,6 +371,7 @@ async def search_papers(
     project_type: Optional[str] = None,
     degree_program: Optional[str] = None,
     section: Optional[str] = None,
+    sort: Optional[str] = None,
     limit: int = 50
 ):
     """
@@ -455,8 +461,16 @@ async def search_papers(
                         payload=hit.payload
                     ))
 
-            # Final sort by the hybrid score
-            search_results.sort(key=lambda x: x.score, reverse=True)
+            # Final sort
+            if sort == "newest":
+                search_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+            elif sort == "oldest":
+                search_results.sort(key=lambda x: x.payload.get("year", ""), reverse=False)
+            elif sort == "cited":
+                search_results.sort(key=lambda x: x.payload.get("citation_count", 0), reverse=True)
+            else:
+                # Default for keyword search: Relevancy Score
+                search_results.sort(key=lambda x: x.score, reverse=True)
 
             print(f"Search completed. Found {len(search_results)} relevant results using linear hybrid fusion.")
             return search_results
@@ -483,10 +497,19 @@ async def search_papers(
                         "view_count":     paper.view_count,
                         "uploaded_by":    paper.uploaded_by,
                         "uploader_role":  paper.uploader_role,
+                        "created_at":     paper.created_at.isoformat() if paper.created_at else None
                     }
                 ))
-            # Default sort for Browse: Newest Year first
-            browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+            # Final sort for Browse
+            if sort == "newest":
+                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+            elif sort == "oldest":
+                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=False)
+            elif sort == "cited":
+                browse_results.sort(key=lambda x: x.payload.get("citation_count", 0), reverse=True)
+            else:
+                # Default for Browse: Newest Year first
+                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
             return browse_results
 
     except Exception as e:
@@ -598,8 +621,8 @@ async def delete_paper(paper_id: str, db: Session = Depends(get_db), current_use
 
     performer = current_user.full_name or current_user.username
 
-    # Soft-delete: stamp deleted_at and record who did it
-    db_paper.deleted_at = datetime.utcnow()
+    # Soft-delete: stamp deleted_at and record who did it (using local time for PC parity)
+    db_paper.deleted_at = datetime.now()
     db_paper.deleted_by = performer
 
     # Log the action

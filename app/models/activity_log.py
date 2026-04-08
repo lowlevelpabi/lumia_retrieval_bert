@@ -11,4 +11,4 @@ class ActivityLog(Base):
     paper_title  = Column(String, nullable=False)
     performed_by = Column(String, nullable=False)          # username
     performed_by_role = Column(String, nullable=True)
-    performed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    performed_at = Column(DateTime(timezone=True), default=datetime.now)

@@ -199,7 +199,10 @@ RESULTS_SUBHEADINGS: List[Dict] = [
 BOILERPLATE_PATTERNS: List[str] = [
     r"Cavite State University", r"CvSU", r"Imus Campus",
     r"Bachelor of Science", r"in partial fulfillment",
-    r"requirements for the degree", r"Undergraduate Thesis",
+    r"requirements for the degree", r"Undergraduate Thesis", r"Capstone Project",
+    r"Adviser\s*:", r"Prepared under the supervision",
+    r"Department\s+of\s+[A-Za-z\s]+", r"College\s+of\s+[A-Za-z\s]+",
+    r"Contribution\s+No\.?", r"Imus\s+City",
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
 ]
 

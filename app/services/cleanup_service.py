@@ -19,16 +19,20 @@ from datetime import datetime, timedelta
 TRASH_RETENTION_DAYS = 15
 
 
-async def _run_purge() -> None:
-    """Perform a single purge pass — called at startup and then every 24h."""
-    from app.core.database import SessionLocal
+from sqlalchemy.orm import Session
+
+def perform_purge(db: Session) -> None:
+    """
+    Synchronous core of the purge logic. 
+    Checks for papers deleted > 15 days ago and removes them.
+    """
     from app.models.paper import Paper
     from app.models.activity_log import ActivityLog
     from app.services.vector_db import vector_db
 
-    db = SessionLocal()
     try:
-        cutoff = datetime.utcnow() - timedelta(days=TRASH_RETENTION_DAYS)
+        # Use local time for parity with manual OS clock changes
+        cutoff = datetime.now() - timedelta(days=TRASH_RETENTION_DAYS)
         expired = (
             db.query(Paper)
             .filter(Paper.deleted_at.isnot(None), Paper.deleted_at <= cutoff)
@@ -36,7 +40,6 @@ async def _run_purge() -> None:
         )
 
         if not expired:
-            print(f"[CleanupService] No expired trash entries found.")
             return
 
         print(f"[CleanupService] Purging {len(expired)} expired paper(s)...")
@@ -75,6 +78,14 @@ async def _run_purge() -> None:
     except Exception as e:
         print(f"[CleanupService] Error during purge: {e}")
         db.rollback()
+
+
+async def _run_purge() -> None:
+    """Perform a single purge pass — called at startup and then every 24h."""
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        perform_purge(db)
     finally:
         db.close()
 
