@@ -204,6 +204,9 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"Department\s+of\s+[A-Za-z\s]+", r"College\s+of\s+[A-Za-z\s]+",
     r"Contribution\s+No\.?", r"Imus\s+City",
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
+    r"^\s*FUNCTIONALITY\s*$", r"^\s*MEAN\s*$", r"^\s*STANDARD\s+DEVIATION\s*$",
+    r"^\s*INTERPRETATION\s*$", r"^\s*MEAN\s+SCORES?\s*$", r"^\s*VERBAL\s+INTERPRETATION\s*$",
+    r"^\s*WEIGHTED\s+MEAN\s*$", r"^\s*FUNCTIONAL\s*$",
 ]
 
 # Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
@@ -429,10 +432,11 @@ def _extract_page_spatially(
     section_key: str,
     all_boilerplate: List[str],
     subheading_list: List[Dict],
-) -> Optional[List[str]]:
+) -> Optional[Tuple[List[str], Dict[str, str], str]]:
     """
-    ONLY extracts table/figure images from a page and returns a list of
-    [[TABLE_IMAGE:ID]] / [[FIGURE_IMAGE:ID]] marker strings.
+    Extracts table/figure images from a page, generates marker strings,
+    and returns a filtered page text string with those markers embedded,
+    excluding text blocks that fall within table/figure boundaries.
 
     Returns None if PyMuPDF is unavailable or no captions are found.
     Returns an empty list [] if PyMuPDF works but this page has no tables/figures.
@@ -505,8 +509,9 @@ def _extract_page_spatially(
     # True captions have punctuation after the number: "Table 6. Title..." or "Table 6, Title..."
     # Inline refs do not: "Table 6 below shows..."
     # Note: some authors mistakenly use a comma instead of a period, e.g. "Table 3,"
-    # Relaxed to allow optional punctuation for figures.
-    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?', re.I)
+    # MANDATORY: Require punctuation (., :, -, or ,) for a titled caption to avoid
+    # misidentifying sentences like "Table 5 shows the results..." as a caption start.
+    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]', re.I)
 
     captions = []
     for tb in text_blocks:
@@ -519,10 +524,10 @@ def _extract_page_spatially(
         is_short_prefix = len(text_before) <= 10
         candidate = block_text[start_pos:]
         is_titled_cap = bool(TRUE_CAP_RE.match(candidate))
-        # A bare label is a very short standalone line like "Table 6" with no title yet
-        # Must start with Table/Figure to avoid matching continuation lines like "respondents"
-        is_bare_label = (len(block_text.strip()) < 120 and start_pos < 5
-                         and bool(re.match(r'^(Table|Figure|Fig\.?)\s+\d+', block_text.strip(), re.I)))
+        # A bare label is a very short standalone line like "Table 6" with no title yet.
+        # It must be very short (under 25 chars) and only contain digits/spaces after the label.
+        is_bare_label = (len(block_text.strip()) < 25 and start_pos < 5
+                         and bool(re.match(r'^(Table|Figure|Fig\.?)\s+\d+$', block_text.strip(), re.I)))
 
         if not (is_short_prefix and (is_titled_cap or is_bare_label)):
             continue  # Inline body reference — skip
@@ -565,7 +570,8 @@ def _extract_page_spatially(
 
     def _is_body_paragraph(txt: str) -> bool:
         """True only when a text line is clearly body prose (not a table row/header)."""
-        if not txt or len(txt) <= 80:
+        # Relaxed from 80 to 60 to prevent swallowing short opening discussion lines.
+        if not txt or len(txt) <= 60:
             return False
         if txt == txt.upper():  # ALL CAPS → table header
             return False
@@ -578,6 +584,7 @@ def _extract_page_spatially(
 
     # markers: list of (caption_text_normalized, marker_string)
     markers = []  # list of (normalized_caption_text, marker_string)
+    exclusion_zones = []
 
     for cap_block in captions:
         cap_y0  = cap_block["y0"]
@@ -606,14 +613,17 @@ def _extract_page_spatially(
                 # min() handles cases where the caption might be slightly below tbox.y0.
                 zone_y0 = min(cap_y0, matched_tbox.y0) - 10
                 zone_y1 = matched_tbox.y1 + 8
-                # Safety trim: stop before the first clearly-body paragraph AFTER the table.
+                # check the first few blocks forward until we find a clear stop.
                 for tb in text_blocks_sorted:
                     if tb["y0"] <= matched_tbox.y1 + 5:
                         continue
+                    # If we've drifted more than 150px past the table, stop anyway.
+                    if tb["y0"] > matched_tbox.y1 + 150:
+                        break
                     txt = tb["text"].strip()
                     if bool(TRUE_CAP_RE.match(txt)) or _is_body_paragraph(txt):
                         zone_y1 = min(zone_y1, tb["y0"] - 5)
-                    break  # Only check the FIRST block after the table
+                        break
 
             else:
                 # ── Strategy B: Horizontal drawing rule detection ───────────
@@ -699,7 +709,7 @@ def _extract_page_spatially(
             zone_y1,
         )
 
-        mat = fitz.Matrix(2, 2)
+        mat = fitz.Matrix(3, 3)
         pix = page.get_pixmap(matrix=mat, clip=clip)
         b64_img = base64.b64encode(pix.tobytes("jpeg")).decode('utf-8')
 
@@ -713,11 +723,40 @@ def _extract_page_spatially(
         # Normalize the caption text so the caller can match it in the pypdf stream
         cap_text_norm = re.sub(r'\s+', ' ', cap_block["text"][cap_block["cap_start"]:]).strip()
         markers.append((cap_text_norm, marker))
+        exclusion_zones.append({
+            "y0": zone_y0,
+            "y1": zone_y1,
+            "marker": marker
+        })
+
+    # Now reconstruct page text with spatial filtering
+    page_text_lines = []
+    injected_zones = set()
+
+    for tb in text_blocks_sorted:
+        tb_mid = (tb["y0"] + tb["y1"]) / 2
+        
+        inside_zone = None
+        for z_idx, z in enumerate(exclusion_zones):
+            if z["y0"] - 2 <= tb_mid <= z["y1"] + 2:
+                inside_zone = (z_idx, z)
+                break
+        
+        if inside_zone:
+            z_idx, z = inside_zone
+            if z_idx not in injected_zones:
+                page_text_lines.append(f"\n{z['marker']}\n")
+                injected_zones.add(z_idx)
+            continue
+            
+        page_text_lines.append(tb["text"])
+        
+    filtered_page_text = "\n".join(page_text_lines)
 
     doc.close()
 
-    # Return the markers — caller injects them into the pypdf text stream
-    return [m for _, m in markers], {cap: mark for cap, mark in markers}
+    # Return markers, page_markers dict, and the filtered page text
+    return [m for _, m in markers], {cap: mark for cap, mark in markers}, filtered_page_text
 
 
 
@@ -897,18 +936,23 @@ class IMRADService:
 
                 # ── Get image markers for this page (PyMuPDF, images only) ──
                 # Returns a dict of {caption_text: marker_string} or None if
-                # PyMuPDF unavailable. Text is ALWAYS taken from pypdf below.
+                # PyMuPDF unavailable.
                 page_markers: Dict[str, str] = {}
+                filtered_page_text: Optional[str] = None
                 if pdf_path and section_key in ("methods", "results", "discussion"):
                     spatial_result = _extract_page_spatially(
                         pdf_path, pg, result_media, section_key,
                         all_boilerplate, sh_list,
                     )
                     if spatial_result is not None:
-                        _, page_markers = spatial_result
+                        _, page_markers, filtered_page_text = spatial_result
 
                 # ── Always extract text from pypdf ────────────────────────
-                page_text = _normalize_text(page_text_map.get(pg, ""))
+                if filtered_page_text is not None:
+                    page_text = _normalize_text(filtered_page_text)
+                    page_markers = {} # disable manual injection since text already has markers
+                else:
+                    page_text = _normalize_text(page_text_map.get(pg, ""))
 
                 # For references, only apply institution-level boilerplate
                 # stripping — NOT the numeric/roman-numeral patterns, because
