@@ -10,6 +10,7 @@ USE_LIGHTWEIGHT_ZSC: bool = True
 KEYBERT_MODEL         = "all-MiniLM-L6-v2"
 BART_MODEL            = "facebook/bart-large-mnli"
 LIGHTWEIGHT_MODEL     = "cross-encoder/nli-MiniLM2-L6-H768"
+CROSS_ENCODER_MODEL   = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 ZSC_MODEL = LIGHTWEIGHT_MODEL if USE_LIGHTWEIGHT_ZSC else BART_MODEL
 
@@ -100,6 +101,7 @@ _zsc_pipeline         = None    # general-purpose ZSC (base model)
 _imrad_pipeline       = None    # IMRAD-specific ZSC (fine-tuned or base fallback)
 _classifier_model     = None    # custom NLI classification head
 _distilbert_clf       = None    # DistilBERT 9-class sequence classifier (Tier 0)
+_cross_encoder        = None    # cross-encoder for re-ranking
 
 
 def _get_keybert():
@@ -511,3 +513,109 @@ def enhance_metadata(
         "degree_program": classify_degree(title, abstract, existing=existing_degree),
         "project_type":   classify_project_type(title, abstract, existing=existing_project_type),
     }
+
+
+# ── Query Expansion ───────────────────────────────────────────────────────────────────────────
+
+def expand_query(query: str) -> str:
+    """
+    Expand a short search query with semantically related keyphrases.
+
+    For queries with fewer than 4 words, KeyBERT extracts 3 related phrases
+    from the query itself so the embedding captures richer semantics.  For
+    longer queries the original text is returned unchanged to avoid noise.
+
+    Examples:
+        "CNN images"   →  "CNN images convolutional neural network image classification"
+        "SDLC agile"   →  "SDLC agile software development lifecycle iterative"
+    """
+    if not query or not query.strip():
+        return query
+    if len(query.split()) >= 4:
+        return query   # long enough — skip expansion
+
+    kb = _get_keybert()
+    if kb is None:
+        return query
+
+    try:
+        expansions = kb.extract_keywords(
+            query,
+            keyphrase_ngram_range=(1, 2),
+            stop_words="english",
+            top_n=3,
+        )
+        extra_terms = " ".join(
+            phrase for phrase, score in expansions
+            if score >= 0.25 and phrase.lower() not in query.lower()
+        )
+        expanded = f"{query} {extra_terms}".strip()
+        if expanded != query:
+            log.info("[QueryExpand] Expanded query",
+                     original=query, expanded=expanded)
+        return expanded
+    except Exception as e:
+        log.error("Query expansion failed", exc=e)
+        return query
+
+
+# ── Cross-Encoder Re-ranking ─────────────────────────────────────────────────────────────
+
+def _get_cross_encoder():
+    """Lazy-load the cross-encoder model (CPU, ~80 MB)."""
+    global _cross_encoder
+    if _cross_encoder is None:
+        try:
+            from sentence_transformers import CrossEncoder
+            _cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL, device="cpu")
+            log.ml_load(CROSS_ENCODER_MODEL, tier="Cross-Encoder re-ranker")
+        except Exception as e:
+            log.ml_load_fail(CROSS_ENCODER_MODEL, e)
+            _cross_encoder = False
+    return _cross_encoder if _cross_encoder is not False else None
+
+
+def rerank_with_cross_encoder(
+    query: str,
+    candidates: List[Dict],
+    top_k: int = 10,
+) -> List[Dict]:
+    """
+    Re-rank a list of search-result dicts using a cross-encoder.
+
+    Each candidate must have a 'text' key (the text to score against the query)
+    and a 'score' key (the original vector score, used as fallback).
+
+    The cross-encoder reads the query and each document *jointly*, which is
+    far more accurate than cosine similarity for small corpora where scores
+    cluster tightly.
+
+    Args:
+        query:      The raw user search query.
+        candidates: List of dicts, each with at least {'text': str, 'score': float, ...}
+        top_k:      How many results to return after re-ranking.
+
+    Returns:
+        The same list of dicts, sorted by cross-encoder score descending,
+        truncated to top_k.  Each dict gains a 'rerank_score' key.
+    """
+    if not candidates or not query:
+        return candidates[:top_k]
+
+    ce = _get_cross_encoder()
+    if ce is None:
+        log.warn("[Rerank] Cross-encoder unavailable — skipping re-rank")
+        return candidates[:top_k]
+
+    try:
+        pairs = [(query, c["text"]) for c in candidates]
+        scores = ce.predict(pairs)
+        for c, s in zip(candidates, scores):
+            c["rerank_score"] = float(s)
+        reranked = sorted(candidates, key=lambda x: x["rerank_score"], reverse=True)
+        log.info("[Rerank] Cross-encoder re-ranked candidates",
+                 total=str(len(candidates)), top_k=str(top_k))
+        return reranked[:top_k]
+    except Exception as e:
+        log.error("Cross-encoder re-ranking failed", exc=e)
+        return candidates[:top_k]

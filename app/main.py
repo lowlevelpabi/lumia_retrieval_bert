@@ -1,13 +1,26 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 from app.core.config import settings
 from app.api.endpoints import papers, auth, users
 from app.api.endpoints import logs
 from app.core.database import init_db, engine
 from app.models import activity_log  # ensure table is created by init_db
+from app.services.cleanup_service import start_cleanup_loop
+import asyncio
 
-app = FastAPI(title=settings.PROJECT_NAME)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ── Startup ──────────────────────────────────────────────────────────────
+    # Launch the 15-day trash cleanup as a fire-and-forget background task.
+    # It runs an immediate purge pass, then loops every 24 hours.
+    asyncio.create_task(start_cleanup_loop())
+    yield
+    # ── Shutdown (nothing to clean up) ───────────────────────────────────────
+
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 # Enable CORS
 app.add_middleware(
@@ -17,10 +30,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# @app.on_event("startup")
-# def startup_event():
-#     init_db()
 
 @app.get("/")
 def read_root():

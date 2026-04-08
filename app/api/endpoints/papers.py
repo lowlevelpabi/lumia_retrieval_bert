@@ -1,11 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy import Integer
+from sqlalchemy import Integer, or_
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 import shutil
 import os
 import uuid
+import math
 from qdrant_client.http import models
 
 from app.core.config import settings
@@ -22,6 +24,8 @@ from app.services.vector_db import vector_db
 from app.services.imrad_service import imrad_service
 from app.services.imrad_summary_service import imrad_summary_service
 from app.services.imrad_structure_service import imrad_structure_service
+from app.services.ml_service import expand_query, rerank_with_cross_encoder
+from app.utils.citation_gen import CitationGenerator
 from pypdf import PdfReader
 from app.api.deps import admin_required, faculty_or_admin_required, get_current_user
 from app.core.hash import encode_id, decode_id
@@ -204,6 +208,7 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         methods=data.methods,
         results=data.results,
         discussion=data.discussion,
+        references=data.references,
 
         # Save pre-generated summaries from preview (if available)
         introduction_summary=data.sections_summary.get("introduction") if data.sections_summary else None,
@@ -259,6 +264,11 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
                 if not imrad_sections.get(key):
                     imrad_sections[key] = val
                     setattr(db_paper, key, val)
+            
+            # Handle references fallback
+            if not db_paper.references:
+                db_paper.references = extracted_result.get("references")
+            
             db.commit()
 
     # ── IMRAD Summaries ───────────────────────────────────────────────────
@@ -317,9 +327,24 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
     db_paper.__dict__["imrad_structured"] = imrad_structure_service.build(db_paper)
     return db_paper
 
+@router.get("/trash", response_model=List[PaperResponse], dependencies=[Depends(faculty_or_admin_required)])
+async def list_trash(db: Session = Depends(get_db)):
+    """
+    Returns all soft-deleted papers (deleted_at IS NOT NULL), newest deletion first.
+    Visible to Admin and Faculty only.
+    """
+    return (
+        db.query(Paper)
+        .filter(Paper.deleted_at.isnot(None))
+        .order_by(Paper.deleted_at.desc())
+        .all()
+    )
+
+
 @router.get("/", response_model=List[PaperResponse])
 async def list_papers(db: Session = Depends(get_db)):
-    return db.query(Paper).all()
+    """Returns only active (non-trashed) papers."""
+    return db.query(Paper).filter(Paper.deleted_at.is_(None)).all()
 
 @router.get("/search/config")
 async def get_search_config():
@@ -354,8 +379,8 @@ async def search_papers(
         print(f"    Query: '{query}'")
         print(f"    Filters: min_yr={min_year}, max_yr={max_year}, dept={department}, type={project_type}")
         
-        # 1. SQL Metadata-Only Filter
-        sql_query = db.query(Paper)
+        # 1. SQL Metadata-Only Filter (active papers only — exclude soft-deleted)
+        sql_query = db.query(Paper).filter(Paper.deleted_at.is_(None))
         
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
@@ -378,66 +403,92 @@ async def search_papers(
 
         # 2. Handle Search Mode (Semantic vs Browse)
         if query and query.strip():
-            # ── SEMANTIC SEARCH (With Context) ──
+            # ── SEMANTIC SEARCH (Original Core Logic) ──
             if not candidate_ids:
-                return [] # Early exit if metadata filters already narrowed to zero
-                
-            print(f"Generating query embedding for pure BERT search: '{query}'...")
+                return []  # Metadata filters already narrowed to zero
+
+            print(f"Generating query embedding for BERT search: '{query}'...")
             query_vector = embedding_service.get_embedding(query)
-            
-            # Constraint search to ONLY these paper IDs
+
+            # Constrain search to paper IDs matching metadata filters
             qdrant_filter = models.Filter(
                 must=[models.HasIdCondition(has_id=candidate_ids)]
             )
-            
+
             print(f"Searching across IMRAD vectors in Qdrant (constrained to {len(candidate_ids)} papers)...")
             semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=limit)
-            
+
             effective_threshold = threshold if threshold is not None else settings.DEFAULT_SEARCH_THRESHOLD
-            
+
+            # Build a paper-id lookup for metadata comparison
+            candidate_map = {p.id: p for p in candidate_papers}
+            query_words = set(query.lower().split())
+
+            # ── LINEAR HYBRID FUSION (Semantic + Keyword) ──
             search_results = []
             for hit in semantic_results:
-                if hit.score >= effective_threshold:
+                vector_score = hit.score
+                paper = candidate_map.get(hit.id)
+                
+                # Calculate Keyword Match Score (0 to 1)
+                keyword_score = 0.0
+                if paper and query_words:
+                    title_words = set((paper.title or "").lower().split())
+                    abs_words   = set((paper.abstract or "").lower().split())
+                    kw_words    = set((paper.keywords or "").lower().replace(",", " ").split())
+                    
+                    # Priority 1: Title (80% of keyword weight)
+                    title_overlap = len(query_words & title_words) / len(query_words)
+                    # Priority 2: Abstract/Keywords (20% of keyword weight)
+                    content_overlap = len(query_words & (abs_words | kw_words)) / len(query_words)
+                    
+                    keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
+                
+                # COMBINE: 60% Semantic meaning + 40% Literal keyword matching
+                # This ensures "Mobile" in title always ranks higher than "Desktop" for a "Mobile" search.
+                final_score = (vector_score * 0.6) + (keyword_score * 0.4)
+                
+                if final_score >= effective_threshold:
                     search_results.append(SearchResult(
                         id=encode_id(hit.id),
-                        score=hit.score,
+                        score=final_score,
                         payload=hit.payload
                     ))
-            
-            # Sort by score descending
+
+            # Final sort by the hybrid score
             search_results.sort(key=lambda x: x.score, reverse=True)
+
+            print(f"Search completed. Found {len(search_results)} relevant results using linear hybrid fusion.")
             return search_results
 
+
         else:
-            # ── BROWSE MODE (Metadata Filtering Only) ──
+            # -- BROWSE MODE (Metadata Filtering Only) --
             # Return current candidate list as high-score matches
             print(f"[Search] Returning {len(candidate_papers)} results for browse mode.")
             browse_results = []
             for paper in candidate_papers:
                 browse_results.append(SearchResult(
                     id=encode_id(paper.id),
-                    score=1.0, # Browsing result — treat as perfect metadata match
+                    score=1.0,  # Browsing result -- treat as perfect metadata match
                     payload={
-                        "title": paper.title,
-                        "author": paper.author,
-                        "year": paper.year,
-                        "abstract": paper.abstract,
-                        "department": paper.department,
-                        "project_type": paper.project_type,
+                        "title":          paper.title,
+                        "author":         paper.author,
+                        "year":           paper.year,
+                        "abstract":       paper.abstract,
+                        "department":     paper.department,
+                        "project_type":   paper.project_type,
                         "degree_program": paper.degree_program,
                         "citation_count": paper.citation_count,
-                        "view_count": paper.view_count,
-                        "uploaded_by": paper.uploaded_by,
-                        "uploader_role": paper.uploader_role
+                        "view_count":     paper.view_count,
+                        "uploaded_by":    paper.uploaded_by,
+                        "uploader_role":  paper.uploader_role,
                     }
                 ))
-            
             # Default sort for Browse: Newest Year first
             browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
             return browse_results
-        
-        print(f"Search completed. Found {len(search_results)} relevant results via pure BERT.")
-        return search_results
+
     except Exception as e:
         import traceback
         print(f"SEARCH ERROR: {type(e).__name__} - {e}")
@@ -452,7 +503,8 @@ async def get_paper_recommendations(
     limit: int = 5,
     author: Optional[str] = None,
     year: Optional[str] = None,
-    department: Optional[str] = None
+    department: Optional[str] = None,
+    db: Session = Depends(get_db)
 ):
     real_id = decode_id(paper_id)
     if real_id is None:
@@ -477,17 +529,49 @@ async def get_paper_recommendations(
         if filter_conditions:
             qdrant_filter.must = filter_conditions
 
+        # ── Step A: Get Context for Keyword Boosting ──
+        # We use the source paper's title/keywords as a secondary signal
+        source_paper = db.query(Paper).filter(Paper.id == real_id).first()
+        source_words = set()
+        if source_paper:
+            source_words = set((source_paper.title or "").lower().split())
+
+        # ── Step B: Fetch Vector Recommendations ──
+        # results are already capped at 1.0 raw cosine by vector_db.py overhaul
         results = vector_db.recommend(real_id, limit=limit, filter_obj=qdrant_filter)
         
+        # ── Step C: Linear Hybrid Fusion ──
         search_results = []
         for hit in results:
+            vector_score = hit.score  # 0.0 to 1.0 from vector_db
+            
+            # Calculate Keyword Match Score (0 to 1) based on source paper metadata
+            keyword_score = 0.0
+            if source_words:
+                cand_title_words = set(hit.payload.get("title", "").lower().split())
+                cand_abs_words = set(hit.payload.get("abstract", "").lower().split())
+                
+                # Priority 1: Title match (80% of keyword weight)
+                title_overlap = len(source_words & cand_title_words) / len(source_words)
+                # Priority 2: Abstract match (20% of keyword weight)
+                content_overlap = len(source_words & cand_abs_words) / len(source_words)
+                
+                keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
+
+            # COMBINE: 60% Semantic meaning + 40% Literal keyword matching
+            final_score = (vector_score * 0.6) + (keyword_score * 0.4)
+
+            # EXPLICIT FILTER: Do not recommend the same paper (by ID or Title)
+            if int(hit.id) == int(real_id) or hit.payload.get("title") == source_paper.title:
+                continue
+
             search_results.append(SearchResult(
                 id=encode_id(hit.id),
-                score=hit.score,
+                score=final_score,
                 payload=hit.payload
             ))
             
-        print(f"Returned {len(search_results)} recommendations.")
+        print(f"[Recommendations] Returning {len(search_results)} hybrid-scored recommendations.")
         return search_results
     except Exception as e:
         import traceback
@@ -499,41 +583,107 @@ async def get_paper_recommendations(
 
 @router.delete("/{paper_id}", dependencies=[Depends(faculty_or_admin_required)])
 async def delete_paper(paper_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    Soft-delete: moves the paper to Trash (sets deleted_at timestamp).
+    Qdrant vectors are intentionally kept so restore is instant (no re-indexing).
+    The cleanup_service will hard-purge after TRASH_RETENTION_DAYS (15) days.
+    """
     real_id = decode_id(paper_id)
     if real_id is None:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    db_paper = db.query(Paper).filter(Paper.id == real_id).first()
+    db_paper = db.query(Paper).filter(Paper.id == real_id, Paper.deleted_at.is_(None)).first()
     if not db_paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
+        raise HTTPException(status_code=404, detail="Paper not found or already in Trash")
 
-    # Log before deletion so the title is still available
+    performer = current_user.full_name or current_user.username
+
+    # Soft-delete: stamp deleted_at and record who did it
+    db_paper.deleted_at = datetime.utcnow()
+    db_paper.deleted_by = performer
+
+    # Log the action
     db.add(ActivityLog(
         action="Delete",
         paper_title=db_paper.title,
-        performed_by=current_user.full_name or current_user.username,
+        performed_by=performer,
         performed_by_role=current_user.role,
     ))
     db.commit()
 
-    # 1. Delete from Qdrant
+    return {"message": f"Paper '{db_paper.title}' moved to Trash. It will be permanently deleted in 15 days."}
+
+
+@router.post("/{paper_id}/restore", dependencies=[Depends(faculty_or_admin_required)])
+async def restore_paper(paper_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    Restore a soft-deleted paper: clears deleted_at so it reappears in normal lists.
+    Qdrant vectors were never removed, so no re-indexing is needed.
+    """
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    db_paper = db.query(Paper).filter(Paper.id == real_id, Paper.deleted_at.isnot(None)).first()
+    if not db_paper:
+        raise HTTPException(status_code=404, detail="Paper not found in Trash")
+
+    performer = current_user.full_name or current_user.username
+    db_paper.deleted_at = None
+    db_paper.deleted_by = None
+
+    db.add(ActivityLog(
+        action="Restore",
+        paper_title=db_paper.title,
+        performed_by=performer,
+        performed_by_role=current_user.role,
+    ))
+    db.commit()
+
+    return {"message": f"Paper '{db_paper.title}' restored successfully."}
+
+
+@router.delete("/{paper_id}/purge", dependencies=[Depends(admin_required)])
+async def purge_paper(paper_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    Admin-only: force-purge a trashed paper before the 15-day window expires.
+    Performs the full hard-delete: Qdrant + disk + DB.
+    """
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    db_paper = db.query(Paper).filter(Paper.id == real_id, Paper.deleted_at.isnot(None)).first()
+    if not db_paper:
+        raise HTTPException(status_code=404, detail="Paper not found in Trash (may already be purged or still active)")
+
+    title = db_paper.title
+    performer = current_user.full_name or current_user.username
+
+    # 1. Remove Qdrant vectors
     try:
         vector_db.delete_paper(real_id)
     except Exception as e:
-        print(f"Error deleting from Qdrant: {e}")
+        print(f"[Purge] Qdrant delete error for paper {real_id}: {e}")
 
-    # 2. Delete physical file
-    if os.path.exists(db_paper.file_path):
+    # 2. Remove physical PDF file
+    if db_paper.file_path and os.path.exists(db_paper.file_path):
         try:
             os.remove(db_paper.file_path)
         except Exception as e:
-            print(f"Error deleting file: {e}")
+            print(f"[Purge] File delete error for paper {real_id}: {e}")
 
-    # 3. Delete from PostgreSQL/SQLite
+    # 3. Log + delete DB record
+    db.add(ActivityLog(
+        action="Purge",
+        paper_title=title,
+        performed_by=performer,
+        performed_by_role=current_user.role,
+    ))
     db.delete(db_paper)
     db.commit()
 
-    return {"message": f"Paper {paper_id} deleted successfully"}
+    return {"message": f"Paper '{title}' permanently purged."}
 
 @router.put("/{paper_id}", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
 async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -558,7 +708,8 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
         "introduction": db_paper.introduction,
         "methods": db_paper.methods,
         "results": db_paper.results,
-        "discussion": db_paper.discussion
+        "discussion": db_paper.discussion,
+        "references": db_paper.references
     }
     
     all_vectors = imrad_service.build_vectors(
@@ -595,6 +746,42 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
     db.commit()
 
     return db_paper
+@router.get("/{paper_id}/formatted-citations")
+async def get_formatted_citations(
+    paper_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Returns a dictionary of structured citation strings (APA 6th, APA 7th,
+    APA in-text, IEEE, MLA, BibTeX) for the given paper.
+
+    How scholarly citation works:
+    - In-text citation: A short marker placed in the body of the citing paper
+      (e.g. APA: (Smith, 2023) or IEEE: [1]) that points the reader to the
+      full reference entry at the end of the document.
+    - Reference list entry: The full bibliographic record (author, title,
+      institution, year, etc.) that appears in the References / Works Cited
+      section of the citing paper.
+    This endpoint returns both the in-text form (apa_intext) and the full
+    reference-list strings (apa_6, apa_7, ieee, mla, bibtex) so the frontend
+    can display either depending on what the reader needs to copy.
+    """
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    paper = db.query(Paper).filter(Paper.id == real_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    return CitationGenerator.generate_all(
+        title=paper.title,
+        author_str=paper.author,
+        year=paper.year,
+        project_type=paper.project_type or "Thesis"
+    )
+
+
 @router.get("/{paper_id}", response_model=PaperResponse)
 async def get_paper(paper_id: str, db: Session = Depends(get_db)):
     """Fetch a single paper by its ID."""
@@ -744,3 +931,5 @@ async def cite_paper(
     db.commit()
     db.refresh(paper)
     return {"has_cited": True, "citation_count": paper.citation_count}
+
+

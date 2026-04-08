@@ -59,6 +59,36 @@ def _print_banner(title: str):
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
+def add_columns_if_missing():
+    """
+    Add any new columns to existing tables that predate the column definition.
+    SQLite does not support ALTER TABLE ... ADD COLUMN IF NOT EXISTS, so we
+    inspect existing columns first and only issue the statement when the column
+    is absent.
+    """
+    _print_banner("ADD COLUMNS  —  patching existing tables")
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+
+        # papers table — soft-delete columns (added in v2)
+        if "papers" in _existing_tables(conn):
+            existing_cols = {c["name"] for c in inspector.get_columns("papers")}
+            to_add = {
+                "deleted_at": "DATETIME",
+                "deleted_by": "VARCHAR",
+                "references": "TEXT",
+            }
+            for col_name, col_type in to_add.items():
+                if col_name not in existing_cols:
+                    conn.execute(text(f"ALTER TABLE papers ADD COLUMN {col_name} {col_type}"))
+                    print(f"  +  Added column  : papers.{col_name}")
+                else:
+                    print(f"  ✓  Already exists: papers.{col_name}")
+
+    print("  ✓  Done.")
+
+
 def upgrade():
     """Create all tables that don't exist yet (safe, non-destructive)."""
     _print_banner("UPGRADE  —  creating missing tables")
@@ -70,16 +100,20 @@ def upgrade():
 
         if not missing:
             print("  ✓  All tables already exist — nothing to do.")
-            return
+        else:
+            print(f"  Tables already present : {sorted(existing & all_tables) or '(none)'}")
+            print(f"  Tables to create       : {sorted(missing)}")
+            print()
 
-        print(f"  Tables already present : {sorted(existing & all_tables) or '(none)'}")
-        print(f"  Tables to create       : {sorted(missing)}")
-        print()
+            # Let SQLAlchemy create only what's missing, respecting FK order.
+            Base.metadata.create_all(bind=conn, checkfirst=True)
 
-        # Let SQLAlchemy create only what's missing, respecting FK order.
-        Base.metadata.create_all(bind=conn, checkfirst=True)
+            print("  ✓  Done.")
 
-        print("  ✓  Done.")
+    # Always run column-level patches so new columns are added to pre-existing tables
+    add_columns_if_missing()
+
+
 
 
 def downgrade():

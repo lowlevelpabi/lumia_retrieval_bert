@@ -19,7 +19,7 @@ from app.services.logging_service import log
 # ─────────────────────────────────────────────────────────────────────────────
 
 INCLUDE_ABSTRACT_VECTOR: bool = True
-IMRAD_SECTION_KEYS: List[str] = ["introduction", "methods", "results", "discussion"]
+IMRAD_SECTION_KEYS: List[str] = ["introduction", "methods", "results", "discussion", "references"]
 
 MAX_SECTION_CHARS: int  = 20000
 MIN_SECTION_CHARS: int  = 100
@@ -44,6 +44,7 @@ HEADING_KEYWORDS: Dict[str, List[str]] = {
         "METHODOLOGY", "METHODS", "RESEARCH METHODOLOGY",
         "MATERIALS AND METHODS", "III. METHODOLOGY", "3. METHODOLOGY",
         "CHAPTER III", "CHAPTER 3", "CHAPTER THREE", "III.",
+        "RESEARCH DESIGN", "RESEARCH DESIGN AND PROCEDURES",
         "RESEARCH DESIGN AND METHODOLOGY",
         "RESEARCH METHOD", "METHOD OF RESEARCH",
         "METHODS AND PROCEDURES", "RESEARCH PROCEDURES",
@@ -80,6 +81,10 @@ HEADING_KEYWORDS: Dict[str, List[str]] = {
         "IMPLICATIONS AND RECOMMENDATIONS",
         "SUMMARY AND RECOMMENDATION",
     ],
+    "references": [
+        "REFERENCES", "BIBLIOGRAPHY", "LITERATURE CITED", "CITED LITERATURE",
+        "REFERENCES CITED", "WORKS CITED",
+    ],
 }
 
 FALSE_POSITIVE_KEYWORDS: List[str] = [
@@ -89,7 +94,7 @@ FALSE_POSITIVE_KEYWORDS: List[str] = [
     "CONCEPTUAL FRAMEWORK", "THEORETICAL FRAMEWORK", "SCOPE AND DELIMITATION",
     "SIGNIFICANCE OF THE STUDY", "STATEMENT OF THE PROBLEM",
     "RESEARCH QUESTIONS", "HYPOTHESIS", "OBJECTIVES",
-    "ACKNOWLEDGMENT", "ACKNOWLEDGMENTS", "REFERENCES", "BIBLIOGRAPHY",
+    "ACKNOWLEDGMENT", "ACKNOWLEDGMENTS",
     "APPENDIX", "APPENDICES", "LIST OF TABLES", "LIST OF FIGURES",
     "LIST OF APPENDICES", "TABLE OF CONTENTS", "ABSTRACT", "SYNTHESIS",
     "RESEARCH GAP",
@@ -102,7 +107,7 @@ FALSE_POSITIVE_KEYWORDS: List[str] = [
 ]
 
 BACK_MATTER_PAGE_PATTERNS: List[str] = [
-    r"\bREFERENCES\b", r"\bBIBLIOGRAPHY\b", r"\bACKNOWLEDGMENTS?\b",
+    r"\bACKNOWLEDGMENTS?\b",
     r"\bAPPENDI(?:X|CES)\b", r"\bANNEX\b",
     r"\bCURRICULUM\s+VITAE\b", r"\bABOUT\s+THE\s+AUTHOR\b",
 ]
@@ -149,11 +154,9 @@ RRL_BOUNDARY_PATTERNS: List[str] = [
 MAX_INTRO_PAGES: int = 15
 
 SKIP_PAGE_PATTERNS: List[str] = [
-    r"\.{4,}",
     r"\bTable\s+of\s+Contents\b",
     r"\bList\s+of\s+(?:Tables|Figures|Appendices)\b",
     r"\bAppendi(?:x|ces)\b",
-    r"\bBibliography\b",
 ]
 
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
@@ -170,6 +173,10 @@ METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Data Analysis",                "patterns": [r"Data\s+Analy(?:sis|tical)"]},
     {"label": "Ethical Considerations",       "patterns": [r"Ethical\s+Considerations?"]},
     {"label": "Development Model",            "patterns": [r"Development\s+Model"]},
+    {"label": "Analysis and Quick Design",    "patterns": [r"Analysis\s+and\s+Quick\s+Design"]},
+    {"label": "Prototype Cycles",             "patterns": [r"Prototype\s+Cycles"]},
+    {"label": "Testing",                      "patterns": [r"Testing"]},
+    {"label": "Implementation",               "patterns": [r"Implementation"]},
     {"label": "Requirement Analysis",         "patterns": [r"Requirement\s+Analysis"]},
     {"label": "System Development",           "patterns": [r"System\s+Development"]},
     {"label": "System Evaluation",            "patterns": [r"System\s+Evaluation"]},
@@ -196,6 +203,30 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
 ]
 
+# Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
+# section. We intentionally exclude numeric/roman-numeral patterns here because
+# reference entries legitimately contain years, volume numbers, issue numbers,
+# and page ranges that look like bare digits or roman numerals.
+INSTITUTION_BOILERPLATE_PATTERNS: List[str] = [
+    r"Cavite State University", r"CvSU", r"Imus Campus",
+    r"Bachelor of Science", r"in partial fulfillment",
+    r"requirements for the degree", r"Undergraduate Thesis",
+]
+
+# Regex that recognises the start of a new reference entry.
+# Handles the most common academic citation styles used in Filipino CS theses:
+#   IEEE    → [1] Author ...
+#   APA     → Surname, I. (Year). Title ...
+#   Numeric → 1. Author ...
+REFERENCE_ENTRY_RE = re.compile(
+    r'^(?:'
+    r'\[\d+\]'                              # IEEE-style  [1]
+    r'|\d+\.\s'                             # Numbered    1.·
+    r'|[A-ZÀ-Ö][a-zà-ö\-]+,\s+[A-Z]\.'   # APA surname, Initial.
+    r'|[A-ZÀ-Ö][a-zà-ö\-]+,\s+[A-Z][a-z]+'  # APA surname, Firstname
+    r')',
+)
+
 _SECTION_HEADING_LINES: set = {
     kw.upper() for kws in HEADING_KEYWORDS.values() for kw in kws
 }
@@ -211,6 +242,49 @@ def _normalize_text(text: str) -> str:
     text = re.sub(r'\b([A-Z]{3,})\s([A-Z]{1,2})\b', lambda m: m.group(1) + m.group(2), text)
     text = re.sub(r'[^\S\n]+', ' ', text)
     return text
+
+
+def _postprocess_references(raw: str) -> str:
+    """
+    Groups multi-line reference entries into individual items separated by
+    blank lines. Each entry is kept on a single line (reflowed) so the
+    frontend can split on '\\n\\n' to obtain a clean list.
+
+    Strategy:
+      * If a line matches REFERENCE_ENTRY_RE it starts a new entry.
+      * Otherwise it is a continuation of the current entry and is appended
+        with a space (handles wrapped lines from PDF extraction).
+      * Entries that are clearly page headers or too short are discarded.
+    """
+    lines = [l.strip() for l in raw.split('\n') if l.strip()]
+    entries: List[str] = []
+    current: List[str] = []
+
+    for line in lines:
+        # Skip lone page numbers or section heading echoes
+        if re.fullmatch(r'[\d]+', line) or line.upper() in _SECTION_HEADING_LINES:
+            continue
+        if REFERENCE_ENTRY_RE.match(line) and current:
+            # Save the completed entry and start a new one
+            joined = ' '.join(current)
+            if len(joined) > 20:          # discard noise fragments
+                entries.append(joined)
+            current = [line]
+        else:
+            current.append(line)
+
+    # Flush the last entry
+    if current:
+        joined = ' '.join(current)
+        if len(joined) > 20:
+            entries.append(joined)
+
+    # If the grouping didn't find any markers, return the raw text cleaned up
+    # so we at least get something displayable.
+    if not entries:
+        return re.sub(r'\n{2,}', '\n\n', raw).strip()
+
+    return '\n\n'.join(entries)
 
 
 def _strip_page_header(text: str, title: str = "", authors: str = "") -> str:
@@ -428,7 +502,8 @@ def _extract_page_spatially(
     # True captions have punctuation after the number: "Table 6. Title..." or "Table 6, Title..."
     # Inline refs do not: "Table 6 below shows..."
     # Note: some authors mistakenly use a comma instead of a period, e.g. "Table 3,"
-    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]', re.I)
+    # Relaxed to allow optional punctuation for figures.
+    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?', re.I)
 
     captions = []
     for tb in text_blocks:
@@ -443,7 +518,7 @@ def _extract_page_spatially(
         is_titled_cap = bool(TRUE_CAP_RE.match(candidate))
         # A bare label is a very short standalone line like "Table 6" with no title yet
         # Must start with Table/Figure to avoid matching continuation lines like "respondents"
-        is_bare_label = (len(block_text.strip()) < 80 and start_pos < 5
+        is_bare_label = (len(block_text.strip()) < 120 and start_pos < 5
                          and bool(re.match(r'^(Table|Figure|Fig\.?)\s+\d+', block_text.strip(), re.I)))
 
         if not (is_short_prefix and (is_titled_cap or is_bare_label)):
@@ -579,12 +654,24 @@ def _extract_page_spatially(
         else:
             # Figure: find the embedded image object near the caption
             images = page.get_image_info()
+            # Increased threshold to 600px to handle large diagrams
+            FIGURE_PROXIMITY_PX = 600
+            found_img = False
             for img in images:
                 ib = fitz.Rect(img["bbox"])
-                if abs(ib.y0 - cap_y0) < 400 or abs(ib.y1 - cap_y0) < 400:
+                if abs(ib.y0 - cap_y0) < FIGURE_PROXIMITY_PX or abs(ib.y1 - cap_y0) < FIGURE_PROXIMITY_PX:
                     zone_y0 = min(cap_y0, ib.y0) - 10
                     zone_y1 = max(cap_y0 + 20, ib.y1) + 10
+                    found_img = True
                     break
+
+            if not found_img:
+                # No raster image found — likely a vector diagram.
+                # Use a generous default region around the caption:
+                # 600px above (for large RAD/Waterwall models) and 200px below.
+                zone_y0 = cap_y0 - 600
+                zone_y1 = cap_y0 + 200
+
             # Tighten for figures — stop at body paragraph below
             for tb in text_blocks_sorted:
                 if tb["y0"] <= cap_y0 + 20:
@@ -798,7 +885,8 @@ class IMRADService:
             cleaned_lines: List[str] = []
             section_stop = False
             # Also accept comma: some authors write "Table 3," instead of "Table 3."
-            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]', re.I)
+            # Relaxed to allow optional punctuation for figures.
+            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?', re.I)
 
             for idx_pg, pg in enumerate(section_page_nums):
                 if section_stop:
@@ -819,14 +907,26 @@ class IMRADService:
                 # ── Always extract text from pypdf ────────────────────────
                 page_text = _normalize_text(page_text_map.get(pg, ""))
 
+                # For references, only apply institution-level boilerplate
+                # stripping — NOT the numeric/roman-numeral patterns, because
+                # citation entries legitimately contain years, volume/issue
+                # numbers, and page ranges that match those patterns.
+                active_boilerplate = (
+                    [bp for bp in all_boilerplate if bp in INSTITUTION_BOILERPLATE_PATTERNS
+                     or not re.search(r'\\d\+|ivxIVX', bp)]
+                    if section_key == "references"
+                    else all_boilerplate
+                )
+
                 pg_lines: List[str] = []
                 for line in page_text.split("\n"):
                     line = line.strip()
                     if not line:
                         continue
-                    if any(re.search(bp, line, re.I) for bp in all_boilerplate):
+                    if any(re.search(bp, line, re.I) for bp in active_boilerplate):
                         continue
-                    if re.fullmatch(r'[\divxIVX]+', line):
+                    # Skip bare page numbers / roman numerals only for non-reference sections
+                    if section_key != "references" and re.fullmatch(r'[\divxIVX]+', line):
                         continue
                     if line.upper() in _SECTION_HEADING_LINES:
                         continue
@@ -852,14 +952,26 @@ class IMRADService:
                         if stop:
                             section_stop = True
                             break
+                    
+                    if section_key == "references":
+                        # Usually the last section, but keep an eye for appendices
+                        if any(re.search(pat, line, re.I) for pat in [r"\bAPPENDI(?:X|CES)\b", r"\bANNEX\b", r"\bCURRICULUM\s+VITAE\b"]):
+                            section_stop = True
+                            break
 
                     # Subheading detection
+                    # Using anchors to ensure only standalone or inline headings are matched,
+                    # not mentions of keywords deep inside paragraphs.
                     is_sh = False
                     for entry in sh_list:
-                        if re.search(r"\b" + entry["patterns"][0] + r"\b", line, re.I):
-                            pg_lines.append("\n" + line.strip() + "\n")
-                            is_sh = True
-                            break
+                        # Match at start of line, allowing optional numbers: "1. Phase Name"
+                        if re.match(r"^\s*(?:[IVXLC\d]+[\.\s]+)*" + entry["patterns"][0] + r"\b", line, re.I):
+                            # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
+                            # with a catchphrase, not a heading.
+                            if len(line) < 150:
+                                pg_lines.append("\n" + line.strip() + "\n")
+                                is_sh = True
+                                break
                     if is_sh:
                         continue
 
@@ -895,10 +1007,16 @@ class IMRADService:
             # ── Join lines intelligently ─────────────────────────────────
             # Lines ending with \n are subheadings/placeholders → own line
             # Other lines are paragraph text → join with spaces
+            # Exception: reference lines are kept separate (one per line)
+            # so _postprocess_references can group multi-line entries later.
             parts: List[str] = []
             buffer: List[str] = []
             for ln in cleaned_lines:
-                if ln.startswith("\n") or ln.endswith("\n"):
+                if section_key == "references":
+                    # Preserve individual lines — grouping is done by
+                    # _postprocess_references after the loop.
+                    parts.append(ln)
+                elif ln.startswith("\n") or ln.endswith("\n"):
                     if buffer:
                         parts.append(" ".join(buffer))
                         buffer = []
@@ -910,6 +1028,11 @@ class IMRADService:
 
             final_content = "\n".join(parts)
             final_content = re.sub(r'\n{3,}', '\n\n', final_content).strip()
+
+            # Post-process references to group multi-line entries and
+            # separate them with blank lines for clean frontend rendering.
+            if section_key == "references" and final_content:
+                final_content = _postprocess_references(final_content)
 
             if len(final_content) >= MIN_SECTION_CHARS:
                 result_sections[section_key] = final_content[:MAX_SECTION_CHARS]
@@ -969,7 +1092,10 @@ class IMRADService:
         names = ["title"]
         if INCLUDE_ABSTRACT_VECTOR:
             names.append("abstract")
-        names.extend(IMRAD_SECTION_KEYS)
+        
+        # 'references' is part of IMRAD_SECTION_KEYS but not included in Qdrant configs
+        # anymore. Filter it out to prevent "vector not found" warnings in search_max.
+        names.extend([k for k in IMRAD_SECTION_KEYS if k != "references"])
         return names
 
     def get_qdrant_vector_config(self):

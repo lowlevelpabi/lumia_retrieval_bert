@@ -63,6 +63,10 @@ METHODOLOGY_SUBHEADINGS = [
     {"label": "Data Analysis",                              "patterns": ["Data\\s+Anal(?:ysis|ytic)", "Statistical\\s+(?:Analysis|Treatment)"]},
     {"label": "Ethical Considerations",                     "patterns": ["Ethical\\s+Consid", "Ethics"]},
     {"label": "Development Model",                          "patterns": ["Development\\s+Model"]},
+    {"label": "Analysis and Quick Design",                  "patterns": ["Analysis\\s+and\\s+Quick\\s+Design"]},
+    {"label": "Prototype Cycles",                           "patterns": ["Prototype\\s+Cycles?"]},
+    {"label": "Testing",                                    "patterns": ["Testing"]},
+    {"label": "Implementation",                             "patterns": ["Implementation"]},
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

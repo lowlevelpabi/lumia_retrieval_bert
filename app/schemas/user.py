@@ -33,3 +33,8 @@ class TokenData(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     role: UserRole
+
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str

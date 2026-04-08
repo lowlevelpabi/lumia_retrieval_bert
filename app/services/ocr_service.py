@@ -615,6 +615,7 @@ class OCRService:
                 "detected_subheadings": detected_subs,
                 "sections":             sections_raw,
                 "sections_summary":     sections_summary,
+                "references":           sections_raw.get("references", ""),
                 "section_pages":        extracted_imrad.get("section_pages", {}),
                 "media":                extracted_imrad.get("media", {}),
                 "imrad_pages":          extracted_imrad.get("imrad_pages", []),

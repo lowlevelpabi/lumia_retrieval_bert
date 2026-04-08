@@ -9,7 +9,8 @@ from app.models.authorized_user import AuthorizedUser, UserRole
 from app.models.paper import Paper
 from app.models.citation import UserCitation
 from app.schemas.paper import PaperResponse
-from app.schemas.user import UserResponse, UserRoleUpdate, UserCreateStaff
+from app.schemas.user import UserResponse, UserRoleUpdate, UserCreateStaff, PasswordUpdate
+from app.core.security import verify_password, get_password_hash
 
 router = APIRouter()
 
@@ -37,6 +38,35 @@ def get_my_citations(
     # citations works for both as they both have id
     citations = db.query(Paper).join(UserCitation).filter(UserCitation.user_id == current_user.id).all()
     return citations
+
+
+@router.patch("/me/password", status_code=204)
+def update_my_password(
+    body: PasswordUpdate,
+    current_user: Student = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the current user's password.
+    Verifies the current password before applying the change.
+    Works for both Student and AuthorizedUser accounts.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    new_hash = get_password_hash(body.new_password)
+
+    # Determine which table the user belongs to and update accordingly
+    staff = db.query(AuthorizedUser).filter(AuthorizedUser.id == current_user.id).first()
+    if staff:
+        staff.hashed_password = new_hash
+    else:
+        student = db.query(Student).filter(Student.id == current_user.id).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="User not found.")
+        student.hashed_password = new_hash
+
+    db.commit()
 
 @router.get("/", response_model=List[UserResponse])
 def list_users(

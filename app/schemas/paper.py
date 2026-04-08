@@ -40,6 +40,9 @@ class PaperBase(BaseModel):
     # Structured IMRAD blocks — pre-parsed by backend, ready for direct rendering
     imrad_structured: Optional[Dict[str, List[ImradBlock]]] = None
 
+    # References section
+    references: Optional[str] = None
+
 
 class PaperCreate(PaperBase):
     file_path: str
@@ -48,6 +51,9 @@ class PaperCreate(PaperBase):
 class PaperResponse(PaperBase):
     id: str  # Encoded string ID
     created_at: datetime
+    # Soft-delete / Recycle Bin fields
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
 
     @field_validator('id', mode='before')
     def encode_db_id(cls, v):
@@ -57,6 +63,7 @@ class PaperResponse(PaperBase):
 
     class Config:
         from_attributes = True
+
 
 
 class PaperUpdate(BaseModel):
@@ -81,6 +88,9 @@ class PaperUpdate(BaseModel):
     methods_summary: Optional[str] = None
     results_summary: Optional[str] = None
     discussion_summary: Optional[str] = None
+
+    # References (editable)
+    references: Optional[str] = None
 
 
 # ── IMRAD View ────────────────────────────────────────────────────────────────
@@ -175,9 +185,11 @@ class UploadPreviewResponse(BaseModel):
     sections: Optional[Dict[str, Optional[str]]] = None             # Extracted IMRAD full text
     sections_summary: Optional[Dict[str, Optional[str]]] = None     # Pre-generated summaries
     section_pages: Optional[Dict[str, List[int]]] = None            # Section → page numbers
+    references: Optional[str] = None                                # Extracted references
 
 
 class UploadConfirm(BaseModel):
+    references: Optional[str] = None
     session_id: str
     metadata: dict
     selected_pages: List[int]

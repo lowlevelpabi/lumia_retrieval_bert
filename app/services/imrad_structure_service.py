@@ -19,7 +19,8 @@ METHODOLOGY_LABELS: List[str] = [
     "Business Process", "Participants of the Study", "Sampling Technique",
     "Research Instruments", "Data Collection, Instrument, and Procedure",
     "Sources of Data", "Statistical Treatment of Data", "Data Analysis",
-    "Ethical Considerations", "Development Model",
+    "Ethical Considerations", "Development Model", 
+    "Analysis and Quick Design", "Prototype Cycles", "Testing", "Implementation",
 ]
 
 RESULTS_LABELS: List[str] = [
@@ -132,19 +133,37 @@ def _structure_section(
             flush_buffer()
             continue
 
-        # 1. Check for standalone subheading
+        # 1. Check for standalone or inline subheading
         is_subheading = False
         if labels:
-            matched_label = next(
-                (label for label in labels
-                 if label.lower() in stripped.lower() and len(stripped) <= len(label) + 15),
-                None
-            )
-            if matched_label:
-                flush_buffer()         # Flush existing paragraph text
-                flush_pending_media()  # Emit any images that belong BEFORE this subheading
-                blocks.append({"type": "subheading", "text": stripped})
-                is_subheading = True
+            for label in labels:
+                # Stricter regex: 
+                # 1. Must start with optional numbering.
+                # 2. THE LABEL ITSELF MUST BE TITLE CASE (start with [A-Z]) to avoid matching mid-sentence words.
+                # 3. Must be followed by a period, colon, or space.
+                pattern = r"^\s*(?:[IVXLC\d]+[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
+                match = re.match(pattern, stripped) # Removed re.I to ensure case sensitivity for the first letter
+                if match:
+                    heading_text = match.group(1).strip()
+                    
+                    # Double check: if it's lowercase, it's almost certainly not a heading
+                    if not heading_text[0].isupper():
+                        continue
+                        
+                    remainder = match.group(2).strip()
+                    
+                    flush_buffer()         # Flush existing paragraph text
+                    flush_pending_media()  # Emit any images that belong BEFORE this subheading
+                    
+                    # Add the subheading block
+                    blocks.append({"type": "subheading", "text": heading_text})
+                    
+                    # If there's text after the heading on the same line, start a new paragraph with it
+                    if remainder:
+                        buffer.append(remainder)
+                    
+                    is_subheading = True
+                    break
         
         if is_subheading:
             continue

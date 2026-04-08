@@ -4,6 +4,28 @@ from app.core.config import settings
 from typing import List, Dict, Any
 from app.services.imrad_service import imrad_service
 
+# ── IMRAD Section Weights ─────────────────────────────────────────────────────
+# Title/abstract are strong signals; body sections weighted by research value.
+# These multiply the raw cosine score before the max-merge step so that a
+# high-scoring title hit outranks a moderate methods hit.
+SECTION_WEIGHTS: Dict[str, float] = {
+    "title":        1.50,
+    "abstract":     1.30,
+    "methods":      1.20,
+    "results":      1.10,
+    "introduction": 0.90,
+    "discussion":   0.90,
+}
+
+RECOMMEND_WEIGHTS: Dict[str, float] = {
+    "methods":      1.50,
+    "results":      1.50,
+    "abstract":     1.20,
+    "title":        1.20,
+    "introduction": 1.00,
+    "discussion":   1.00,
+}
+
 class VectorDB:
     def __init__(self):
         self.client = QdrantClient(path=settings.QDRANT_PATH)
@@ -54,9 +76,16 @@ class VectorDB:
 
     def search_max(self, vector: List[float], limit: int = 5, filter_obj: Any = None, section: str = None):
         """
-        Searches across all active vectors and takes the max similarity score per paper.
-        If `section` is specified (e.g. 'methods'), only that vector is queried — 
-        enabling precise section-targeted retrieval.
+        Searches across all active vectors with IMRAD section weighting.
+
+        Each section's cosine score is multiplied by a pre-defined weight
+        (see SECTION_WEIGHTS) so that a strong title/abstract hit outranks
+        a moderate body-section hit.  The highest *weighted* score per paper
+        is kept and results are sorted descending.
+
+        If `section` is specified (e.g. 'methods'), only that vector is
+        queried — enabling precise section-targeted retrieval; weighting
+        still applies for consistency.
         """
         active_vectors = imrad_service.get_all_vector_names()
 
@@ -65,8 +94,9 @@ class VectorDB:
             print(f"[IMRAD] Section-targeted search using vector: '{section}'")
             active_vectors = [section]
 
-        all_results = []
+        all_results = []  # list of (weighted_score, hit)
         for vector_name in active_vectors:
+            weight = SECTION_WEIGHTS.get(vector_name, 1.0)
             try:
                 response = self.client.query_points(
                     collection_name=self.collection_name,
@@ -75,18 +105,32 @@ class VectorDB:
                     query_filter=filter_obj,
                     limit=limit
                 )
-                all_results.extend(response.points)
+                for hit in response.points:
+                    # Keep raw score for the UI, but record weighted score for ranking
+                    all_results.append({
+                        "weighted_score": hit.score * weight,
+                        "raw_hit": hit
+                    })
             except Exception as e:
-                # A vector may not exist for older papers — skip gracefully
                 print(f"[IMRAD] Skipping vector '{vector_name}' (not found or error): {e}")
 
-        # Merge: take max score per paper ID across all queried vectors
+        # Merge: take max *weighted* score per paper ID, but keep the original raw hit.score
         merged: Dict[int, Any] = {}
-        for hit in all_results:
-            if hit.id not in merged or hit.score > merged[hit.id].score:
-                merged[hit.id] = hit
+        # Track the best weighted score for each paper
+        best_weighted: Dict[int, float] = {}
 
-        return sorted(merged.values(), key=lambda x: x.score, reverse=True)[:limit]
+        for item in all_results:
+            hid = item["raw_hit"].id
+            wscore = item["weighted_score"]
+            if hid not in best_weighted or wscore > best_weighted[hid]:
+                best_weighted[hid] = wscore
+                # Ensure the hit.score is capped at 1.0 (some metrics can exceed slightly)
+                item["raw_hit"].score = min(1.0, item["raw_hit"].score)
+                merged[hid] = item["raw_hit"]
+
+        # Sort by the weighted score, returning the raw hit
+        sorted_hits = sorted(merged.keys(), key=lambda hid: best_weighted[hid], reverse=True)
+        return [merged[hid] for hid in sorted_hits][:limit]
 
     def delete_paper(self, paper_id: int):
         self.client.delete(
@@ -96,38 +140,54 @@ class VectorDB:
             )
         )
 
-    def recommend(self, paper_id: int, limit: int = 5, filter_obj: Any = None):
+    def recommend(self, paper_id: int, limit: int = 15, filter_obj: Any = None):
         """
-        Finds papers similar to the given paper_id.
-        Uses the 'methods' vector as the primary similarity signal for IMRAD-aware
-        recommendations (most academically meaningful section for CS theses).
-        Falls back to 'abstract' if 'methods' is unavailable.
+        Finds papers similar to the given paper_id using Weighted Multi-Vector similarity.
+        Prioritizes Methods and Results similarity for academically meaningful matches.
         """
-        # Prefer 'methods' section for recommendation (most content-rich for CS theses)
-        recommend_vector = "methods" if "methods" in imrad_service.get_all_vector_names() else "abstract"
-        try:
-            results = self.client.query_points(
-                collection_name=self.collection_name,
-                using=recommend_vector,
-                query=models.RecommendQuery(
-                    recommend=models.RecommendInput(
-                        positive=[paper_id]
-                    )
-                ),
-                query_filter=filter_obj,
-                limit=limit
-            )
-        except Exception:
-            # Fallback to abstract if methods vector doesn't exist for this paper
-            results = self.client.query_points(
-                collection_name=self.collection_name,
-                using="abstract",
-                query=models.RecommendQuery(
-                    recommend=models.RecommendInput(positive=[paper_id])
-                ),
-                query_filter=filter_obj,
-                limit=limit
-            )
-        return results.points
+        active_vectors = imrad_service.get_all_vector_names()
+        
+        all_results = []
+        for vector_name in active_vectors:
+            weight = RECOMMEND_WEIGHTS.get(vector_name, 1.0)
+            try:
+                results = self.client.query_points(
+                    collection_name=self.collection_name,
+                    using=vector_name,
+                    query=models.RecommendQuery(
+                        recommend=models.RecommendInput(positive=[paper_id])
+                    ),
+                    query_filter=filter_obj,
+                    limit=limit * 2 
+                )
+                for hit in results.points:
+                    all_results.append({
+                        "weighted_score": hit.score * weight,
+                        "raw_hit": hit
+                    })
+            except Exception:
+                continue
+
+        # Max-merge by weighted score per paper ID
+        merged: Dict[int, Any] = {}
+        best_weighted: Dict[int, float] = {}
+
+        for item in all_results:
+            hit = item["raw_hit"]
+            wscore = item["weighted_score"]
+            
+            # Exclude the source paper itself (Ensure type consistency for comparison)
+            if int(hit.id) == int(paper_id):
+                continue
+
+            hid_int = int(hit.id)
+            if hid_int not in best_weighted or wscore > best_weighted[hid_int]:
+                best_weighted[hid_int] = wscore
+                # Keep raw cosine score capped at 1.0
+                hit.score = min(1.0, hit.score)
+                merged[hid_int] = hit
+
+        sorted_ids = sorted(merged.keys(), key=lambda x: best_weighted[x], reverse=True)
+        return [merged[hid] for hid in sorted_ids][:limit]
 
 vector_db = VectorDB()
