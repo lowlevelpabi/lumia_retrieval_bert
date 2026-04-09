@@ -35,8 +35,8 @@ from app.core.task_manager import task_manager
 
 router = APIRouter()
 
-UPLOAD_DIR = settings.UPLOAD_DIR
-TEMP_UPLOAD_DIR = os.path.join(settings.UPLOAD_DIR, "temp")
+UPLOAD_DIR = "uploads"
+TEMP_UPLOAD_DIR = "uploads/temp"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 

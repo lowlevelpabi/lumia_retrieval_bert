@@ -8,8 +8,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./thesis.db"
     
     QDRANT_PATH: str = "./qdrant_storage"
-    QDRANT_URL: str = ""  # Set to http://service:6333 for server mode
-    UPLOAD_DIR: str = "uploads"
     COLLECTION_NAME: str = "thesis_papers"
     DEFAULT_SEARCH_THRESHOLD: float = 0.15
     

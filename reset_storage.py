@@ -1,9 +1,14 @@
-from app.core.config import settings
+import os
+import shutil
+import pathlib
+import sys
+import sqlite3
+import argparse
 
 # --- Constants ---
 DB_PATH = "thesis.db"
-QDRANT_DIR = settings.QDRANT_PATH
-UPLOADS_DIR = settings.UPLOAD_DIR
+QDRANT_DIR = "qdrant_storage"
+UPLOADS_DIR = "uploads"
 
 # Tables to wipe when 'papers' is selected (including dependents)
 PAPER_RELATED_TABLES = [
