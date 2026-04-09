@@ -154,9 +154,11 @@ RRL_BOUNDARY_PATTERNS: List[str] = [
 MAX_INTRO_PAGES: int = 15
 
 SKIP_PAGE_PATTERNS: List[str] = [
-    r"\bTable\s+of\s+Contents\b",
-    r"\bList\s+of\s+(?:Tables|Figures|Appendices)\b",
+    r"\bTable\s*of\s*Contents\b",
+    r"\bList\s*of\s*(?:Tables|Figures|Appendices)\b",
     r"\bAppendi(?:x|ces)\b",
+    r"\bTABLEOF\s*CONTENTS\b",
+    r"\bLISTOF\s*(?:TABLES|FIGURES|APPENDICES)\b",
 ]
 
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
@@ -536,10 +538,6 @@ def _extract_page_spatially(
         tb["is_table"] = block_text.upper().find("TABLE", start_pos) != -1
         captions.append(tb)
 
-    if not captions:
-        doc.close()
-        return None  # No tables/figures on this page
-
     # ── Step 3: Gather structural data for the entire page ─────────────
 
     # 3a. Run PyMuPDF table finder ONCE and cache all table bboxes.
@@ -736,6 +734,15 @@ def _extract_page_spatially(
     for tb in text_blocks_sorted:
         tb_mid = (tb["y0"] + tb["y1"]) / 2
         
+        # ── BOILERPLATE STRIPPING (Spatial) ──────────────────────────────────
+        # Strip headers (top 45px) and footers (bottom 45px) of the page.
+        # This effectively removes author names and page numbers that survive
+        # pattern-based filtering.
+        HEADER_THRESHOLD = 45
+        FOOTER_THRESHOLD = page_rect.height - 45
+        if tb["y1"] < HEADER_THRESHOLD or tb["y0"] > FOOTER_THRESHOLD:
+            continue
+        
         inside_zone = None
         for z_idx, z in enumerate(exclusion_zones):
             if z["y0"] - 2 <= tb_mid <= z["y1"] + 2:
@@ -896,7 +903,14 @@ class IMRADService:
         if authors and authors not in ("N/A", ""):
             for a in authors.split('|'):
                 if a.strip():
-                    dynamic_strip.append(re.escape(a.strip()))
+                    name = a.strip()
+                    dynamic_strip.append(re.escape(name))
+                    # Add individual name tokens (e.g. surnames) if they are distinct enough
+                    # To avoid over-stripping, we only add tokens > 3 chars and allow them 
+                    # only as standalone lines to catch headers/footers.
+                    for token in re.split(r'[\s,.]+', name):
+                        if len(token) > 3:
+                            dynamic_strip.append(r'^\s*' + re.escape(token) + r'\s*$')
         all_boilerplate = BOILERPLATE_PATTERNS + dynamic_strip
 
         sorted_items = sorted(section_start_pages.items(), key=lambda x: x[1])
@@ -939,7 +953,7 @@ class IMRADService:
                 # PyMuPDF unavailable.
                 page_markers: Dict[str, str] = {}
                 filtered_page_text: Optional[str] = None
-                if pdf_path and section_key in ("methods", "results", "discussion"):
+                if pdf_path and section_key in ("introduction", "methods", "results", "discussion"):
                     spatial_result = _extract_page_spatially(
                         pdf_path, pg, result_media, section_key,
                         all_boilerplate, sh_list,
@@ -1169,9 +1183,7 @@ class IMRADService:
         if INCLUDE_ABSTRACT_VECTOR and abstract and abstract.strip():
             vectors["abstract"] = embedding_service.get_embedding(abstract[:4000])
         for key, content in sections.items():
-            # 'references' is listed in IMRAD_SECTION_KEYS for extraction but it
-            # is NOT a vector field in Qdrant. Exclude it here to prevent 500 errors.
-            if key in IMRAD_SECTION_KEYS and key != "references" and content and len(content.strip()) >= MIN_SECTION_CHARS:
+            if key in IMRAD_SECTION_KEYS and content and len(content.strip()) >= MIN_SECTION_CHARS:
                 vectors[key] = embedding_service.get_embedding(content)
         log.ml("Vectors built", keys=str(list(vectors.keys())))
         return vectors

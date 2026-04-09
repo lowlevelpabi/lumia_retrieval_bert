@@ -1,3 +1,4 @@
+import easyocr
 import numpy as np
 from PIL import Image
 from pdf2image import convert_from_path
@@ -16,7 +17,7 @@ from app.core.task_manager import task_manager
 # ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
 # WARNING: Kung gusto nyo masayang ang inyong mga precious time, i-True nyo yung value
 # sa ibaba or ng variable FORCE_OCR: bool :) Happy waiting and wasting time kneegers.
-FORCE_OCR: bool = False
+FORCE_OCR: bool = True
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -26,32 +27,14 @@ ENABLE_TABLE_EXTRACTION: bool = False
 
 class OCRService:
     def __init__(self):
-        log.info("Initializing OCR Service (Tesseract + EasyOCR fallback)")
-        self.ocr_available = False
-        self.easy_available = False
-        self.easy_reader = None
-
-        # 1. Try Tesseract
+        log.info("Initializing EasyOCR (English)")
         try:
-            import pytesseract
-            # Default path for Windows CvSU Installation
-            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-            pytesseract.get_tesseract_version()
+            self.reader = easyocr.Reader(['en'], gpu=False)
             self.ocr_available = True
-            log.success("Tesseract OCR detected")
-        except Exception:
-            log.warn("Tesseract not found — falling back to EasyOCR")
-
-        # 2. Try EasyOCR (Primary Fallback for scanned/noisy PDFs)
-        try:
-            import easyocr
-            import torch
-            # Use CPU for local development to keep memory low
-            self.easy_reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
-            self.easy_available = True
-            log.success(f"EasyOCR initialized (GPU: {torch.cuda.is_available()})")
+            log.success("EasyOCR initialized")
         except Exception as e:
             log.error("EasyOCR initialization failed", exc=e)
+            self.ocr_available = False
 
     async def extract_metadata(self, pdf_path: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         import asyncio
@@ -95,9 +78,13 @@ class OCRService:
                     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # wag nyo baguhin to, default na yan kung san naka lagay tesseract nyo
                     pytesseract.get_tesseract_version()
                     _tesseract_ok = True
-                    log.info("OCR supplement engine: Tesseract (fast)")
                 except Exception:
-                    log.info("Tesseract not found — OCR supplement engine: EasyOCR (slow)")
+                    _tesseract_ok = False
+                
+                if _tesseract_ok:
+                    log.info("OCR supplement engine: Tesseract (fast)")
+                else:
+                    log.info("Tesseract not found or configured — OCR supplement engine: EasyOCR (slow)")
 
                 for pg_num in capped:
                     try:
@@ -107,22 +94,17 @@ class OCRService:
                         )
                         if not imgs:
                             continue
-                        
                         ocr_text = ""
-                        # Priority 1: Tesseract (Fastest)
                         if _tesseract_ok:
                             import pytesseract
                             ocr_text = pytesseract.image_to_string(
                                 imgs[0],
                                 config="--psm 6 --oem 1",
                             ).strip()
-                        
-                        # Priority 2: EasyOCR (High Accuracy for scanned content)
-                        if not ocr_text and self.easy_available:
-                            log.info(f"Running EasyOCR supplement for page {pg_num}...")
-                            results = self.easy_reader.readtext(np.array(imgs[0]), detail=0)
-                            ocr_text = " ".join(results).strip()
-
+                        elif self.ocr_available:
+                            img_np = np.array(imgs[0])
+                            ocr_results = self.reader.readtext(img_np, detail=0)
+                            ocr_text = "\n".join(ocr_results).strip()
                         if ocr_text:
                             page_text_map[pg_num] = ocr_text
                     except Exception as pg_err:
@@ -139,35 +121,43 @@ class OCRService:
             log.info("pypdf meta text extracted", chars=len(meta_text))
 
             if FORCE_OCR or len(meta_text.strip()) < 50:
-                log.warn("Direct extraction insufficient — falling back to OCR suite for meta pages")
-                
-                images = convert_from_path(pdf_path, dpi=200, first_page=1, last_page=3)
-                for i, img in enumerate(images):
-                    pg_num = i + 1
-                    page_ocr = ""
-                    
-                    # 1. Try Tesseract
-                    if self.ocr_available:
-                        try:
-                            import pytesseract
-                            page_ocr = pytesseract.image_to_string(img, config="--psm 6 --oem 1").strip()
-                        except Exception:
-                            pass
-                    
-                    # 2. Try EasyOCR
-                    if not page_ocr and self.easy_available:
-                        try:
-                            log.info(f"Meta OCR (EasyOCR) processing page {pg_num}")
-                            results = self.easy_reader.readtext(np.array(img), detail=0)
-                            page_ocr = " ".join(results).strip()
-                        except Exception as e:
-                            log.error(f"EasyOCR meta fallback failed on page {pg_num}", exc=e)
-                    
-                    if page_ocr:
-                        meta_text += page_ocr + "\n"
-                
-                if not meta_text.strip():
-                    log.warn("No OCR suite engines were able to extract meta text")
+                log.warn("Direct extraction insufficient — falling back to OCR for meta pages")
+                # Tesseract first (milliseconds/page); EasyOCR only if unavailable.
+                # Only pages 1-3 needed for title / author / abstract.
+                _meta_tess_ok = False
+                try:
+                    import pytesseract
+                    pytesseract.get_tesseract_version()
+                    _meta_tess_ok = True
+                except Exception:
+                    pass
+
+                if _meta_tess_ok:
+                    try:
+                        import pytesseract
+                        log.info("Meta OCR engine: Tesseract")
+                        images = convert_from_path(pdf_path, dpi=200,
+                                                   first_page=1, last_page=3)
+                        for i, img in enumerate(images):
+                            log.info("Tesseract processing page", page=i + 1)
+                            meta_text += pytesseract.image_to_string(
+                                img, config="--psm 6 --oem 1"
+                            ).strip() + "\n"
+                    except Exception as tess_err:
+                        log.error("Tesseract meta fallback failed", exc=tess_err)
+                elif self.ocr_available:
+                    try:
+                        log.info("Meta OCR engine: EasyOCR")
+                        images = convert_from_path(pdf_path, first_page=1, last_page=3)
+                        for i, img in enumerate(images):
+                            log.info("EasyOCR processing page", page=i + 1)
+                            img_np = np.array(img)
+                            results = self.reader.readtext(img_np, detail=0)
+                            meta_text += "\n".join(results) + "\n"
+                    except Exception as ocr_err:
+                        log.error("EasyOCR meta fallback failed", exc=ocr_err)
+                else:
+                    log.warn("No OCR engine available for meta extraction")
 
             lines = [line.strip() for line in meta_text.split('\n') if line.strip()]
 
