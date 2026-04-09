@@ -1,4 +1,3 @@
-import easyocr
 import numpy as np
 from PIL import Image
 from pdf2image import convert_from_path
@@ -17,7 +16,7 @@ from app.core.task_manager import task_manager
 # ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
 # WARNING: Kung gusto nyo masayang ang inyong mga precious time, i-True nyo yung value
 # sa ibaba or ng variable FORCE_OCR: bool :) Happy waiting and wasting time kneegers.
-FORCE_OCR: bool = True
+FORCE_OCR: bool = False
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -27,14 +26,16 @@ ENABLE_TABLE_EXTRACTION: bool = False
 
 class OCRService:
     def __init__(self):
-        log.info("Initializing EasyOCR (English)")
+        log.info("Initializing OCR Service (Tesseract fallback)")
+        self.ocr_available = False
         try:
-            self.reader = easyocr.Reader(['en'], gpu=False)
+            import pytesseract
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+            pytesseract.get_tesseract_version()
             self.ocr_available = True
-            log.success("EasyOCR initialized")
-        except Exception as e:
-            log.error("EasyOCR initialization failed", exc=e)
-            self.ocr_available = False
+            log.success("Tesseract OCR detected")
+        except Exception:
+            log.warn("Tesseract not found — OCR features will be limited to direct text extraction")
 
     async def extract_metadata(self, pdf_path: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         import asyncio
@@ -98,9 +99,11 @@ class OCRService:
                                 config="--psm 6 --oem 1",
                             ).strip()
                         elif self.ocr_available:
-                            img_np = np.array(imgs[0])
-                            ocr_results = self.reader.readtext(img_np, detail=0)
-                            ocr_text = "\n".join(ocr_results).strip()
+                            import pytesseract
+                            ocr_text = pytesseract.image_to_string(
+                                imgs[0],
+                                config="--psm 6 --oem 1"
+                            ).strip()
                         if ocr_text:
                             page_text_map[pg_num] = ocr_text
                     except Exception as pg_err:
@@ -143,15 +146,13 @@ class OCRService:
                         log.error("Tesseract meta fallback failed", exc=tess_err)
                 elif self.ocr_available:
                     try:
-                        log.info("Meta OCR engine: EasyOCR")
-                        images = convert_from_path(pdf_path, first_page=1, last_page=3)
+                        import pytesseract
+                        log.info("Meta OCR engine: Tesseract (Direct)")
+                        images = convert_from_path(pdf_path, dpi=200, first_page=1, last_page=3)
                         for i, img in enumerate(images):
-                            log.info("EasyOCR processing page", page=i + 1)
-                            img_np = np.array(img)
-                            results = self.reader.readtext(img_np, detail=0)
-                            meta_text += "\n".join(results) + "\n"
+                            meta_text += pytesseract.image_to_string(img, config="--psm 6 --oem 1").strip() + "\n"
                     except Exception as ocr_err:
-                        log.error("EasyOCR meta fallback failed", exc=ocr_err)
+                        log.error("Tesseract meta fallback failed", exc=ocr_err)
                 else:
                     log.warn("No OCR engine available for meta extraction")
 
