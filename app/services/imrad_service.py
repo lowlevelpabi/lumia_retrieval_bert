@@ -1169,7 +1169,9 @@ class IMRADService:
         if INCLUDE_ABSTRACT_VECTOR and abstract and abstract.strip():
             vectors["abstract"] = embedding_service.get_embedding(abstract[:4000])
         for key, content in sections.items():
-            if key in IMRAD_SECTION_KEYS and content and len(content.strip()) >= MIN_SECTION_CHARS:
+            # 'references' is listed in IMRAD_SECTION_KEYS for extraction but it
+            # is NOT a vector field in Qdrant. Exclude it here to prevent 500 errors.
+            if key in IMRAD_SECTION_KEYS and key != "references" and content and len(content.strip()) >= MIN_SECTION_CHARS:
                 vectors[key] = embedding_service.get_embedding(content)
         log.ml("Vectors built", keys=str(list(vectors.keys())))
         return vectors

@@ -113,50 +113,7 @@ def upgrade():
 
     # Always run column-level patches so new columns are added to pre-existing tables
     add_columns_if_missing()
-    
-    # Auto-seed admin if requested and empty
-    auto_seed_admin()
 
-def auto_seed_admin():
-    """
-    Check for SEED_ADMIN environment variables and create an admin
-    only if the authorized_users table is completely empty.
-    """
-    username = os.getenv("SEED_ADMIN_USER")
-    email = os.getenv("SEED_ADMIN_EMAIL")
-    password = os.getenv("SEED_ADMIN_PASSWORD")
-
-    if not all([username, email, password]):
-        return
-
-    _print_banner("AUTO-SEED     checking for initial admin")
-
-    with engine.begin() as conn:
-        # 1. Check if table even exists
-        inspector = inspect(conn)
-        if "authorized_users" not in inspector.get_table_names():
-            print("  [N] authorized_users table not found. Skipping seed.")
-            return
-
-        # 2. Check if table is empty
-        result = conn.execute(text("SELECT COUNT(*) FROM authorized_users"))
-        count = result.scalar()
-
-        if count > 0:
-            print(f"  [Y] Table 'authorized_users' already has {count} user(s). Skipping seed.")
-            return
-
-        # 3. Create the admin
-        try:
-            hashed = get_password_hash(password)
-            conn.execute(
-                text("INSERT INTO authorized_users (username, email, hashed_password, role, full_name) "
-                     "VALUES (:u, :e, :p, 'Admin', 'Default Admin')"),
-                {"u": username, "e": email, "p": hashed}
-            )
-            print(f"  [Y] Success: Created initial admin user '{username}'")
-        except Exception as e:
-            print(f"  [N] Failed to seed admin: {e}")
 
 
 

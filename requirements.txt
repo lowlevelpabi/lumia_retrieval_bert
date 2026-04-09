@@ -8,15 +8,13 @@ transformers
 torch
 sentence-transformers
 keybert
+easyocr
 pdf2image
 python-multipart
 python-dotenv
 pydantic-settings
 passlib[bcrypt]
 python-jose[cryptography]
-psycopg2
 hashids
 alembic
-gunicorn
-psycopg2-binary
 httpx

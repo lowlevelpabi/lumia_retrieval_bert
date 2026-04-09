@@ -3,7 +3,6 @@ FROM python:3.10-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    libpq-dev \
     gcc \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -34,7 +33,6 @@ FROM python:3.10-slim
 # - tesseract-ocr: lightweight OCR fallback instead of EasyOCR
 RUN apt-get update && apt-get install -y \
     poppler-utils \
-    libpq5 \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
