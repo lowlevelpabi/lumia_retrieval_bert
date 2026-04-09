@@ -28,7 +28,14 @@ RECOMMEND_WEIGHTS: Dict[str, float] = {
 
 class VectorDB:
     def __init__(self):
-        self.client = QdrantClient(path=settings.QDRANT_PATH)
+        # Use Server Mode if QDRANT_URL is provided, fallback to Local Mode (path)
+        if settings.QDRANT_URL:
+            print(f"[Qdrant] Connecting to Server at: {settings.QDRANT_URL}")
+            self.client = QdrantClient(url=settings.QDRANT_URL)
+        else:
+            print(f"[Qdrant] Using Local Storage at: {settings.QDRANT_PATH}")
+            self.client = QdrantClient(path=settings.QDRANT_PATH)
+            
         self.collection_name = settings.COLLECTION_NAME
         self._ensure_collection()
 
