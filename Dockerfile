@@ -23,8 +23,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3. Strip unnecessary files from the virtualenv to save space
-RUN find /opt/venv -type d -name "tests" -exec rm -rf {} + \
-    && find /opt/venv -type d -name "__pycache__" -exec rm -rf {} +
+RUN find /opt/venv -type d -name "__pycache__" -exec rm -rf {} +
 
 # ── Runtime Stage ────────────────────────────────────────────────────────────
 FROM python:3.10-slim
