@@ -51,4 +51,4 @@ COPY . .
 
 # Use shell form to expand environment variables and run migrations
 # Using the venv's python/uvicorn
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "python migrate.py upgrade && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
