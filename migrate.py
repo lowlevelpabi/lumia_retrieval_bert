@@ -1,12 +1,12 @@
 """
-migrate.py  —  Standalone database migration script
+migrate.py     Standalone database migration script
 Smart Research API
 
 Usage:
     python migrate.py            # Run all pending migrations (default)
     python migrate.py upgrade    # Same as above
     python migrate.py downgrade  # Drop all managed tables
-    python migrate.py reset      # Drop then recreate all tables (⚠ destructive)
+    python migrate.py reset      # Drop then recreate all tables (  destructive)
     python migrate.py status     # Show current schema state
 
 This script does NOT require Alembic.  It uses SQLAlchemy's MetaData
@@ -16,35 +16,36 @@ inspection to detect which tables already exist and only creates missing ones.
 import sys
 import os
 
-# ── Make sure the project root is on the path ─────────────────────────────────
+#    Make sure the project root is on the path                                  
 ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# ── Imports ───────────────────────────────────────────────────────────────────
+#    Imports                                                                    
 from sqlalchemy import inspect, text
 from app.core.config import settings
 from app.core.database import engine
+from app.core.security import get_password_hash
 
 # Import every model so they all register on the shared Base.
-# Order matters only for clarity — SQLAlchemy resolves FK ordering automatically.
+# Order matters only for clarity   SQLAlchemy resolves FK ordering automatically.
 from app.models.paper import Base, Paper                     # Base is defined here
 from app.models.user import Student                          # students table
 from app.models.authorized_user import AuthorizedUser        # authorized_users table
 from app.models.citation import UserCitation                 # user_citations table
 from app.models.activity_log import ActivityLog              # activity_logs table
 
-# ── Table registry ────────────────────────────────────────────────────────────
+#    Table registry                                                             
 # Explicit drop-order (children before parents) for the downgrade path.
 DROP_ORDER = [
-    "user_citations",    # FK → students, papers
+    "user_citations",    # FK   students, papers
     "activity_logs",     # no FK
     "students",
     "authorized_users",
     "papers",
 ]
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+#    Helpers                                                                    
 
 def _existing_tables(connection) -> set[str]:
     inspector = inspect(connection)
@@ -52,12 +53,12 @@ def _existing_tables(connection) -> set[str]:
 
 
 def _print_banner(title: str):
-    print(f"\n{'─' * 55}")
+    print(f"\n{'=' * 55}")
     print(f"  {title}")
-    print(f"{'─' * 55}")
+    print(f"{'=' * 55}")
 
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+#    Commands                                                                   
 
 def add_columns_if_missing():
     """
@@ -66,12 +67,12 @@ def add_columns_if_missing():
     inspect existing columns first and only issue the statement when the column
     is absent.
     """
-    _print_banner("ADD COLUMNS  —  patching existing tables")
+    _print_banner("ADD COLUMNS     patching existing tables")
 
     with engine.begin() as conn:
         inspector = inspect(conn)
 
-        # papers table — soft-delete columns (added in v2)
+        # papers table   soft-delete columns (added in v2)
         if "papers" in _existing_tables(conn):
             existing_cols = {c["name"] for c in inspector.get_columns("papers")}
             to_add = {
@@ -84,14 +85,14 @@ def add_columns_if_missing():
                     conn.execute(text(f"ALTER TABLE papers ADD COLUMN {col_name} {col_type}"))
                     print(f"  +  Added column  : papers.{col_name}")
                 else:
-                    print(f"  ✓  Already exists: papers.{col_name}")
+                    print(f"     Already exists: papers.{col_name}")
 
-    print("  ✓  Done.")
+    print("     Done.")
 
 
 def upgrade():
     """Create all tables that don't exist yet (safe, non-destructive)."""
-    _print_banner("UPGRADE  —  creating missing tables")
+    _print_banner("UPGRADE     creating missing tables")
 
     with engine.begin() as conn:
         existing = _existing_tables(conn)
@@ -99,7 +100,7 @@ def upgrade():
         missing = all_tables - existing
 
         if not missing:
-            print("  ✓  All tables already exist — nothing to do.")
+            print("  All tables already exist - nothing to do.")
         else:
             print(f"  Tables already present : {sorted(existing & all_tables) or '(none)'}")
             print(f"  Tables to create       : {sorted(missing)}")
@@ -108,17 +109,61 @@ def upgrade():
             # Let SQLAlchemy create only what's missing, respecting FK order.
             Base.metadata.create_all(bind=conn, checkfirst=True)
 
-            print("  ✓  Done.")
+            print("  Done.")
 
     # Always run column-level patches so new columns are added to pre-existing tables
     add_columns_if_missing()
+    
+    # Auto-seed admin if requested and empty
+    auto_seed_admin()
+
+def auto_seed_admin():
+    """
+    Check for SEED_ADMIN environment variables and create an admin
+    only if the authorized_users table is completely empty.
+    """
+    username = os.getenv("SEED_ADMIN_USER")
+    email = os.getenv("SEED_ADMIN_EMAIL")
+    password = os.getenv("SEED_ADMIN_PASSWORD")
+
+    if not all([username, email, password]):
+        return
+
+    _print_banner("AUTO-SEED     checking for initial admin")
+
+    with engine.begin() as conn:
+        # 1. Check if table even exists
+        inspector = inspect(conn)
+        if "authorized_users" not in inspector.get_table_names():
+            print("  [N] authorized_users table not found. Skipping seed.")
+            return
+
+        # 2. Check if table is empty
+        result = conn.execute(text("SELECT COUNT(*) FROM authorized_users"))
+        count = result.scalar()
+
+        if count > 0:
+            print(f"  [Y] Table 'authorized_users' already has {count} user(s). Skipping seed.")
+            return
+
+        # 3. Create the admin
+        try:
+            hashed = get_password_hash(password)
+            conn.execute(
+                text("INSERT INTO authorized_users (username, email, hashed_password, role, full_name) "
+                     "VALUES (:u, :e, :p, 'Admin', 'Default Admin')"),
+                {"u": username, "e": email, "p": hashed}
+            )
+            print(f"  [Y] Success: Created initial admin user '{username}'")
+        except Exception as e:
+            print(f"  [N] Failed to seed admin: {e}")
 
 
 
 
 def downgrade():
     """Drop all managed tables in safe FK-respecting order."""
-    _print_banner("DOWNGRADE  —  dropping all managed tables")
+    _print_banner("DOWNGRADE     dropping all managed tables")
 
     with engine.begin() as conn:
         existing = _existing_tables(conn)
@@ -126,23 +171,23 @@ def downgrade():
         for table_name in DROP_ORDER:
             if table_name in existing:
                 conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
-                print(f"  ✗  Dropped  : {table_name}")
+                print(f"     Dropped  : {table_name}")
             else:
-                print(f"  –  Skipped  : {table_name} (does not exist)")
+                print(f"     Skipped  : {table_name} (does not exist)")
 
         # Also drop any managed tables not in our explicit list
         extra = set(Base.metadata.tables.keys()) - set(DROP_ORDER)
         for table_name in extra:
             if table_name in existing:
                 conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
-                print(f"  ✗  Dropped  : {table_name} (extra)")
+                print(f"     Dropped  : {table_name} (extra)")
 
-    print("  ✓  Done.")
+    print("     Done.")
 
 
 def reset():
-    """Drop all managed tables and recreate them from scratch (⚠ destructive)."""
-    _print_banner("RESET  —  drop + recreate (ALL DATA WILL BE LOST)")
+    """Drop all managed tables and recreate them from scratch (  destructive)."""
+    _print_banner("RESET     drop + recreate (ALL DATA WILL BE LOST)")
     confirm = input("  Type  YES  to continue: ").strip()
     if confirm != "YES":
         print("  Aborted.")
@@ -153,7 +198,7 @@ def reset():
 
 def status():
     """Print the current state of each managed table."""
-    _print_banner("STATUS  —  current schema")
+    _print_banner("STATUS     current schema")
 
     with engine.connect() as conn:
         existing = _existing_tables(conn)
@@ -163,21 +208,21 @@ def status():
 
         for table_name in sorted(all_tables):
             exists = table_name in existing
-            mark = "✓" if exists else "✗"
+            mark = "Y" if exists else "N"
             state = "exists" if exists else "MISSING"
 
             if exists:
                 inspector = inspect(conn)
                 cols = inspector.get_columns(table_name)
                 col_names = ", ".join(c["name"] for c in cols)
-                print(f"  [{mark}] {table_name:<25} ({state}) — columns: {col_names}")
+                print(f"  [{mark}] {table_name:<25} ({state})   columns: {col_names}")
             else:
                 print(f"  [{mark}] {table_name:<25} ({state})")
 
     print()
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+#    Entry point                                                                
 
 COMMANDS = {
     "upgrade":   upgrade,
