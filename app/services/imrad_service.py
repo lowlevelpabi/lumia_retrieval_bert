@@ -203,12 +203,15 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"Bachelor of Science", r"in partial fulfillment",
     r"requirements for the degree", r"Undergraduate Thesis", r"Capstone Project",
     r"Adviser\s*:", r"Prepared under the supervision",
-    r"Department\s+of\s+[A-Za-z\s]+", r"College\s+of\s+[A-Za-z\s]+",
+    r"^\s*Department\s+of\s+[A-Za-z\s]+\s*$", r"^\s*College\s+of\s+[A-Za-z\s]+\s*$",
     r"Contribution\s+No\.?", r"Imus\s+City",
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
     r"^\s*FUNCTIONALITY\s*$", r"^\s*MEAN\s*$", r"^\s*STANDARD\s+DEVIATION\s*$",
     r"^\s*INTERPRETATION\s*$", r"^\s*MEAN\s+SCORES?\s*$", r"^\s*VERBAL\s+INTERPRETATION\s*$",
     r"^\s*WEIGHTED\s+MEAN\s*$", r"^\s*FUNCTIONAL\s*$",
+    r"^\s*Submitted\s+by\s*[:]?\s*$", r"^\s*Prepared\s+by\s*[:]?\s*$",
+    r"^\s*Presented\s+to\s*[:]?\s*$", r"^\s*Approved\s+by\s*[:]?\s*$",
+    r"^\s*AUTHORS?\s*$", r"^\s*TITLE\s+PAGE\s*$",
 ]
 
 # Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
@@ -247,7 +250,7 @@ _SECTION_HEADING_LINES: set = {
 def _normalize_text(text: str) -> str:
     text = text.replace('\r\n', '\n').replace('\r', '\n')
     text = re.sub(r'-\n\s*', '', text)
-    text = re.sub(r'\b([A-Z]{3,})\s([A-Z]{1,2})\b', lambda m: m.group(1) + m.group(2), text)
+    # Removed the aggressive uppercase-join regex that was causing "METHODOLOGYA" issues.
     text = re.sub(r'[^\S\n]+', ' ', text)
     return text
 
@@ -377,10 +380,31 @@ def _find_section_page(
     if not keywords:
         return None
 
+    # ── Late-document cutoff ──────────────────────────────────────────────────
+    # Filipino theses often have appendices, rubrics, and CVs in the back matter
+    # that repeat section-like headings (e.g. "Materials and Methods" in an
+    # evaluation rubric on page 123 of 132). We reject any hit that appears
+    # past a reasonable document-position threshold for each section type.
+    all_pages = sorted(page_text_map.keys())
+    total_pages = len(all_pages)
+    _LATE_CUTOFF: Dict[str, float] = {
+        "introduction":          0.40,
+        "methods":               0.70,
+        "results":               0.75,
+        "results_and_discussion": 0.75,
+        "discussion":            0.85,
+        "references":            0.95,
+    }
+    cutoff_ratio = _LATE_CUTOFF.get(section_key, 0.90)
+    max_page = all_pages[int(total_pages * cutoff_ratio) - 1]
+
     nominees: list = []
     for page_num in sorted(page_text_map.keys()):
         if page_num < min_page:
             continue
+        if page_num > max_page:
+            log.regex_skip(page_num, f"past late-doc cutoff ({cutoff_ratio:.0%}) for '{section_key}'")
+            break
         normalized = _normalize_text(page_text_map[page_num])
         if _is_skip_page(normalized):
             continue
@@ -408,7 +432,11 @@ def _find_section_page(
     if not nominees:
         return None
 
-    nominees.sort(key=lambda x: x[2], reverse=True)
+    # Sort by score DESC, then page ASC — prefer earlier pages when scores
+    # are within the same 0.05 bucket (handles duplicate headings in back matter
+    # that score similarly to the real one earlier in the document).
+    nominees.sort(key=lambda x: (-round(x[2] * 20) / 20, x[0]))
+
     for page_num, clean, regex_score in nominees:
         ml_section, ml_score = classify_heading(clean)
         if ml_section == section_key:
@@ -508,12 +536,11 @@ def _extract_page_spatially(
 
     # ── Step 2: Identify true captions ───────────────────────────────────
     CAP_RE = re.compile(r'(Table|Figure|Fig\.?)\s+\d+', re.I)
-    # True captions have punctuation after the number: "Table 6. Title..." or "Table 6, Title..."
-    # Inline refs do not: "Table 6 below shows..."
-    # Note: some authors mistakenly use a comma instead of a period, e.g. "Table 3,"
-    # MANDATORY: Require punctuation (., :, -, or ,) for a titled caption to avoid
-    # misidentifying sentences like "Table 5 shows the results..." as a caption start.
-    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]', re.I)
+    
+    # CASE SENSITIVE: Only capitalized "Table" or "Figure" triggers image treatment.
+    TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]')
+
+
 
     captions = []
     for tb in text_blocks:
@@ -869,11 +896,26 @@ class IMRADService:
 
         for key in IMRAD_SECTION_KEYS:
             if combined_page is not None and key in ("results", "discussion"):
+                # Both keys share the same combined page — assign it but do NOT
+                # advance min_p, and do NOT search for a separate page, because
+                # there is no standalone Results or Discussion heading to find.
                 if combined_page >= min_p:
                     section_start_pages[key] = combined_page
                 continue
+
             pg = _find_section_page(key, page_text_map, min_page=min_p)
             if pg is not None:
+                # If a combined R&D page was already found, reject any 'methods'
+                # hit that comes after it — it is almost certainly a back-matter
+                # rubric or appendix, not the real Methodology chapter.
+                if combined_page is not None and key == "methods" and pg > combined_page:
+                    log.warn(
+                        f"Ignoring 'methods' at page {pg} — appears after "
+                        f"results_and_discussion at page {combined_page}; "
+                        "likely a back-matter rubric or appendix heading"
+                    )
+                    continue
+
                 section_start_pages[key] = pg
                 min_p = pg + 1
 
@@ -940,9 +982,11 @@ class IMRADService:
 
             cleaned_lines: List[str] = []
             section_stop = False
-            # Also accept comma: some authors write "Table 3," instead of "Table 3."
-            # Relaxed to allow optional punctuation for figures.
-            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?', re.I)
+            # Standardized caption regex across services
+            # CASE SENSITIVE: Only capitalized "Table" or "Figure" triggers image treatment.
+            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?')
+
+
 
             for idx_pg, pg in enumerate(section_page_nums):
                 if section_stop:
@@ -966,7 +1010,13 @@ class IMRADService:
                     page_text = _normalize_text(filtered_page_text)
                     page_markers = {} # disable manual injection since text already has markers
                 else:
-                    page_text = _normalize_text(page_text_map.get(pg, ""))
+                    raw_text = page_text_map.get(pg, "")
+                    # If this is the start page of a section, use the stable header stripper
+                    # to discard boilerplate and the section heading itself.
+                    if pg == start_pg:
+                        # We use the existing helper which was built specifically for this.
+                        raw_text = _strip_page_header(raw_text, title, authors)
+                    page_text = _normalize_text(raw_text)
 
                 # For references, only apply institution-level boilerplate
                 # stripping — NOT the numeric/roman-numeral patterns, because
@@ -978,6 +1028,7 @@ class IMRADService:
                     if section_key == "references"
                     else all_boilerplate
                 )
+
 
                 pg_lines: List[str] = []
                 for line in page_text.split("\n"):
@@ -991,6 +1042,24 @@ class IMRADService:
                         continue
                     if line.upper() in _SECTION_HEADING_LINES:
                         continue
+
+                    # Inline prefix match fallback: "METHODOLOGY This study..."
+                    # Handles cases where the heading and body text are merged in the stream.
+                    # We match simple keywords from the current section.
+                    section_kws = HEADING_KEYWORDS.get(section_key, [])
+                    if section_key in ("results", "discussion") and "results_and_discussion" in HEADING_KEYWORDS:
+                        section_kws = section_kws + HEADING_KEYWORDS["results_and_discussion"]
+                    
+                    match_prefix = re.match(r"^\s*(?:(?:CHAPTER\s+)?[IVXLC\d]+[\.\:\s]*)?(" + "|".join([re.escape(k) for k in section_kws]) + r")[\.\:\s]*(.*)$", line, re.I)
+                    if match_prefix:
+                        prefix_heading = match_prefix.group(1)
+                        remainder = match_prefix.group(2).strip()
+                        if remainder:
+                            pg_lines.append(remainder)
+                            continue
+                        else:
+                            continue
+
 
                     # Section boundaries
                     if section_key == "introduction":
@@ -1036,30 +1105,39 @@ class IMRADService:
                     if is_sh:
                         continue
 
-                    # ── Inject image marker after matching caption line ────
-                    # A caption line in pypdf text looks like "Table 6. General rating..."
-                    # We match it against the markers extracted by PyMuPDF and inject
-                    # the marker immediately after, then skip the caption line itself
-                    # (the image screenshot already includes the caption visually).
-                    if page_markers and TRUE_CAP_RE.match(line):
+                    # ── Inject image marker for caption line ───────────────
+                    # If this line starts with "Table N." or "table N.", we map it
+                    # to our spatial markers and preserve any following text.
+                    cap_match = TRUE_CAP_RE.match(line)
+                    if page_markers and cap_match:
                         line_norm = re.sub(r'\s+', ' ', line).strip()
                         matched_marker = None
                         for cap_text, marker in page_markers.items():
                             cap_norm = re.sub(r'\s+', ' ', cap_text).strip()
-                            # Match if the pypdf line starts with the same Table/Figure N. prefix
+                            # Case-insensitive prefix match
                             if line_norm[:40].lower().startswith(cap_norm[:40].lower()):
                                 matched_marker = marker
                                 break
-                            # Fuzzy fallback: both start with same "Table N" token
-                            # Strip any trailing punctuation (. : - ,) before comparing
+                            # Prefix-only fallback: "Table 2" == "table 2"
                             line_prefix = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', line_norm, re.I)
                             cap_prefix  = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', cap_norm,  re.I)
                             if line_prefix and cap_prefix and line_prefix.group(1).lower() == cap_prefix.group(1).lower():
                                 matched_marker = marker
                                 break
+                        
                         if matched_marker:
                             pg_lines.append(f"\n{matched_marker}\n")
-                            continue  # Skip the raw caption text — it's inside the image
+                            # ── Merged Line Check ──
+                            # Find the end of the caption part in the original line
+                            # We strip the caption part and keep the remainder of the line.
+                            end_pos = cap_match.end()
+                            remainder = line[end_pos:].strip()
+                            if remainder:
+                                # Recursively process the remainder or just add it
+                                # (Better to just add it as text)
+                                pg_lines.append(remainder)
+                            continue 
+
 
                     pg_lines.append(line)
 

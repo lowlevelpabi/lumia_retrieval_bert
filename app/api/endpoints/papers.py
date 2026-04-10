@@ -351,6 +351,81 @@ async def list_papers(db: Session = Depends(get_db)):
     """Returns only active (non-trashed) papers."""
     return db.query(Paper).filter(Paper.deleted_at.is_(None)).all()
 
+# ── Sample Documents (System Evaluation Feature) ─────────────────────────────
+# These endpoints are only active when ENABLE_SAMPLE_DOCS=true in .env.
+# To disable the feature after evaluation, set ENABLE_SAMPLE_DOCS=false and
+# restart the backend — no code changes required.
+
+# Safe mapping: slug → filename (prevents path traversal)
+_SAMPLE_DOCS: list[dict] = [
+    {"id": "sample-1", "filename": "BORROWED_THESIS_DOCUMENT_OK1.pdf", "name": "THESIS_DOCUMENT_OK1"},
+    {"id": "sample-2", "filename": "BORROWED_THESIS_DOCUMENT_OK2.pdf", "name": "THESIS_DOCUMENT_OK2"},
+    {"id": "sample-3", "filename": "BORROWED_THESIS_DOCUMENT_OK3.pdf", "name": "THESIS_DOCUMENT_OK3"},
+    {"id": "sample-4", "filename": "eCafe-documentation-1.pdf",        "name": "CAPSTONE_DOCUMENT_OK1"},
+]
+
+@router.get("/sample-documents", dependencies=[Depends(faculty_or_admin_required)])
+async def list_sample_documents():
+    """
+    Returns the list of pre-stored sample documents available for drag-and-drop
+    upload testing. Only active when ENABLE_SAMPLE_DOCS=true.
+
+    Returns name, id (slug), and size only — no file bytes are included.
+    """
+    if not settings.ENABLE_SAMPLE_DOCS:
+        return []  # Feature disabled — UI panel will hide itself
+
+    docs_dir = settings.SAMPLE_DOCS_DIR
+    result = []
+    for doc in _SAMPLE_DOCS:
+        path = os.path.join(docs_dir, doc["filename"])
+        if os.path.isfile(path):
+            result.append({
+                "id":         doc["id"],
+                "name":       doc["name"],
+                "size_bytes": os.path.getsize(path),
+            })
+    return result
+
+
+@router.get("/sample-documents/{doc_id}/fetch", dependencies=[Depends(faculty_or_admin_required)])
+async def fetch_sample_document(doc_id: str):
+    """
+    Streams a pre-stored sample document as raw bytes (application/octet-stream).
+    Used exclusively by the frontend drag-and-drop handler to create an in-memory
+    File object — the bytes are never persisted to the browser.
+
+    Privacy guarantees:
+    - No Content-Disposition: attachment header (no download prompt)
+    - Only accessible to authenticated faculty/admin
+    - Only active when ENABLE_SAMPLE_DOCS=true
+    """
+    if not settings.ENABLE_SAMPLE_DOCS:
+        raise HTTPException(status_code=404, detail="Sample documents are not available.")
+
+    # Resolve slug → filename via the safe static map (no path traversal possible)
+    doc_meta = next((d for d in _SAMPLE_DOCS if d["id"] == doc_id), None)
+    if not doc_meta:
+        raise HTTPException(status_code=404, detail="Sample document not found.")
+
+    file_path = os.path.join(settings.SAMPLE_DOCS_DIR, doc_meta["filename"])
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Sample document file is missing on the server.")
+
+    def iter_file():
+        with open(file_path, "rb") as f:
+            while chunk := f.read(64 * 1024):  # 64 KB chunks
+                yield chunk
+
+    return StreamingResponse(
+        iter_file(),
+        media_type="application/octet-stream",
+        # Intentionally NO Content-Disposition header — prevents download dialog
+        headers={"X-Filename": doc_meta["filename"]},
+    )
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 @router.get("/search/config")
 async def get_search_config():
     """Return the default search configuration (threshold, etc.) to the frontend."""
@@ -955,4 +1030,4 @@ async def cite_paper(
     db.refresh(paper)
     return {"has_cited": True, "citation_count": paper.citation_count}
 
-
+

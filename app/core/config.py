@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     COLLECTION_NAME: str = "thesis_papers"
     DEFAULT_SEARCH_THRESHOLD: float = 0.15
+
+    # ── Sample Documents (System Evaluation Feature) ──────────────────────────
+    # Set to True only during system evaluation. When False, the sample document
+    # endpoints return empty/404 and the UI panel is hidden automatically.
+    ENABLE_SAMPLE_DOCS: bool = False
+    SAMPLE_DOCS_DIR: str = "sample_documents"
     
     # SECRET_KEY must be set in .env for production.
     # Falls back to a random key for local dev (tokens won't survive restarts).

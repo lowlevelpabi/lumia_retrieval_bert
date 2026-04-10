@@ -24,15 +24,17 @@ USE_DISTILBERT_IMRAD:  bool = os.path.isdir(DISTILBERT_IMRAD_PATH)
 # Maps the 9-class labels back to the 4 section keys used by imrad_service.py
 # Sub-headings resolve to their parent section so downstream code needs no change.
 _DISTILBERT_SECTION_MAP: dict = {
-    "heading_intro":      "introduction",
-    "subheading_intro":   "introduction",
-    "heading_methods":    "methods",
-    "subheading_methods": "methods",
-    "heading_results":    "results_and_discussion",
-    "subheading_results": "results_and_discussion",
-    "heading_other":      None,   # not an IMRaD section
-    "body_text":          None,
-    "junk":               None,
+    "heading_intro":         "introduction",
+    "subheading_intro":      "introduction",
+    "heading_methods":       "methods",
+    "subheading_methods":    "methods",
+    "heading_results":       "results_and_discussion",
+    "subheading_results":    "results_and_discussion",
+    "heading_discussion":    "results_and_discussion",  # combined R&D section in Filipino theses
+    "subheading_discussion": "results_and_discussion",
+    "heading_other":         None,   # not an IMRaD section
+    "body_text":             None,
+    "junk":                  None,
 }
 
 # Path to the fine-tuned IMRAD heading model produced by train_imrad_nli.py.
