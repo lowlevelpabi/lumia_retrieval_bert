@@ -124,11 +124,7 @@ def create_staff_user(
     if db.query(AuthorizedUser).filter(AuthorizedUser.username == body.username).first() or \
        db.query(Student).filter(Student.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already registered")
-        
-    if db.query(AuthorizedUser).filter(AuthorizedUser.email == body.email).first() or \
-       db.query(Student).filter(Student.email == body.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     # Only allow Admin or Faculty roles
     if body.role not in [UserRole.ADMIN, UserRole.FACULTY]:
         raise HTTPException(status_code=400, detail="Only Admin or Faculty roles can be created here")
@@ -139,7 +135,6 @@ def create_staff_user(
 
     new_user = AuthorizedUser(
         username=body.username,
-        email=body.email,
         full_name=body.full_name,
         hashed_password=hashed_password,
         role=body.role.value if hasattr(body.role, 'value') else body.role

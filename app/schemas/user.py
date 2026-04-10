@@ -1,10 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 from app.models.enums import UserRole
 
 class UserBase(BaseModel):
     username: str
-    email: EmailStr
     full_name: Optional[str] = None
     role: Optional[UserRole] = UserRole.USER
 
@@ -13,9 +12,8 @@ class UserCreate(UserBase):
 
 class UserCreateStaff(BaseModel):
     username: str
-    email: EmailStr
     full_name: str
-    role: UserRole # Admin or Faculty
+    role: UserRole  # Admin or Faculty
 
 class UserResponse(UserBase):
     id: int
