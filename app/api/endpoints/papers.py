@@ -361,7 +361,7 @@ _SAMPLE_DOCS: list[dict] = [
     {"id": "sample-1", "filename": "BORROWED_THESIS_DOCUMENT_OK1.pdf", "name": "THESIS_DOCUMENT_OK1"},
     {"id": "sample-2", "filename": "BORROWED_THESIS_DOCUMENT_OK2.pdf", "name": "THESIS_DOCUMENT_OK2"},
     {"id": "sample-3", "filename": "BORROWED_THESIS_DOCUMENT_OK3.pdf", "name": "THESIS_DOCUMENT_OK3"},
-    {"id": "sample-4", "filename": "eCafe-documentation-1.pdf",        "name": "CAPSTONE_DOCUMENT_OK1"},
+    {"id": "sample-4", "filename": "BORROWED_CAPSTONE_DOCUMENT_OK1.pdf",        "name": "CAPSTONE_DOCUMENT_OK1"},
 ]
 
 @router.get("/sample-documents", dependencies=[Depends(faculty_or_admin_required)])
