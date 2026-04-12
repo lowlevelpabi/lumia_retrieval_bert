@@ -91,7 +91,7 @@ def list_users(
 
 @router.patch("/{user_id}/role", response_model=UserResponse)
 def change_user_role(
-    user_id: int,
+    user_id: str,
     body: UserRoleUpdate,
     db: Session = Depends(get_db),
     admin_user: AuthorizedUser = Depends(admin_required)

@@ -104,10 +104,10 @@ async def upload_preview(
     imrad_pages: list = metadata.pop("imrad_pages", [])
     is_manuscript: bool = auto_extract and len(imrad_pages) == 0
 
-    # ── Pre-generate IMRAD summaries during preview ───────────────────────────
+    # ── Prepare IMRAD raw text for preview ───────────────────────────────────
     # This runs synchronously before returning so the Step-2 review screen
-    # already shows summarised text. Wrapped in try/except so a summariser
-    # failure never breaks the upload flow.
+    # already shows extracted raw text. Wrapped in try/except so a failure
+    # never breaks the upload flow.
     if auto_extract and not is_manuscript:
         extracted_sections: dict = metadata.get("sections") or {}
         if extracted_sections and any(extracted_sections.values()):
@@ -120,7 +120,7 @@ async def upload_preview(
                 metadata["sections_summary"] = {
                     k: v for k, v in preview_summaries.items() if v
                 }
-                print(f"[Preview] Pre-generated summaries for sections: "
+                print(f"[Preview] Prepared raw text for sections: "
                       f"{list(metadata['sections_summary'].keys())}")
             except Exception as sum_err:
                 print(f"[Preview] Summary pre-generation failed (non-fatal): {sum_err}")
@@ -210,7 +210,7 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         discussion=data.discussion,
         references=data.references,
 
-        # Save pre-generated summaries from preview (if available)
+        # Save pre-generated raw text from preview (if available)
         introduction_summary=data.sections_summary.get("introduction") if data.sections_summary else None,
         methods_summary=data.sections_summary.get("methods") if data.sections_summary else None,
         results_summary=data.sections_summary.get("results") if data.sections_summary else None,
@@ -271,10 +271,10 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
             
             db.commit()
 
-    # ── IMRAD Summaries ───────────────────────────────────────────────────
-    # Summaries were pre-generated during preview and saved to db_paper above.
-    # Only re-run summarisation if they're still missing (e.g. manuscript path
-    # where auto_extract=False was used and no preview summaries exist).
+    # ── IMRAD Raw Text ────────────────────────────────────────────────────
+    # Raw texts were prepared during preview and saved to db_paper above.
+    # Only re-run if they're still missing (e.g. manuscript path
+    # where auto_extract=False was used and no preview texts exist).
     summaries_already_saved = any([
         db_paper.introduction_summary,
         db_paper.methods_summary,
@@ -289,12 +289,12 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
             db_paper.results_summary      = summaries.get("results")
             db_paper.discussion_summary   = summaries.get("discussion")
             db.commit()
-            print(f"[IMRADSummary] Fallback summaries saved for paper {db_paper.id}: "
+            print(f"[IMRADRawText] Fallback raw text saved for paper {db_paper.id}: "
                   f"{[k for k, v in summaries.items() if v]}")
         except Exception as summary_err:
             print(f"[IMRADSummary] Non-fatal error: {summary_err}")
     else:
-        print(f"[IMRADSummary] Using pre-generated summaries from preview for paper {db_paper.id}")
+        print(f"[IMRADRawText] Using pre-generated raw text from preview for paper {db_paper.id}")
 
     # Build the full vector dict: title + abstract (if enabled) + any detected IMRAD sections
     content_for_abstract = selected_content.strip() if selected_content.strip() else db_paper.abstract

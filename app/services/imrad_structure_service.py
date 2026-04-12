@@ -15,10 +15,10 @@ from typing import List, Dict, Any, Optional
 # RESULTS_SUBHEADINGS labels.
 
 METHODOLOGY_LABELS: List[str] = [
-    "Research Design", "Research Approach", "Research Settings",
+    "Research Design", "Research Approach and Design", "Research Approach", "Research Settings",
     "Business Process", "Participants of the Study", "Sampling Technique",
     "Research Instruments", "Data Collection, Instrument, and Procedure",
-    "Sources of Data", "Statistical Treatment of Data", "Data Analysis",
+    "Sources of Data", "Statistical Treatment of Data", "Data Analysis Plan", "Data Analysis",
     "Ethical Considerations", "Development Model", 
     "Analysis and Quick Design", "Prototype Cycles", "Testing", "Implementation",
 ]
@@ -121,7 +121,14 @@ def _structure_section(
     # from the pool on the same pass that markers are already handling placement.
     has_inline_markers = bool(MARKER_RE.search(text))
 
-    for line in text.split("\n"):
+    # Common continuation words for headings split across lines
+    HEADING_CONTINUATIONS = {"plan", "design", "and design", "procedures", "of the study"}
+
+    lines = text.split("\n")
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        idx += 1
         stripped = line.strip()
         if not stripped:
             # Significant break! Flush text, then emit any queued images immediately
@@ -137,28 +144,31 @@ def _structure_section(
         is_subheading = False
         if labels:
             for label in labels:
-                # Stricter regex: 
-                # 1. Must start with optional numbering.
-                # 2. THE LABEL ITSELF MUST BE TITLE CASE (start with [A-Z]) to avoid matching mid-sentence words.
-                # 3. Must be followed by a period, colon, or space.
                 pattern = r"^\s*(?:[IVXLC\d]+[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
-                match = re.match(pattern, stripped) # Removed re.I to ensure case sensitivity for the first letter
+                match = re.match(pattern, stripped)
                 if match:
                     heading_text = match.group(1).strip()
                     
-                    # Double check: if it's lowercase, it's almost certainly not a heading
                     if not heading_text[0].isupper():
                         continue
                         
                     remainder = match.group(2).strip()
                     
+                    # ── Lookahead for continuation ───────────────────────────
+                    # If this line ends the heading part and there's a following line
+                    # that looks like a heading continuation (e.g. "Plan"), merge it.
+                    if not remainder and idx < len(lines):
+                        next_line = lines[idx].strip()
+                        if next_line.lower() in HEADING_CONTINUATIONS:
+                            heading_text += " " + next_line
+                            idx += 1 # Consume the continuation line
+                    # ─────────────────────────────────────────────────────────
+
                     flush_buffer()         # Flush existing paragraph text
                     flush_pending_media()  # Emit any images that belong BEFORE this subheading
                     
-                    # Add the subheading block
                     blocks.append({"type": "subheading", "text": heading_text})
                     
-                    # If there's text after the heading on the same line, start a new paragraph with it
                     if remainder:
                         buffer.append(remainder)
                     
@@ -169,19 +179,14 @@ def _structure_section(
             continue
 
         # 2. Check for Table/Figure Label (Caption) — only when no inline markers exist.
-        # If the section has [[TABLE_IMAGE:X]] markers, spatial extraction handled placement;
-        # running this fallback simultaneously causes intro sentences to wrongly pull images.
         if not has_inline_markers and _TABLE_FIGURE_RE.match(stripped):
-            # Flush any accumulated paragraph text first
             flush_buffer()
-            # Fallback caption matching
             is_table = stripped.upper().startswith("TABLE")
             prefix = "T_" if is_table else "F_"
             pool_keys = sorted(section_media_pool.keys(), key=lambda x: [int(c) if c.isdigit() else c for c in re.split('([0-9]+)', x)])
             match_id = next((pk for pk in pool_keys if pk.startswith(prefix) and pk not in consumed_pool_ids), None)
             
             if match_id:
-                # Emit the image immediately at this exact position in the stream
                 blocks.append({
                     "type": "table-image", 
                     "id": match_id, 
@@ -189,12 +194,10 @@ def _structure_section(
                 })
                 consumed_pool_ids.add(match_id)
             else:
-                # No image found, keep the text label as a fallback
                 blocks.append({"type": "table-label", "text": stripped})
             continue
 
         # 3. Handle mixed text and markers (Inline support)
-        # We split the line by any markers, keeping the markers as parts
         parts = MARKER_RE.split(stripped)
         for part in parts:
             p_stripped = part.strip()
@@ -203,7 +206,6 @@ def _structure_section(
                 
             m_match = MARKER_RE.match(p_stripped)
             if m_match:
-                # This part is a marker — flush accumulated text first, then emit image immediately
                 flush_buffer()
                 id_match = re.search(r':(.*?)[\]]', p_stripped)
                 if id_match:
@@ -216,7 +218,6 @@ def _structure_section(
                         })
                         consumed_pool_ids.add(m_id)
             else:
-                # This part is regular text
                 buffer.append(p_stripped)
 
     flush_buffer()

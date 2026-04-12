@@ -21,7 +21,7 @@ from app.services.logging_service import log
 INCLUDE_ABSTRACT_VECTOR: bool = True
 IMRAD_SECTION_KEYS: List[str] = ["introduction", "methods", "results", "discussion", "references"]
 
-MAX_SECTION_CHARS: int  = 20000
+MAX_SECTION_CHARS: int  = 50000
 MIN_SECTION_CHARS: int  = 100
 PREVIEW_PAGES_PER_SECTION: int = 3
 
@@ -132,17 +132,18 @@ RAD_STOP_PATTERNS_FLEX: List[str] = [
 ]
 
 INTRO_SUBSECTION_PATTERNS: List[str] = [
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Background\s+of\s+the\s+Study\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Statement\s+of\s+the\s+Problem\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Research\s+(?:Objectives?|Questions?)\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Objectives?\s+of\s+the\s+Study\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Significance\s+of\s+the\s+Study\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Scope\s+and\s+(?:Delimitation|Limitation)\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Definition\s+of\s+Terms\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Conceptual\s+Framework\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Theoretical\s+Framework\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Review\s+of\s+(?:Related\s+)?Literature\b",
-    r"^\s*(?:[IVXLC]+|\d+)[\.\s]*Hypothes[ie]s\b",
+    r"Background\s+of\s+the\s+(?:Study|Project|Research|Thesis)\b",
+    r"Statement\s+of\s+the\s+Problem\b",
+    r"Research\s+(?:Objectives?|Questions?)\b",
+    r"Objectives?\s+of\s+the\s+(?:Study|Project|Research|Thesis)\b",
+    r"Significance\s+of\s+the\s+(?:Study|Project|Research|Thesis)\b",
+    r"Scope\s+and\s+(?:Delimitation|Limitation)\b",
+    r"Definition\s+of\s+Terms\b",
+    r"Conceptual\s+Framework\b",
+    r"Theoretical\s+Framework\b",
+    r"Review\s+of\s+(?:Related\s+)?Literature\b",
+    r"Project\s+Context\b",
+    r"Hypothes[ie]s\b",
 ]
 
 RRL_BOUNDARY_PATTERNS: List[str] = [
@@ -151,7 +152,7 @@ RRL_BOUNDARY_PATTERNS: List[str] = [
     r"^\s*Related\s+(?:Works?|Literature|Studies)\b",
 ]
 
-MAX_INTRO_PAGES: int = 15
+MAX_INTRO_PAGES: int = 25
 
 SKIP_PAGE_PATTERNS: List[str] = [
     r"\bTable\s*of\s*Contents\b",
@@ -199,7 +200,7 @@ RESULTS_SUBHEADINGS: List[Dict] = [
 ]
 
 BOILERPLATE_PATTERNS: List[str] = [
-    r"Cavite State University", r"CvSU", r"Imus Campus",
+    r"Cavite State University", r"CvSU", r"Imus Campus", r"IMUS\s+CAVITE",
     r"Bachelor of Science", r"in partial fulfillment",
     r"requirements for the degree", r"Undergraduate Thesis", r"Capstone Project",
     r"Adviser\s*:", r"Prepared under the supervision",
@@ -212,6 +213,7 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"^\s*Submitted\s+by\s*[:]?\s*$", r"^\s*Prepared\s+by\s*[:]?\s*$",
     r"^\s*Presented\s+to\s*[:]?\s*$", r"^\s*Approved\s+by\s*[:]?\s*$",
     r"^\s*AUTHORS?\s*$", r"^\s*TITLE\s+PAGE\s*$",
+    r"\bM[rs]\.\s+[A-Z][a-z]+\s+[A-Z]\.\s+[A-Z][a-z]+\b", # "Ms. Sherilyn F. Fajutagana" style
 ]
 
 # Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
@@ -315,8 +317,78 @@ def _strip_page_header(text: str, title: str = "", authors: str = "") -> str:
         if le == -1: le = len(text)
         ml = text[ls:le].strip()
         if len(ml) <= 80 and (el / max(len(ml), 1)) >= 0.50:
-            return text[le:].strip()
-    return text.strip()
+            remainder = text[le:]
+        else:
+            remainder = text
+    else:
+        remainder = text
+
+    # ── Secondary pass: strip boilerplate lines that survived the heading cut ──
+    # Handles cases where the title / author block appears after the heading line
+    # (e.g. running headers on the chapter opening page), or where no heading was
+    # found but boilerplate lines still pollute the top of the section text.
+    #
+    # Build an author-token set for fast standalone-line matching.
+    author_tokens: set = set()
+    if authors and authors not in ("N/A", ""):
+        for a in authors.split("|"):
+            name = a.strip()
+            if name:
+                author_tokens.add(name.upper())
+                for token in re.split(r"[\s,.]+", name):
+                    if len(token) > 3:
+                        author_tokens.add(token.upper())
+
+    title_upper = title.upper().strip() if title and title not in ("N/A", "") else ""
+
+    clean_lines: List[str] = []
+    content_started = False
+    for line in remainder.split("\n"):
+        stripped = line.strip()
+
+        # Once we've confirmed real content is flowing, stop stripping
+        if content_started:
+            clean_lines.append(line)
+            continue
+
+        if not stripped:
+            clean_lines.append(line)
+            continue
+
+        # Match against the full BOILERPLATE_PATTERNS list
+        if any(re.search(bp, stripped, re.I) for bp in BOILERPLATE_PATTERNS):
+            continue
+
+        # Match standalone author name lines (whole line or token)
+        stripped_upper = stripped.upper()
+        if author_tokens:
+            if stripped_upper in author_tokens:
+                continue
+            # Whole-line author string (e.g. "Rosalina D. Lacuesta")
+            if any(tok in stripped_upper for tok in author_tokens if len(tok) > 4):
+                if len(stripped) < 80:
+                    continue
+
+        # Match the document title (full or long fragment) as a standalone line
+        if title_upper and len(title_upper) > 10:
+            # Full title match
+            if title_upper in stripped_upper:
+                continue
+            # Check if this line is a long fragment of the title
+            # (handles title split across multiple lines by the PDF extractor)
+            if len(stripped) > 20:
+                words_in_line = stripped_upper.split()
+                words_in_title = title_upper.split()
+                if len(words_in_line) >= 3:
+                    match_count = sum(1 for w in words_in_line if w in words_in_title)
+                    if match_count / max(len(words_in_line), 1) >= 0.70:
+                        continue
+
+        # This line looks like real content — stop stripping
+        content_started = True
+        clean_lines.append(line)
+
+    return "\n".join(clean_lines).strip()
 
 
 def _clean_heading_line(line: str) -> str:
@@ -392,8 +464,8 @@ def _find_section_page(
         "methods":               0.70,
         "results":               0.75,
         "results_and_discussion": 0.75,
-        "discussion":            0.85,
-        "references":            0.95,
+        "discussion":            0.92,
+        "references":            1.0,
     }
     cutoff_ratio = _LATE_CUTOFF.get(section_key, 0.90)
     max_page = all_pages[int(total_pages * cutoff_ratio) - 1]
@@ -762,11 +834,13 @@ def _extract_page_spatially(
         tb_mid = (tb["y0"] + tb["y1"]) / 2
         
         # ── BOILERPLATE STRIPPING (Spatial) ──────────────────────────────────
-        # Strip headers (top 45px) and footers (bottom 45px) of the page.
-        # This effectively removes author names and page numbers that survive
-        # pattern-based filtering.
-        HEADER_THRESHOLD = 45
-        FOOTER_THRESHOLD = page_rect.height - 45
+        # Strip headers (top 80px) and footers (bottom 80px) of the page.
+        # 45px was too small — title/author running headers in Filipino theses
+        # are typically printed at Y positions between 50–120px and were
+        # surviving the spatial filter. 80px catches them without clipping
+        # real content, which starts after the chapter heading below the header.
+        HEADER_THRESHOLD = 80
+        FOOTER_THRESHOLD = page_rect.height - 80
         if tb["y1"] < HEADER_THRESHOLD or tb["y0"] > FOOTER_THRESHOLD:
             continue
         
@@ -1007,6 +1081,12 @@ class IMRADService:
 
                 # ── Always extract text from pypdf ────────────────────────
                 if filtered_page_text is not None:
+                    # Also strip the page header on the section start page even
+                    # when coming from the spatial path. Previously this was
+                    # skipped entirely, allowing title/author boilerplate that
+                    # sits below the 80px spatial threshold to bleed into content.
+                    if pg == start_pg:
+                        filtered_page_text = _strip_page_header(filtered_page_text, title, authors)
                     page_text = _normalize_text(filtered_page_text)
                     page_markers = {} # disable manual injection since text already has markers
                 else:
@@ -1063,7 +1143,18 @@ class IMRADService:
 
                     # Section boundaries
                     if section_key == "introduction":
-                        if any(re.search(pat, line, re.I) for pat in RRL_BOUNDARY_PATTERNS + INTRO_SUBSECTION_PATTERNS):
+                        stop = False
+                        for pat in RRL_BOUNDARY_PATTERNS + INTRO_SUBSECTION_PATTERNS:
+                            m = re.search(pat, line, re.I)
+                            if m:
+                                # Truncate line at the match. If there is valid intro text before it, keep it.
+                                prefix = line[:m.start()].strip()
+                                # Clean up trailing debris like "..." or ".", but only if it's very short
+                                if prefix and len(prefix) > 3:
+                                    pg_lines.append(prefix)
+                                stop = True
+                                break
+                        if stop:
                             section_stop = True
                             break
                     if section_key in ("results", "results_and_discussion"):
