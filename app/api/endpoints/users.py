@@ -83,8 +83,6 @@ def list_users(
     for s in staff:
         combined.append(s)
     for st in students:
-        # Pydantic will handle the role mapping or we can and role='User'
-        st.role = UserRole.USER
         combined.append(st)
         
     return combined
