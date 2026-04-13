@@ -163,6 +163,13 @@ class SearchResult(BaseModel):
         return v
 
 
+class PaginatedSearchResults(BaseModel):
+    results: List[SearchResult]
+    total: int
+    page: int
+    page_size: int
+
+
 class CitationStatus(BaseModel):
     has_cited: bool
     citation_count: int

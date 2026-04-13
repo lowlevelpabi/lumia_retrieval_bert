@@ -16,7 +16,8 @@ from app.models.paper import Paper
 from app.models.citation import UserCitation
 from app.schemas.paper import (
     PaperResponse, SearchResult, PaperUpdate, CitationStatus, 
-    ViewCountResponse, UploadPreviewResponse, UploadConfirm, PagePreview
+    ViewCountResponse, UploadPreviewResponse, UploadConfirm, PagePreview,
+    PaginatedSearchResults
 )
 from app.services.ocr_service import ocr_service
 from app.services.embedding_service import embedding_service
@@ -54,13 +55,41 @@ async def upload_status(session_id: str):
 async def upload_preview(
     session_id: Optional[str] = None,
     file: UploadFile = File(...),
-    auto_extract: bool = True
+    auto_extract: bool = True,
+    db: Session = Depends(get_db)
 ):
     """
     Step 1: Upload a PDF and get metadata + page thumbnails for review.
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Guard rail: check for empty document
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="The document is empty (0 bytes).")
+    
+    try:
+        from io import BytesIO
+        reader = PdfReader(BytesIO(contents))
+        if len(reader.pages) == 0:
+            raise HTTPException(status_code=400, detail="The PDF has no pages.")
+        
+        # Check if at least one page has extractable text or is not completely empty
+        # This is basic, but helps catch completely corrupted or blank PDFs.
+        has_content = False
+        for p in reader.pages[:min(5, len(reader.pages))]:
+            if p.extract_text().strip():
+                has_content = True
+                break
+        
+        # If no text found in first 5 pages, it might be a scan, so we still allow it
+        # but let's at least ensure it's a valid PDF with pages.
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read PDF: {str(e)}")
+
+    # Reset file pointer for subsequent processing
+    await file.seek(0)
 
     if not session_id:
         session_id = str(uuid.uuid4())
@@ -87,7 +116,43 @@ async def upload_preview(
             "project_type": "Thesis",
             "citation_count": 0
         }
-    
+
+    # 1.5 Duplicate Check (Instant Termination)
+    if metadata.get("title"):
+        title = metadata["title"].strip()
+        author = metadata.get("author", "").strip()
+        year = metadata.get("year", "").strip()
+        
+        # Exact title match (case-insensitive)
+        existing = db.query(Paper).filter(
+            Paper.title.ilike(title),
+            Paper.deleted_at.is_(None) # Only check active papers
+        ).first()
+        
+        if existing:
+            # Stricter check: if author and year also match, it's a definite duplicate
+            # Authors can be many, so we check if the main uploader/author is similar
+            # or if the year is identical.
+            same_year = existing.year == year
+            # Basic author check (if any overlap in names)
+            same_author = False
+            if author and existing.author:
+                # Check for significant name overlap
+                a1 = set(author.lower().replace(",", " ").split())
+                a2 = set(existing.author.lower().replace(",", " ").split())
+                if len(a1.intersection(a2)) >= 1:
+                    same_author = True
+            
+            if same_year and same_author:
+                # Log the existing ID for debugging
+                from app.core.hash import encode_id
+                eid = encode_id(existing.id)
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
+                )
+
+
     # 2. Determine document completeness and pick which pages to preview.
     #
     # A 'manuscript' is any uploaded PDF where IMRAD extraction found no
@@ -433,7 +498,7 @@ async def get_search_config():
         "default_threshold": settings.DEFAULT_SEARCH_THRESHOLD
     }
 
-@router.get("/search", response_model=List[SearchResult])
+@router.get("/search", response_model=PaginatedSearchResults)
 async def search_papers(
     db: Session = Depends(get_db),
     query: Optional[str] = None, 
@@ -447,7 +512,8 @@ async def search_papers(
     degree_program: Optional[str] = None,
     section: Optional[str] = None,
     sort: Optional[str] = None,
-    limit: int = 50
+    page: int = 1,
+    page_size: int = 10
 ):
     """
     Unified search: handles both metadata filtering (Browse) and BERT-NLP semantic search.
@@ -497,7 +563,7 @@ async def search_papers(
             )
 
             print(f"Searching across IMRAD vectors in Qdrant (constrained to {len(candidate_ids)} papers)...")
-            semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=limit)
+            semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=100)
 
             effective_threshold = threshold if threshold is not None else settings.DEFAULT_SEARCH_THRESHOLD
 
@@ -548,7 +614,17 @@ async def search_papers(
                 search_results.sort(key=lambda x: x.score, reverse=True)
 
             print(f"Search completed. Found {len(search_results)} relevant results using linear hybrid fusion.")
-            return search_results
+            
+            total = len(search_results)
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            return PaginatedSearchResults(
+                results=search_results[start:end],
+                total=total,
+                page=page,
+                page_size=page_size
+            )
 
 
         else:
@@ -585,7 +661,17 @@ async def search_papers(
             else:
                 # Default for Browse: Newest Year first
                 browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
-            return browse_results
+            
+            total = len(browse_results)
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            return PaginatedSearchResults(
+                results=browse_results[start:end],
+                total=total,
+                page=page,
+                page_size=page_size
+            )
 
     except Exception as e:
         import traceback
