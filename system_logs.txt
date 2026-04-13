@@ -1,0 +1,6 @@
+[2026-04-13 11:56:23]  INFO   Initializing EasyOCR (English)
+[2026-04-13 11:56:26]   OK    EasyOCR initialized
+[2026-04-13 11:56:52]  INFO   Initializing EasyOCR (English)
+[2026-04-13 11:56:54]   OK    EasyOCR initialized
+[2026-04-13 11:58:24]  INFO   Initializing EasyOCR (English)
+[2026-04-13 11:58:27]   OK    EasyOCR initialized

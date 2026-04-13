@@ -1,7 +1,12 @@
 import sys
 import textwrap
+import re
+import os
 from datetime import datetime
 from typing import Any, Optional
+
+LOG_FILE = "system_logs.txt"
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 # ── ANSI colour codes (disabled automatically on non-TTY) ─────────────────────
 _TTY = sys.stdout.isatty()
@@ -54,12 +59,25 @@ def _now() -> str:
     return f"{DIM_C}{datetime.now().strftime('%H:%M:%S')}{RESET}"
 
 
+def _write_to_file(text: str) -> None:
+    """Appends cleaned log text to the system_logs.txt file."""
+    try:
+        # Strip ANSI colors before writing to file for readability
+        clean_text = ANSI_ESCAPE.sub('', text)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            # Add date to the file log for better long-term tracking
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {clean_text}\n")
+    except Exception:
+        pass # Never let logging failures break the main application logic
+
+
 def _print(badge: str, msg: str, detail: str = "", indent: int = 0) -> None:
     pad = "  " * indent
     line = f"{_now()} {badge} {pad}{msg}"
     if detail:
         line += f"  {DIM_C}{detail}{RESET}"
     print(line)
+    _write_to_file(f"{badge} {pad}{msg} {detail}".strip())
 
 
 # ── Public logger ─────────────────────────────────────────────────────────────
@@ -76,10 +94,13 @@ class _Logger:
         print(f"\n{SEC_C}{BOLD}{bar}{RESET}")
         print(f"{SEC_C}{BOLD}  {title}{RESET}")
         print(f"{SEC_C}{bar}{RESET}")
+        
+        _write_to_file(f"\n{'=' * width}\n  {title}\n{'=' * width}")
 
     def subsection(self, title: str) -> None:
         """Lighter divider for sub-stages within a section."""
         print(f"\n{DIM_C}  ┄┄ {title} ┄┄{RESET}")
+        _write_to_file(f"--- {title} ---")
 
     # ── REGEX channel ─────────────────────────────────────────────────────────
 
@@ -111,6 +132,9 @@ class _Logger:
             f"{DIM_C}final={RESET}{score_c}{BOLD}{final:.2f}{RESET}"
         )
         print(f"  {DIM_C}│{RESET}  {_BADGES['REGEX']} {kv}")
+        
+        _file_kv = f"pg={page} line=\"{clipped}\" target={target:.2f} fp={fp:.2f} final={final:.2f}"
+        _write_to_file(f"  │  REGEX {_file_kv}")
 
     def regex_skip(self, page: int, reason: str) -> None:
         """Log a skipped page (TOC / appendix / rubric)."""
@@ -119,6 +143,7 @@ class _Logger:
             f"{DIM_C}pg={RESET}{RX_DETAIL}{page:<3}{RESET}  "
             f"{WARN_C}skip — {reason}{RESET}"
         )
+        _write_to_file(f"  │  REGEX pg={page} skip — {reason}")
 
     def regex_accept(self, section: str, page: int, score: float,
                      reason: str = "early accept") -> None:

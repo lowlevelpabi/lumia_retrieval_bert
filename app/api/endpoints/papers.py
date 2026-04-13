@@ -98,8 +98,41 @@ async def upload_preview(
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 1. Extract Metadata (Only if requested)
-    task_manager.update_task(session_id, 5, "Initializing extraction...")
+    # 1. Quick Duplicate Check (Instant Termination Phase)
+    # Uses fast pypdf only to extract Title/Author/Year in milliseconds.
+    if settings.STRICT_DUPLICATE_CHECK:
+        task_manager.update_task(session_id, 2, "Checking for duplicates...")
+        quick_meta = ocr_service.quick_metadata_sync(temp_path)
+        q_title = quick_meta.get("title", "").strip()
+        q_author = quick_meta.get("author", "").strip()
+        q_year = quick_meta.get("year", "").strip()
+
+        if q_title:
+            existing = db.query(Paper).filter(
+                Paper.title.ilike(q_title),
+                Paper.deleted_at.is_(None)
+            ).first()
+
+            if existing:
+                # Check for year/author overlap for a definitive match
+                same_year = existing.year == q_year
+                same_author = False
+                if q_author != "Unknown" and existing.author:
+                    a1 = set(q_author.lower().replace(",", " ").split())
+                    a2 = set(existing.author.lower().replace(",", " ").split())
+                    if len(a1.intersection(a2)) >= 1:
+                        same_author = True
+
+                if same_year and same_author:
+                    from app.core.hash import encode_id
+                    eid = encode_id(existing.id)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
+                    )
+
+    # 2. Extract Full Metadata (The slow, thorough phase)
+    task_manager.update_task(session_id, 5, "Initializing thorough extraction...")
     if auto_extract:
         import asyncio
         metadata = await asyncio.to_thread(ocr_service.extract_metadata_sync, temp_path, session_id)
@@ -117,8 +150,9 @@ async def upload_preview(
             "citation_count": 0
         }
 
-    # 1.5 Duplicate Check (Instant Termination)
-    if metadata.get("title"):
+    # 3. Final Duplicate Check (Backup check for OCR-only successes)
+    # If the quick check missed it but the slow extraction found a match.
+    if settings.STRICT_DUPLICATE_CHECK and metadata.get("title"):
         title = metadata["title"].strip()
         author = metadata.get("author", "").strip()
         year = metadata.get("year", "").strip()
@@ -126,25 +160,19 @@ async def upload_preview(
         # Exact title match (case-insensitive)
         existing = db.query(Paper).filter(
             Paper.title.ilike(title),
-            Paper.deleted_at.is_(None) # Only check active papers
+            Paper.deleted_at.is_(None)
         ).first()
         
         if existing:
-            # Stricter check: if author and year also match, it's a definite duplicate
-            # Authors can be many, so we check if the main uploader/author is similar
-            # or if the year is identical.
             same_year = existing.year == year
-            # Basic author check (if any overlap in names)
             same_author = False
             if author and existing.author:
-                # Check for significant name overlap
                 a1 = set(author.lower().replace(",", " ").split())
                 a2 = set(existing.author.lower().replace(",", " ").split())
                 if len(a1.intersection(a2)) >= 1:
                     same_author = True
             
             if same_year and same_author:
-                # Log the existing ID for debugging
                 from app.core.hash import encode_id
                 eid = encode_id(existing.id)
                 raise HTTPException(

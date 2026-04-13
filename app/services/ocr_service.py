@@ -643,6 +643,82 @@ class OCRService:
                 "imrad_pages":    [],
             }
 
+    def quick_metadata_sync(self, pdf_path: str) -> Dict[str, Any]:
+        """
+        Ultra-fast metadata extraction using only the first few pages and direct text.
+        Used for instant duplicate detection (Guard Rail) before heavy processing starts.
+        """
+        try:
+            reader = PdfReader(pdf_path)
+            num_pages = len(reader.pages)
+            
+            # Extract text from first 3 pages quickly
+            meta_text = ""
+            for i in range(min(3, num_pages)):
+                text = reader.pages[i].extract_text()
+                if text: meta_text += text + "\n"
+                
+            if len(meta_text.strip()) < 50:
+                # If pypdf fails (likely a scan), try a light-weight OCR on Page 1 ONLY
+                try:
+                    import pytesseract
+                    from pdf2image import convert_from_path
+                    # Use lower DPI for speed
+                    imgs = convert_from_path(pdf_path, dpi=120, first_page=1, last_page=1)
+                    if imgs:
+                        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+                        ocr_text = pytesseract.image_to_string(imgs[0], config="--psm 6 --oem 1").strip()
+                        if ocr_text: meta_text = ocr_text + "\n"
+                except Exception:
+                    pass
+
+            if len(meta_text.strip()) < 50:
+                return {"title": os.path.basename(pdf_path), "author": "Unknown", "year": "N/A"}
+
+            # Reuse the existing regex strategies for Title, Author, Year
+            # (Extracted into this simplified version for the quick check)
+            
+            # Year
+            year_match = re.search(r'\b(20[1-2][0-9])\b', meta_text)
+            detected_year = year_match.group(1) if year_match else "N/A"
+
+            # Title
+            TITLE_STOP_PATTERNS = [
+                r'\b(submitted|presented|in partial|fulfillment|requirements|degree|bachelor|undergraduate|thesis|capstone|adviser|supervisor|prepared)\b',
+                r'\b(cavite|university|college|department|campus)\b',
+                r'\b(20[1-2][0-9])\b',
+            ]
+            lines = [l.strip() for l in meta_text.split('\n') if l.strip()]
+            title_lines = []
+            for line in lines[:15]:
+                is_stop = any(re.search(p, line, re.IGNORECASE) for p in TITLE_STOP_PATTERNS)
+                if len(line) > 3 and not line.endswith('.') and not is_stop:
+                    title_lines.append(line)
+                elif title_lines: break
+            detected_title = " ".join(title_lines).strip() or os.path.basename(pdf_path)
+
+            # Authors (Strategy 1 & 4 combination)
+            detected_authors = []
+            all_caps_names = re.findall(
+                r'(?:^|\n)([A-Z]{2,20}(?:[ ]+[A-Z]{2,20})?,[ ]+[A-Z]{2,20}(?:[ ]+[A-Z]{2,20}){0,2}(?:[ ]+[A-Z]\.)?)(?=[ ]*$|[ ]*\n)',
+                meta_text, re.MULTILINE
+            )
+            if all_caps_names:
+                detected_authors = [m.strip() for m in all_caps_names][:5]
+            else:
+                by_match = re.search(r'(?:by|submitted by|prepared by)[:\s]+([A-Z][a-zA-Z\s\.\,]+)', meta_text, re.IGNORECASE)
+                if by_match:
+                    raw_by = by_match.group(1).strip().split('\n')[0]
+                    if len(raw_by.split()) >= 2: detected_authors = [raw_by]
+
+            return {
+                "title": re.sub(r'\s+', ' ', detected_title),
+                "author": " | ".join(detected_authors) if detected_authors else "Unknown",
+                "year": detected_year
+            }
+        except Exception:
+            return {"title": os.path.basename(pdf_path), "author": "Unknown", "year": "N/A"}
+
     async def extract_page_previews(
         self,
         pdf_path: str,

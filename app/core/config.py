@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     COLLECTION_NAME: str = "thesis_papers"
     DEFAULT_SEARCH_THRESHOLD: float = 0.15
 
+    # ── Evaluation Guard Rails ────────────────────────────────────────────────
+    # Controls the instant termination of duplicate uploads (Title, Author, Year).
+    # Set to False during evaluation week to allow multiple evaluators to upload 
+    # the same document for pipeline testing.
+    STRICT_DUPLICATE_CHECK: bool = True
+
     # ── Sample Documents (System Evaluation Feature) ──────────────────────────
     # Set to True only during system evaluation. When False, the sample document
     # endpoints return empty/404 and the UI panel is hidden automatically.
