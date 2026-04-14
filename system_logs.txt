@@ -445,3 +445,73 @@
 [2026-04-13 16:10:52]   OK    IMRAD summaries generated   sections=[]
 [2026-04-13 16:10:52]   OK    Extraction complete   file=dd7d9572-6297-4bee-b182-57f7e987a509_MIS - CSM 2026 Q1 Jan - March.pdf
 [2026-04-13 16:11:11]   ML    Vectors built   keys=['title', 'abstract']
+[2026-04-14 12:09:52]  INFO   Initializing EasyOCR (English)
+[2026-04-14 12:09:55]   OK    EasyOCR initialized
+[2026-04-14 12:12:01] 
+============================================================
+  Extracting — 1102c2d1-7b3e-45dd-93b7-f0089878b507_NON_IMRAD_DOCUMENT.pdf
+============================================================
+[2026-04-14 12:12:01]  INFO   Direct text extraction via pypdf...
+[2026-04-14 12:12:01]  INFO   PDF loaded   pages=9
+[2026-04-14 12:12:02]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-14 12:12:02]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-14 12:12:02]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-14 12:12:02]  INFO   Meta OCR engine: EasyOCR
+[2026-04-14 12:12:02]  INFO   EasyOCR processing page   page=1
+[2026-04-14 12:12:32]  INFO   EasyOCR processing page   page=2
+[2026-04-14 12:13:00]  INFO   EasyOCR processing page   page=3
+[2026-04-14 12:13:32]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-14 12:13:33]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-14 12:13:33]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-14 12:13:33]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-14 12:13:34]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-14 12:13:35]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-14 12:13:36]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-14 12:13:36]  WARN   No IMRAD sections detected
+[2026-04-14 12:13:36]   OK    IMRAD summaries generated   sections=[]
+[2026-04-14 12:13:36]   OK    Extraction complete   file=1102c2d1-7b3e-45dd-93b7-f0089878b507_NON_IMRAD_DOCUMENT.pdf
+[2026-04-14 12:13:55] 
+============================================================
+  Extracting — 51799067-efea-4c26-a77d-e0aa85df44ba_NON_IMRAD_DOCUMENT.pdf
+============================================================
+[2026-04-14 12:13:55]  INFO   Direct text extraction via pypdf...
+[2026-04-14 12:13:55]  INFO   PDF loaded   pages=9
+[2026-04-14 12:13:55]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-14 12:13:55]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-14 12:13:55]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-14 12:13:55]  INFO   Meta OCR engine: EasyOCR
+[2026-04-14 12:13:55]  INFO   EasyOCR processing page   page=1
+[2026-04-14 12:14:22]  INFO   EasyOCR processing page   page=2
+[2026-04-14 12:14:49]  INFO   EasyOCR processing page   page=3
+[2026-04-14 12:15:16]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-14 12:15:16]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-14 12:15:16]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-14 12:15:17]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-14 12:15:17]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-14 12:15:18]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-14 12:15:19]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-14 12:15:20]  WARN   No IMRAD sections detected
+[2026-04-14 12:15:20]   OK    IMRAD summaries generated   sections=[]
+[2026-04-14 12:15:20]   OK    Extraction complete   file=51799067-efea-4c26-a77d-e0aa85df44ba_NON_IMRAD_DOCUMENT.pdf
+[2026-04-14 12:17:53]  INFO   Initializing EasyOCR (English)
+[2026-04-14 12:17:56]   OK    EasyOCR initialized
+[2026-04-14 12:26:27]  INFO   Initializing EasyOCR (English)
+[2026-04-14 12:26:29]   OK    EasyOCR initialized
+[2026-04-14 12:26:52]  INFO   Initializing EasyOCR (English)
+[2026-04-14 12:26:54]   OK    EasyOCR initialized
+[2026-04-14 12:28:24] 
+============================================================
+  Extracting — f336cd83-134d-4be2-a572-1b4c8477ec31_FAIL_NonIMRAD_Format_Case.pdf
+============================================================
+[2026-04-14 12:28:24]  INFO   Direct text extraction via pypdf...
+[2026-04-14 12:28:24]  INFO   PDF loaded   pages=1
+[2026-04-14 12:28:24]  INFO   Page map after OCR supplement   covered=1/1
+[2026-04-14 12:28:24]  INFO   pypdf meta text extracted   chars=172
+[2026-04-14 12:28:24]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-14 12:28:24]  INFO   Meta OCR engine: EasyOCR
+[2026-04-14 12:28:24]  INFO   EasyOCR processing page   page=1
+[2026-04-14 12:28:42]  REGEX  Author scan region   chars=340  truncated_at=none
+[2026-04-14 12:28:42]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-14 12:28:42]  WARN   No IMRAD sections detected
+[2026-04-14 12:28:42]   OK    IMRAD summaries generated   sections=[]
+[2026-04-14 12:28:42]   OK    Extraction complete   file=f336cd83-134d-4be2-a572-1b4c8477ec31_FAIL_NonIMRAD_Format_Case.pdf

@@ -83,8 +83,14 @@ async def upload_preview(
                 has_content = True
                 break
         
-        # If no text found in first 5 pages, it might be a scan, so we still allow it
-        # but let's at least ensure it's a valid PDF with pages.
+        if not has_content:
+            raise HTTPException(
+                status_code=400, 
+                detail="Empty Document: No readable text found in the first 5 pages. "
+                       "If this is a scanned document, please ensure it has sufficient resolution."
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read PDF: {str(e)}")
 
@@ -131,11 +137,25 @@ async def upload_preview(
                         detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
                     )
 
-    # 2. Extract Full Metadata (The slow, thorough phase)
-    task_manager.update_task(session_id, 5, "Initializing thorough extraction...")
     if auto_extract:
         import asyncio
         metadata = await asyncio.to_thread(ocr_service.extract_metadata_sync, temp_path, session_id)
+        
+        # Guard rail: check for non-imrad format (must have at least 3 out of 5 core sections)
+        sections = metadata.get("sections", {})
+        core_keys = ["introduction", "methods", "results", "discussion", "references"]
+        found_keys = [k for k in core_keys if k in sections and sections[k] and len(sections[k].strip()) > 50]
+        
+        if len(found_keys) < 3:
+            # Cleanup temp file on failure
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+            raise HTTPException(
+                status_code=400,
+                detail=f"Non-IMRAD Format Detected: Only {len(found_keys)}/5 core research sections were found. "
+                       "Ensure the document has clear headings (e.g., Introduction, Methodology, Results, etc.)."
+            )
     else:
         # Default metadata for manual review
         metadata = {
@@ -451,10 +471,12 @@ async def list_papers(db: Session = Depends(get_db)):
 
 # Safe mapping: slug → filename (prevents path traversal)
 _SAMPLE_DOCS: list[dict] = [
-    {"id": "sample-1", "filename": "BORROWED_THESIS_DOCUMENT_OK1.pdf", "name": "THESIS_DOCUMENT_OK1"},
-    {"id": "sample-2", "filename": "BORROWED_THESIS_DOCUMENT_OK2.pdf", "name": "THESIS_DOCUMENT_OK2"},
-    {"id": "sample-3", "filename": "BORROWED_THESIS_DOCUMENT_OK3.pdf", "name": "THESIS_DOCUMENT_OK3"},
-    {"id": "sample-4", "filename": "BORROWED_CAPSTONE_DOCUMENT_OK1.pdf",        "name": "CAPSTONE_DOCUMENT_OK1"},
+    {"id": "sample-1",          "filename": "BORROWED_THESIS_DOCUMENT_OK1.pdf",   "name": "THESIS_DOCUMENT_OK1"},
+    {"id": "sample-2",          "filename": "BORROWED_THESIS_DOCUMENT_OK2.pdf",   "name": "THESIS_DOCUMENT_OK2"},
+    {"id": "sample-3",          "filename": "BORROWED_THESIS_DOCUMENT_OK3.pdf",   "name": "THESIS_DOCUMENT_OK3"},
+    {"id": "sample-4",          "filename": "BORROWED_CAPSTONE_DOCUMENT_OK1.pdf", "name": "CAPSTONE_DOCUMENT_OK1"},
+    {"id": "sample-fail-empty", "filename": "EMPTY_DOCUMENT_FAIL.pdf",            "name": "[FAIL] Empty Document Case"},
+    {"id": "sample-fail-imrad", "filename": "NON_IMRAD_DOCUMENT_FAIL.pdf",        "name": "[FAIL] Non-IMRAD Format Case"},
 ]
 
 @router.get("/sample-documents", dependencies=[Depends(faculty_or_admin_required)])
