@@ -13,4 +13,4 @@ class Student(Base):
 
     @property
     def role(self):
-        return UserRole.USER
+        return UserRole.STUDENT

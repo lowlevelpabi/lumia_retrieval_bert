@@ -90,6 +90,30 @@ def add_columns_if_missing():
     print("     Done.")
 
 
+def patch_role_names():
+    """
+    Ensure all legacy 'User' role strings are updated to 'Student' in authorized_users.
+    This maintains consistency across stack-wide terminology changes.
+    """
+    _print_banner("PATCH     normalizing legacy role names")
+    
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "authorized_users" in _existing_tables(conn):
+            # Check if role column exists
+            cols = [c["name"] for c in inspector.get_columns("authorized_users")]
+            if "role" in cols:
+                print("  Updating 'User' -> 'Student' in authorized_users table...")
+                result = conn.execute(text("UPDATE authorized_users SET role = 'Student' WHERE role = 'User'"))
+                print(f"  Done. {result.rowcount} record(s) normalized.")
+            else:
+                print("  Role column not found in authorized_users table. Skipping.")
+        else:
+            print("  authorized_users table not found. Skipping.")
+    
+    print("     Done.")
+
+
 def upgrade():
     """Create all tables that don't exist yet (safe, non-destructive)."""
     _print_banner("UPGRADE     creating missing tables")
@@ -113,6 +137,9 @@ def upgrade():
 
     # Always run column-level patches so new columns are added to pre-existing tables
     add_columns_if_missing()
+    
+    # Run role terminology normalization
+    patch_role_names()
 
 
 

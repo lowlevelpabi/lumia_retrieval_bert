@@ -5,7 +5,7 @@ from app.models.enums import UserRole
 class UserBase(BaseModel):
     username: str
     full_name: Optional[str] = None
-    role: Optional[UserRole] = UserRole.USER
+    role: Optional[UserRole] = UserRole.STUDENT
 
 class UserCreate(UserBase):
     password: str

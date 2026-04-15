@@ -35,7 +35,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # Check AuthorizedUser table first
     user = db.query(AuthorizedUser).filter(AuthorizedUser.username == form_data.username).first()
-    role = user.role if user else "User" # Default role for student
+    role = user.role if user else "Student" # Default role for student
     
     if not user:
         # Check Student table

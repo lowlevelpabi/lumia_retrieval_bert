@@ -14,10 +14,11 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.paper import Paper
 from app.models.citation import UserCitation
+from app.models.bookmark import UserBookmark
 from app.schemas.paper import (
     PaperResponse, SearchResult, PaperUpdate, CitationStatus, 
     ViewCountResponse, UploadPreviewResponse, UploadConfirm, PagePreview,
-    PaginatedSearchResults
+    PaginatedSearchResults, BookmarkStatus
 )
 from app.services.ocr_service import ocr_service
 from app.services.embedding_service import embedding_service
@@ -51,7 +52,7 @@ async def upload_status(session_id: str):
         media_type="text/event-stream"
     )
 
-@router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(faculty_or_admin_required)])
+@router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(get_current_user)])
 async def upload_preview(
     session_id: Optional[str] = None,
     file: UploadFile = File(...),
@@ -268,7 +269,7 @@ async def upload_preview(
         "media": metadata.get("media", {}),
     }
 
-@router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(faculty_or_admin_required)])
+@router.post("/confirm-upload", response_model=PaperResponse, dependencies=[Depends(get_current_user)])
 async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """
     Step 2: Finalize upload with corrected metadata and selected pages.
@@ -464,6 +465,36 @@ async def list_papers(db: Session = Depends(get_db)):
     """Returns only active (non-trashed) papers."""
     return db.query(Paper).filter(Paper.deleted_at.is_(None)).all()
 
+@router.get("/stats", dependencies=[Depends(get_current_user)])
+async def get_repository_stats(db: Session = Depends(get_db)):
+    """
+    Returns repository statistics for Dashboard Graphs:
+    - Total counts of capstones and theses
+    - Count per degree_program
+    """
+    from sqlalchemy import func
+    
+    # Base query for active papers
+    base_query = db.query(Paper).filter(Paper.deleted_at.is_(None))
+    
+    # Project Type Stats
+    project_counts = db.query(
+        Paper.project_type, 
+        func.count(Paper.id).label("count")
+    ).filter(Paper.deleted_at.is_(None)).group_by(Paper.project_type).all()
+    
+    # Degree Program Stats
+    program_counts = db.query(
+        Paper.degree_program, 
+        func.count(Paper.id).label("count")
+    ).filter(Paper.deleted_at.is_(None)).group_by(Paper.degree_program).all()
+    
+    return {
+        "total_papers": base_query.count(),
+        "by_project_type": {ptype or "Unknown": count for ptype, count in project_counts},
+        "by_program": {prog or "Unknown": count for prog, count in program_counts}
+    }
+
 # ── Sample Documents (System Evaluation Feature) ─────────────────────────────
 # These endpoints are only active when ENABLE_SAMPLE_DOCS=true in .env.
 # To disable the feature after evaluation, set ENABLE_SAMPLE_DOCS=false and
@@ -479,7 +510,7 @@ _SAMPLE_DOCS: list[dict] = [
     {"id": "sample-fail-imrad", "filename": "NON_IMRAD_DOCUMENT_FAIL.pdf",        "name": "[FAIL] Non-IMRAD Format Case"},
 ]
 
-@router.get("/sample-documents", dependencies=[Depends(faculty_or_admin_required)])
+@router.get("/sample-documents", dependencies=[Depends(get_current_user)])
 async def list_sample_documents():
     """
     Returns the list of pre-stored sample documents available for drag-and-drop
@@ -503,7 +534,7 @@ async def list_sample_documents():
     return result
 
 
-@router.get("/sample-documents/{doc_id}/fetch", dependencies=[Depends(faculty_or_admin_required)])
+@router.get("/sample-documents/{doc_id}/fetch", dependencies=[Depends(get_current_user)])
 async def fetch_sample_document(doc_id: str):
     """
     Streams a pre-stored sample document as raw bytes (application/octet-stream).
@@ -512,7 +543,7 @@ async def fetch_sample_document(doc_id: str):
 
     Privacy guarantees:
     - No Content-Disposition: attachment header (no download prompt)
-    - Only accessible to authenticated faculty/admin
+    - Only accessible to authenticated users
     - Only active when ENABLE_SAMPLE_DOCS=true
     """
     if not settings.ENABLE_SAMPLE_DOCS:
@@ -1165,5 +1196,50 @@ async def cite_paper(
     db.commit()
     db.refresh(paper)
     return {"has_cited": True, "citation_count": paper.citation_count}
+
+
+@router.get("/{paper_id}/bookmark", response_model=BookmarkStatus)
+async def get_bookmark_status(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Check whether the authenticated user has bookmarked this paper."""
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    is_bookmarked = db.query(UserBookmark).filter(
+        UserBookmark.user_id == current_user.id,
+        UserBookmark.paper_id == real_id
+    ).first() is not None
+    return {"is_bookmarked": is_bookmarked}
+
+
+@router.post("/{paper_id}/bookmark", response_model=BookmarkStatus)
+async def toggle_bookmark(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Toggle bookmark status for a paper (bookmark/unbookmark)."""
+    real_id = decode_id(paper_id)
+    if real_id is None:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    existing = db.query(UserBookmark).filter(
+        UserBookmark.user_id == current_user.id,
+        UserBookmark.paper_id == real_id
+    ).first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return {"is_bookmarked": False}
+    else:
+        new_bookmark = UserBookmark(user_id=current_user.id, paper_id=real_id)
+        db.add(new_bookmark)
+        db.commit()
+        return {"is_bookmarked": True}
 
 

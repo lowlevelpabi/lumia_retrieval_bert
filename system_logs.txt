@@ -801,3 +801,254 @@
 [2026-04-14 21:51:40]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
 [2026-04-15 10:04:06]  INFO   Initializing EasyOCR (English)
 [2026-04-15 10:04:09]   OK    EasyOCR initialized
+[2026-04-15 21:52:46]  INFO   Initializing EasyOCR (English)
+[2026-04-15 21:52:48]   OK    EasyOCR initialized
+[2026-04-15 22:09:35]  INFO   Initializing EasyOCR (English)
+[2026-04-15 22:09:37]   OK    EasyOCR initialized
+[2026-04-15 23:19:02]  INFO   Initializing EasyOCR (English)
+[2026-04-15 23:19:06]   OK    EasyOCR initialized
+[2026-04-15 23:24:26]  INFO   Initializing EasyOCR (English)
+[2026-04-15 23:24:28]   OK    EasyOCR initialized
+[2026-04-15 23:27:34] 
+============================================================
+  Extracting — d369dd10-e075-4921-a4ff-330bb87c3da8_BORROWED_THESIS_DOCUMENT_OK2.pdf
+============================================================
+[2026-04-15 23:27:34]  INFO   Direct text extraction via pypdf...
+[2026-04-15 23:27:34]  INFO   PDF loaded   pages=80
+[2026-04-15 23:27:35]  INFO   Running OCR supplement on low-text pages   total=28  processing=28  pages=[44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+[2026-04-15 23:27:36]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-15 23:27:56]  INFO   Page map after OCR supplement   covered=80/80
+[2026-04-15 23:27:56]  INFO   pypdf meta text extracted   chars=10382
+[2026-04-15 23:27:56]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-15 23:27:56]  INFO   Meta OCR engine: Tesseract
+[2026-04-15 23:27:57]  INFO   Tesseract processing page   page=1
+[2026-04-15 23:27:57]  INFO   Tesseract processing page   page=2
+[2026-04-15 23:27:58]  INFO   Tesseract processing page   page=3
+[2026-04-15 23:27:59]  REGEX  Author scan region   chars=1651  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-15 23:27:59]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-15 23:28:00]   │  REGEX pg=61 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-15 23:28:01]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-15 23:28:01]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.85  tier=Tier 0 — DistilBERT
+[2026-04-15 23:28:02]   │  REGEX pg=33 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-15 23:28:02]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.77  tier=Tier 0 — DistilBERT
+[2026-04-15 23:28:04]   │  REGEX pg=57 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-15 23:28:04]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.79  tier=Tier 0 — DistilBERT
+[2026-04-15 23:28:04]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.37  tier=Tier 0 — DistilBERT
+[2026-04-15 23:28:04]  INFO   Section start pages   pages={'introduction': 13, 'methods': 27, 'results': 31, 'discussion': 31, 'references': 43}
+[2026-04-15 23:28:05]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]  chars=1856
+[2026-04-15 23:28:05]  INFO   Section 'methods' extracted   pages=[27, 28, 29, 30]  chars=3433
+[2026-04-15 23:28:06]  INFO   Section 'results' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=7155
+[2026-04-15 23:28:07]  INFO   Section 'discussion' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=11002
+[2026-04-15 23:28:07]  INFO   Section 'references' extracted   pages=[43]  chars=1314
+[2026-04-15 23:28:07]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-15 23:28:07]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-15 23:28:07]   ML    Summary ready — 'results'   chars=7155
+[2026-04-15 23:28:07]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-15 23:28:07]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-15 23:28:07]   OK    Extraction complete   file=d369dd10-e075-4921-a4ff-330bb87c3da8_BORROWED_THESIS_DOCUMENT_OK2.pdf
+[2026-04-15 23:28:07]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-15 23:28:07]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-15 23:28:07]   ML    Summary ready — 'results'   chars=7155
+[2026-04-15 23:28:07]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-15 23:46:37] 
+============================================================
+  Extracting — aaf9fa8c-63e4-4f5e-8252-0e116c40b652_BORROWED_THESIS_DOCUMENT_OK2.pdf
+============================================================
+[2026-04-15 23:46:37]  INFO   Direct text extraction via pypdf...
+[2026-04-15 23:46:37]  INFO   PDF loaded   pages=80
+[2026-04-15 23:46:39]  INFO   Running OCR supplement on low-text pages   total=28  processing=28  pages=[44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+[2026-04-15 23:46:39]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-15 23:46:58]  INFO   Page map after OCR supplement   covered=80/80
+[2026-04-15 23:46:58]  INFO   pypdf meta text extracted   chars=10382
+[2026-04-15 23:46:58]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-15 23:46:58]  INFO   Meta OCR engine: Tesseract
+[2026-04-15 23:46:58]  INFO   Tesseract processing page   page=1
+[2026-04-15 23:46:58]  INFO   Tesseract processing page   page=2
+[2026-04-15 23:46:59]  INFO   Tesseract processing page   page=3
+[2026-04-15 23:47:00]  REGEX  Author scan region   chars=1651  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-15 23:47:00]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-15 23:47:01]   │  REGEX pg=61 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-15 23:47:02]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.85  tier=Tier 0 — DistilBERT
+[2026-04-15 23:47:03]   │  REGEX pg=33 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-15 23:47:03]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.77  tier=Tier 0 — DistilBERT
+[2026-04-15 23:47:04]   │  REGEX pg=57 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-15 23:47:04]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.79  tier=Tier 0 — DistilBERT
+[2026-04-15 23:47:04]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.37  tier=Tier 0 — DistilBERT
+[2026-04-15 23:47:04]  INFO   Section start pages   pages={'introduction': 13, 'methods': 27, 'results': 31, 'discussion': 31, 'references': 43}
+[2026-04-15 23:47:05]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]  chars=1856
+[2026-04-15 23:47:05]  INFO   Section 'methods' extracted   pages=[27, 28, 29, 30]  chars=3433
+[2026-04-15 23:47:06]  INFO   Section 'results' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=7155
+[2026-04-15 23:47:07]  INFO   Section 'discussion' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=11002
+[2026-04-15 23:47:07]  INFO   Section 'references' extracted   pages=[43]  chars=1314
+[2026-04-15 23:47:07]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-15 23:47:07]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-15 23:47:07]   ML    Summary ready — 'results'   chars=7155
+[2026-04-15 23:47:07]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-15 23:47:07]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-15 23:47:07]   OK    Extraction complete   file=aaf9fa8c-63e4-4f5e-8252-0e116c40b652_BORROWED_THESIS_DOCUMENT_OK2.pdf
+[2026-04-15 23:47:07]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-15 23:47:07]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-15 23:47:07]   ML    Summary ready — 'results'   chars=7155
+[2026-04-15 23:47:07]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-15 23:49:11]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-15 23:49:11]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-15 23:49:11]   ML    Summary ready — 'results'   chars=7155
+[2026-04-15 23:49:11]   ML    Summary ready — 'discussion'   chars=7155
+[2026-04-15 23:49:11]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-15 23:49:46] 
+============================================================
+  Extracting — 9a222921-8ebc-4c58-b803-7aab8530bf0a_BORROWED_THESIS_DOCUMENT_OK1.pdf
+============================================================
+[2026-04-15 23:49:46]  INFO   Direct text extraction via pypdf...
+[2026-04-15 23:49:46]  INFO   PDF loaded   pages=132
+[2026-04-15 23:49:48]  INFO   Running OCR supplement on low-text pages   total=51  processing=30  pages=[2, 23, 57, 62, 63, 75, 76, 77, 78, 79]
+[2026-04-15 23:49:48]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-15 23:50:16]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-15 23:50:16]  INFO   pypdf meta text extracted   chars=15080
+[2026-04-15 23:50:16]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-15 23:50:16]  INFO   Meta OCR engine: Tesseract
+[2026-04-15 23:50:16]  INFO   Tesseract processing page   page=1
+[2026-04-15 23:50:17]  INFO   Tesseract processing page   page=2
+[2026-04-15 23:50:18]  INFO   Tesseract processing page   page=3
+[2026-04-15 23:50:19]  REGEX  Author scan region   chars=1290  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-15 23:50:19]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-15 23:50:21]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-15 23:50:21]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.85  tier=Tier 0 — DistilBERT
+[2026-04-15 23:50:23]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-15 23:50:23]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.77  tier=Tier 0 — DistilBERT
+[2026-04-15 23:50:27]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-15 23:50:27]   ML    Verdict — 'METHODOLOG Y'   label=heading_methods → methods  score=0.32  tier=Tier 0 — DistilBERT
+[2026-04-15 23:50:28]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.37  tier=Tier 0 — DistilBERT
+[2026-04-15 23:50:28]  INFO   Section start pages   pages={'introduction': 14, 'methods': 39, 'results': 46, 'discussion': 46, 'references': 53}
+[2026-04-15 23:50:28]  INFO   Section 'introduction' extracted   pages=[14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]  chars=6440
+[2026-04-15 23:50:29]  INFO   Section 'methods' extracted   pages=[39, 40, 41, 42, 43, 44, 45]  chars=8636
+[2026-04-15 23:50:30]  INFO   Section 'results' extracted   pages=[46, 47, 48, 49, 50, 51, 52]  chars=4329
+[2026-04-15 23:50:30]  INFO   Section 'discussion' extracted   pages=[46, 47, 48, 49, 50, 51, 52]  chars=7281
+[2026-04-15 23:50:30]  INFO   Section 'references' extracted   pages=[53, 54, 55, 56]  chars=8489
+[2026-04-15 23:50:30]   ML    Summary ready — 'introduction'   chars=6440
+[2026-04-15 23:50:30]   ML    Summary ready — 'methods'   chars=8636
+[2026-04-15 23:50:30]   ML    Summary ready — 'results'   chars=4329
+[2026-04-15 23:50:30]   ML    Summary ready — 'discussion'   chars=7281
+[2026-04-15 23:50:30]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-15 23:50:30]   OK    Extraction complete   file=9a222921-8ebc-4c58-b803-7aab8530bf0a_BORROWED_THESIS_DOCUMENT_OK1.pdf
+[2026-04-15 23:50:30]   ML    Summary ready — 'introduction'   chars=6440
+[2026-04-15 23:50:30]   ML    Summary ready — 'methods'   chars=8636
+[2026-04-15 23:50:30]   ML    Summary ready — 'results'   chars=4329
+[2026-04-15 23:50:30]   ML    Summary ready — 'discussion'   chars=7281
+[2026-04-15 23:50:46]   ML    Summary ready — 'introduction'   chars=6440
+[2026-04-15 23:50:46]   ML    Summary ready — 'methods'   chars=8636
+[2026-04-15 23:50:46]   ML    Summary ready — 'results'   chars=4329
+[2026-04-15 23:50:46]   ML    Summary ready — 'discussion'   chars=4329
+[2026-04-15 23:50:46]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-16 00:32:43]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:32:45]   OK    EasyOCR initialized
+[2026-04-16 00:33:04]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:33:06]   OK    EasyOCR initialized
+[2026-04-16 00:33:25]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:33:27]   OK    EasyOCR initialized
+[2026-04-16 00:41:07]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:41:09]   OK    EasyOCR initialized
+[2026-04-16 00:41:26]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:41:28]   OK    EasyOCR initialized
+[2026-04-16 00:41:44]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:41:46]   OK    EasyOCR initialized
+[2026-04-16 00:44:58] 
+============================================================
+  Extracting — 4953eed6-cbc4-43a7-a2f4-9cc372bbc6a3_BORROWED_THESIS_DOCUMENT_OK2.pdf
+============================================================
+[2026-04-16 00:44:58]  INFO   Direct text extraction via pypdf...
+[2026-04-16 00:44:58]  INFO   PDF loaded   pages=80
+[2026-04-16 00:45:00]  INFO   Running OCR supplement on low-text pages   total=28  processing=28  pages=[44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+[2026-04-16 00:45:00]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-16 00:45:19]  INFO   Page map after OCR supplement   covered=80/80
+[2026-04-16 00:45:19]  INFO   pypdf meta text extracted   chars=10382
+[2026-04-16 00:45:19]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-16 00:45:19]  INFO   Meta OCR engine: Tesseract
+[2026-04-16 00:45:19]  INFO   Tesseract processing page   page=1
+[2026-04-16 00:45:20]  INFO   Tesseract processing page   page=2
+[2026-04-16 00:45:21]  INFO   Tesseract processing page   page=3
+[2026-04-16 00:45:22]  REGEX  Author scan region   chars=1651  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-16 00:45:22]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-16 00:45:23]   │  REGEX pg=61 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-16 00:45:24]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-16 00:45:25]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.85  tier=Tier 0 — DistilBERT
+[2026-04-16 00:45:26]   │  REGEX pg=33 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-16 00:45:26]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.77  tier=Tier 0 — DistilBERT
+[2026-04-16 00:45:27]   │  REGEX pg=57 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-16 00:45:27]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.79  tier=Tier 0 — DistilBERT
+[2026-04-16 00:45:28]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.37  tier=Tier 0 — DistilBERT
+[2026-04-16 00:45:28]  INFO   Section start pages   pages={'introduction': 13, 'methods': 27, 'results': 31, 'discussion': 31, 'references': 43}
+[2026-04-16 00:45:28]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]  chars=1856
+[2026-04-16 00:45:29]  INFO   Section 'methods' extracted   pages=[27, 28, 29, 30]  chars=3433
+[2026-04-16 00:45:30]  INFO   Section 'results' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=7155
+[2026-04-16 00:45:31]  INFO   Section 'discussion' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=11002
+[2026-04-16 00:45:31]  INFO   Section 'references' extracted   pages=[43]  chars=1314
+[2026-04-16 00:45:31]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-16 00:45:31]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-16 00:45:31]   ML    Summary ready — 'results'   chars=7155
+[2026-04-16 00:45:31]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-16 00:45:31]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-16 00:45:31]   OK    Extraction complete   file=4953eed6-cbc4-43a7-a2f4-9cc372bbc6a3_BORROWED_THESIS_DOCUMENT_OK2.pdf
+[2026-04-16 00:45:31]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-16 00:45:31]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-16 00:45:31]   ML    Summary ready — 'results'   chars=7155
+[2026-04-16 00:45:31]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-16 00:59:29]  INFO   Initializing EasyOCR (English)
+[2026-04-16 00:59:31]   OK    EasyOCR initialized
+[2026-04-16 01:18:09]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:18:12]   OK    EasyOCR initialized
+[2026-04-16 01:18:38]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:18:40]   OK    EasyOCR initialized
+[2026-04-16 01:19:00]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:19:02]   OK    EasyOCR initialized
+[2026-04-16 01:37:04]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:37:06]   OK    EasyOCR initialized
+[2026-04-16 01:37:25]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:37:27]   OK    EasyOCR initialized
+[2026-04-16 01:37:45]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:37:47]   OK    EasyOCR initialized
+[2026-04-16 01:42:00]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:42:03]   OK    EasyOCR initialized
+[2026-04-16 01:43:09] 
+============================================================
+  Extracting — 530f33c9-c2c4-4d43-9c46-a07f053f2085_THESISDOCUMENTOK2.pdf
+============================================================
+[2026-04-16 01:43:09]  INFO   Direct text extraction via pypdf...
+[2026-04-16 01:43:09]  INFO   PDF loaded   pages=80
+[2026-04-16 01:43:10]  INFO   Running OCR supplement on low-text pages   total=28  processing=28  pages=[44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+[2026-04-16 01:43:11]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-16 01:43:31]  INFO   Page map after OCR supplement   covered=80/80
+[2026-04-16 01:43:31]  INFO   pypdf meta text extracted   chars=10382
+[2026-04-16 01:43:31]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-16 01:43:31]  INFO   Meta OCR engine: Tesseract
+[2026-04-16 01:43:32]  INFO   Tesseract processing page   page=1
+[2026-04-16 01:43:33]  INFO   Tesseract processing page   page=2
+[2026-04-16 01:43:33]  INFO   Tesseract processing page   page=3
+[2026-04-16 01:43:34]  REGEX  Author scan region   chars=1651  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-16 01:43:34]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-16 01:43:35]   │  REGEX pg=61 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-16 01:43:36]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-16 01:43:37]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.85  tier=Tier 0 — DistilBERT
+[2026-04-16 01:43:37]   │  REGEX pg=33 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-16 01:43:37]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.77  tier=Tier 0 — DistilBERT
+[2026-04-16 01:43:39]   │  REGEX pg=57 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-16 01:43:39]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.79  tier=Tier 0 — DistilBERT
+[2026-04-16 01:43:39]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.37  tier=Tier 0 — DistilBERT
+[2026-04-16 01:43:39]  INFO   Section start pages   pages={'introduction': 13, 'methods': 27, 'results': 31, 'discussion': 31, 'references': 43}
+[2026-04-16 01:43:40]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]  chars=1856
+[2026-04-16 01:43:40]  INFO   Section 'methods' extracted   pages=[27, 28, 29, 30]  chars=3433
+[2026-04-16 01:43:41]  INFO   Section 'results' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=7155
+[2026-04-16 01:43:42]  INFO   Section 'discussion' extracted   pages=[31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]  chars=11002
+[2026-04-16 01:43:42]  INFO   Section 'references' extracted   pages=[43]  chars=1314
+[2026-04-16 01:43:42]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-16 01:43:42]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-16 01:43:42]   ML    Summary ready — 'results'   chars=7155
+[2026-04-16 01:43:42]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-16 01:43:42]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-16 01:43:42]   OK    Extraction complete   file=530f33c9-c2c4-4d43-9c46-a07f053f2085_THESISDOCUMENTOK2.pdf
+[2026-04-16 01:43:42]   ML    Summary ready — 'introduction'   chars=1856
+[2026-04-16 01:43:42]   ML    Summary ready — 'methods'   chars=3433
+[2026-04-16 01:43:42]   ML    Summary ready — 'results'   chars=7155
+[2026-04-16 01:43:42]   ML    Summary ready — 'discussion'   chars=11002
+[2026-04-16 01:45:29]  INFO   Initializing EasyOCR (English)
+[2026-04-16 01:45:32]   OK    EasyOCR initialized

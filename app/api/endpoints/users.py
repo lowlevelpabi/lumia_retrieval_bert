@@ -8,6 +8,7 @@ from app.models.user import Student
 from app.models.authorized_user import AuthorizedUser, UserRole
 from app.models.paper import Paper
 from app.models.citation import UserCitation
+from app.models.bookmark import UserBookmark
 from app.schemas.paper import PaperResponse
 from app.schemas.user import UserResponse, UserRoleUpdate, UserCreateStaff, PasswordUpdate
 from app.core.security import verify_password, get_password_hash
@@ -24,7 +25,7 @@ def get_me(current_user: Student = Depends(get_current_user)):
         return current_user
     # If Student, role is implicitly User
     res = UserResponse.from_orm(current_user)
-    res.role = UserRole.USER
+    res.role = UserRole.STUDENT
     return res
 
 @router.get("/me/citations", response_model=List[PaperResponse])
@@ -38,6 +39,31 @@ def get_my_citations(
     # citations works for both as they both have id
     citations = db.query(Paper).join(UserCitation).filter(UserCitation.user_id == current_user.id).all()
     return citations
+
+@router.get("/me/bookmarks", response_model=List[PaperResponse])
+def get_my_bookmarks(
+    current_user: Student = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a list of papers the current user has bookmarked.
+    """
+    bookmarks = db.query(Paper).join(UserBookmark).filter(UserBookmark.user_id == current_user.id).all()
+    return bookmarks
+
+@router.get("/me/uploads", response_model=List[PaperResponse])
+def get_my_uploads(
+    current_user: Student = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Filter papers where the uploaded_by matches the current user's name
+    name = current_user.full_name or current_user.username
+    uploads = db.query(Paper).filter(
+        Paper.uploaded_by == name,
+        Paper.deleted_at.is_(None)
+    ).all()
+    
+    return uploads
 
 
 @router.patch("/me/password", status_code=204)

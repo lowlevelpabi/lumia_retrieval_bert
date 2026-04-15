@@ -179,6 +179,10 @@ class ViewCountResponse(BaseModel):
     view_count: int
 
 
+class BookmarkStatus(BaseModel):
+    is_bookmarked: bool
+
+
 class PagePreview(BaseModel):
     page_num: int
     thumbnail: str  # base64
