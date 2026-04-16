@@ -568,7 +568,7 @@ class OCRService:
             detected_subs   = []
             try:
                 # 1. Primary extraction (identify sections and pages)
-                if session_id: task_manager.update_task(session_id, 45, "Identifying IMRaD sections...")
+                if session_id: task_manager.update_task(session_id, 45, "Classifying IMRaD sections...")
                 extracted_imrad = imrad_service.extract_sections(
                     page_text_map,
                     title=detected_title,
@@ -595,7 +595,7 @@ class OCRService:
                 log.error("IMRAD extraction failed (non-fatal)", exc=imrad_err)
 
             # ── Pre-generate IMRAD summaries ──────────────────────────────────
-            if session_id: task_manager.update_task(session_id, 85, "Summarizing academic content...")
+            if session_id: task_manager.update_task(session_id, 85, "Preparing extracted contents...")
             sections_raw: dict = extracted_imrad.get("sections", {})
 
             sections_summary: dict = {}
