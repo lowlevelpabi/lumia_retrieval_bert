@@ -491,7 +491,7 @@ class OCRService:
                         abstract_text = abstract_text[:stop_idx].strip()
                         break
 
-                abstract_text = abstract_text[:2500].strip()
+                abstract_text = abstract_text[:10000].strip()
 
             if not abstract_text or len(abstract_text) < 100 or len(meta_text) < 200:
                 log.warn("Abstract extraction insufficient — no OCR fallback for text-based PDFs")

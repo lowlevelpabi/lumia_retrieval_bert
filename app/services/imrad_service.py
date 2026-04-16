@@ -168,10 +168,11 @@ METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Research Settings",            "patterns": [r"Research\s+Settings?"]},
     {"label": "Business Process",             "patterns": [r"Business\s+Process"]},
     {"label": "Participants of the Study",    "patterns": [r"Participants?\s+of\s+the\s+Study", r"Participants?", r"Respondents?"]},
-    {"label": "Sampling Technique",           "patterns": [r"Sampling\s+Technique"]},
+    {"label": "Sampling Technique",           "patterns": [r"Sampling\s+Techniques?"]},
     {"label": "Research Instruments",         "patterns": [r"Research\s+Instruments?"]},
     {"label": "Data Collection, Instrument, and Procedure", "patterns": [r"Data\s+Collection,?\s+Instrument,?\s+and\s+Procedure", r"Data\s+Collection"]},
-    {"label": "Sources of Data",              "patterns": [r"Sources?\s+of\s+Data", r"Data\s+to\s+be\s+[Gg]athered"]},
+    {"label": "Sources of Data",              "patterns": [r"Sources?\s+of\s+Data"]},
+    {"label": "Data to be Gathered",          "patterns": [r"Data\s+to\s+be\s+[Gg]athered"]},
     {"label": "Statistical Treatment of Data","patterns": [r"Statistical\s+Treatment\s+of\s+Data", r"Statistical\s+Treatment"]},
     {"label": "Data Analysis",                "patterns": [r"Data\s+Analy(?:sis|tical)"]},
     {"label": "Ethical Considerations",       "patterns": [r"Ethical\s+Considerations?"]},
@@ -203,17 +204,19 @@ BOILERPLATE_PATTERNS: List[str] = [
     r"Cavite State University", r"CvSU", r"Imus Campus", r"IMUS\s+CAVITE",
     r"Bachelor of Science", r"in partial fulfillment",
     r"requirements for the degree", r"Undergraduate Thesis", r"Capstone Project",
-    r"Adviser\s*:", r"Prepared under the supervision",
+    r"Adviser\s*[:]", r"Prepared under the supervision",
     r"^\s*Department\s+of\s+[A-Za-z\s]+\s*$", r"^\s*College\s+of\s+[A-Za-z\s]+\s*$",
     r"Contribution\s+No\.?", r"Imus\s+City",
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
-    r"^\s*FUNCTIONALITY\s*$", r"^\s*MEAN\s*$", r"^\s*STANDARD\s+DEVIATION\s*$",
-    r"^\s*INTERPRETATION\s*$", r"^\s*MEAN\s+SCORES?\s*$", r"^\s*VERBAL\s+INTERPRETATION\s*$",
-    r"^\s*WEIGHTED\s+MEAN\s*$", r"^\s*FUNCTIONAL\s*$",
+    r"^\s*CHAPTER\s+[IVXLC\d]+\s*$", r"^\s*SECTION\s+[IVXLC\d]+\s*$",
+    r"Republic of the Philippines", r"Commission on Higher Education",
+    r"^\s*CHAIRPERSON\s*$", r"^\s*COORDINATOR\s*$", r"^\s*DEAN\s*$",
     r"^\s*Submitted\s+by\s*[:]?\s*$", r"^\s*Prepared\s+by\s*[:]?\s*$",
     r"^\s*Presented\s+to\s*[:]?\s*$", r"^\s*Approved\s+by\s*[:]?\s*$",
     r"^\s*AUTHORS?\s*$", r"^\s*TITLE\s+PAGE\s*$",
     r"\bM[rs]\.\s+[A-Z][a-z]+\s+[A-Z]\.\s+[A-Z][a-z]+\b", # "Ms. Sherilyn F. Fajutagana" style
+    r"^[A-Z]{2,},\s+[A-Z]{2,}(?:\s+[A-Z]\.)?$", # "REYES, YNAA MARUF A." style
+    r"^(?:Prof\.|Dr\.|Engr\.|Ms\.|Mr\.|Mrs\.)\s+[A-Z][a-z]+(?:\s+[A-Z]\.)?\s+[A-Z][a-z]+", # "Prof. Grace S. Ibañez" style
 ]
 
 # Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
@@ -384,9 +387,18 @@ def _strip_page_header(text: str, title: str = "", authors: str = "") -> str:
                     if match_count / max(len(words_in_line), 1) >= 0.70:
                         continue
 
-        # This line looks like real content — stop stripping
+        # This line looks like real content — stop stripping.
+        # But first, check if it starts with an academic title or name boilerplate
+        # that is merged into the first paragraph (common in CV / Intro sections).
         content_started = True
-        clean_lines.append(line)
+        
+        # Strip common author/adviser prefixes if they appear at the very start of the section body.
+        # Matches Title + Name + (Optional Initial) + Surname + Dot/Colon
+        prefix_pattern = r"^(?:Prof\.|Dr\.|Engr\.|Ms\.|Mr\.|Mrs\.)\s+(?:[A-Z][a-zñÑ\-]+\s+){1,3}(?:[A-Z]\.\s+)?(?:[A-Z][a-zñÑ\-]+\s*){1,2}[\.\:]\s*"
+        line = re.sub(prefix_pattern, "", line).strip()
+        
+        if line:
+            clean_lines.append(line)
 
     return "\n".join(clean_lines).strip()
 
@@ -533,7 +545,7 @@ def _extract_page_spatially(
     result_media: Dict[str, str],
     section_key: str,
     all_boilerplate: List[str],
-    subheading_list: List[Dict],
+    sh_list: List[Dict],
 ) -> Optional[Tuple[List[str], Dict[str, str], str]]:
     """
     Extracts table/figure images from a page, generates marker strings,
@@ -749,17 +761,32 @@ def _extract_page_spatially(
                     zone_y1 = table_bottom + 15
 
                 else:
-                    # ── Strategy C: Conservative heuristic fallback ─────────
-                    # Require >80 chars (not >60) to avoid tripping on table
-                    # headers / footers / short caption continuation lines.
-                    for tb in text_blocks_sorted:
-                        if tb["y0"] <= cap_y1 + 5:
-                            continue
-                        txt = tb["text"].strip()
-                        if bool(TRUE_CAP_RE.match(txt)) or _is_body_paragraph(txt):
-                            if tb["y0"] - 5 < zone_y1:
-                                zone_y1 = tb["y0"] - 5
+                    # ── Strategy C: Raster Image fallback (for photographed tables) ──
+                    # If this is a scanned/phone-captured doc, the table is likely a raster image.
+                    images = page.get_image_info()
+                    TABLE_PROXIMITY_PX = 400
+                    found_raster = False
+                    for img in images:
+                        ib = fitz.Rect(img["bbox"])
+                        # Scanned tables usually start at or immediately below the caption (top-aligned)
+                        if (ib.y0 >= cap_y0 - 20) and (ib.y0 - cap_y0) < TABLE_PROXIMITY_PX:
+                            zone_y0 = min(cap_y0, ib.y0) - 10
+                            zone_y1 = max(cap_y0 + 100, ib.y1) + 10
+                            found_raster = True
                             break
+                    
+                    if not found_raster:
+                        # ── Strategy D: Conservative heuristic fallback ─────────
+                        # Require >80 chars (not >60) to avoid tripping on table
+                        # headers / footers / short caption continuation lines.
+                        for tb in text_blocks_sorted:
+                            if tb["y0"] <= cap_y1 + 5:
+                                continue
+                            txt = tb["text"].strip()
+                            if bool(TRUE_CAP_RE.match(txt)) or _is_body_paragraph(txt):
+                                if tb["y0"] - 5 < zone_y1:
+                                    zone_y1 = tb["y0"] - 5
+                                break
 
         else:
             # Figure: find the embedded image object near the caption
@@ -777,9 +804,38 @@ def _extract_page_spatially(
 
             if not found_img:
                 # No raster image found — likely a vector diagram.
-                # Use a generous default region around the caption:
-                # 600px above (for large RAD/Waterwall models) and 200px below.
-                zone_y0 = cap_y0 - 600
+                # Walk UPWARDS from caption to find the top of the figure.
+                # We stop if we hit a body paragraph or a known subheading.
+                zone_y0 = cap_y0 - 600 # Default max height fallback
+                for tb in reversed(text_blocks_sorted):
+                    if tb["y1"] >= cap_y0 - 2:
+                        continue # Still below or at caption height
+                    if tb["y1"] < cap_y0 - 610:
+                        break # Past our 600px search limit
+                    
+                    txt = tb["text"].strip()
+                    # 1. Body Paragraph stop
+                    if _is_body_paragraph(txt):
+                        zone_y0 = tb["y1"] + 5
+                        break
+                    
+                    # 2. Heading stop (e.g. "Research Design")
+                    sh_match = False
+                    if sh_list and txt and len(txt) < 100:
+                        for entry in sh_list:
+                            if any(re.search(pat, txt, re.I) for pat in entry["patterns"]):
+                                sh_match = True
+                                break
+                    if sh_match:
+                        zone_y0 = tb["y1"] + 5
+                        break
+                    
+                    # 3. Chapter title stop
+                    all_main_headings = [kw for kws in HEADING_KEYWORDS.values() for kw in kws]
+                    if any(h.upper() in txt.upper() for h in all_main_headings) and len(txt) < 50:
+                        zone_y0 = tb["y1"] + 5
+                        break
+
                 zone_y1 = cap_y0 + 200
 
             # Tighten for figures — stop at body paragraph below
@@ -834,15 +890,29 @@ def _extract_page_spatially(
         tb_mid = (tb["y0"] + tb["y1"]) / 2
         
         # ── BOILERPLATE STRIPPING (Spatial) ──────────────────────────────────
-        # Strip headers (top 80px) and footers (bottom 80px) of the page.
-        # 45px was too small — title/author running headers in Filipino theses
-        # are typically printed at Y positions between 50–120px and were
-        # surviving the spatial filter. 80px catches them without clipping
-        # real content, which starts after the chapter heading below the header.
-        HEADER_THRESHOLD = 80
+        # Strip headers (top 60px) and footers (bottom 80px) of the page.
+        # We protect known subheadings and chapter titles even if they sit high.
+        HEADER_THRESHOLD = 60
         FOOTER_THRESHOLD = page_rect.height - 80
-        if tb["y1"] < HEADER_THRESHOLD or tb["y0"] > FOOTER_THRESHOLD:
-            continue
+        
+        is_protected = False
+        txt_stripped = tb["text"].strip()
+        # Protect subheadings
+        if sh_list and txt_stripped and len(txt_stripped) < 100:
+            for entry in sh_list:
+                if any(re.search(pat, txt_stripped, re.I) for pat in entry["patterns"]):
+                    is_protected = True
+                    break
+        
+        # Protect main section headings (e.g. METHODOLOGY)
+        if not is_protected and txt_stripped and len(txt_stripped) < 50:
+            all_main_headings = [kw for kws in HEADING_KEYWORDS.values() for kw in kws]
+            if any(h.upper() in txt_stripped.upper() for h in all_main_headings):
+                is_protected = True
+
+        if not is_protected:
+            if tb["y1"] < HEADER_THRESHOLD or tb["y0"] > FOOTER_THRESHOLD:
+                continue
         
         inside_zone = None
         for z_idx, z in enumerate(exclusion_zones):
@@ -852,10 +922,19 @@ def _extract_page_spatially(
         
         if inside_zone:
             z_idx, z = inside_zone
-            if z_idx not in injected_zones:
-                page_text_lines.append(f"\n{z['marker']}\n")
-                injected_zones.add(z_idx)
-            continue
+            # HEADING SHIELD: If this block is protected, don't swallow it into the zone.
+            # We still inject the marker if it's the first block of the zone,
+            # but we allow the heading text to be extracted separately.
+            if is_protected:
+                if z_idx not in injected_zones:
+                    page_text_lines.append(f"\n{z['marker']}\n")
+                    injected_zones.add(z_idx)
+                # Fall through to append the protected text
+            else:
+                if z_idx not in injected_zones:
+                    page_text_lines.append(f"\n{z['marker']}\n")
+                    injected_zones.add(z_idx)
+                continue
             
         page_text_lines.append(tb["text"])
         
@@ -1185,12 +1264,21 @@ class IMRADService:
                     # not mentions of keywords deep inside paragraphs.
                     is_sh = False
                     for entry in sh_list:
-                        # Match at start of line, allowing optional numbers: "1. Phase Name"
-                        if re.match(r"^\s*(?:[IVXLC\d]+[\.\s]+)*" + entry["patterns"][0] + r"\b", line, re.I):
+                        # Match at start of line, allowing optional numbers: "1. Phase Name" or "A. Phase Name"
+                        # We also capture the remainder of the line to support "inline" headings.
+                        pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + entry["patterns"][0] + r")\b[\.\:]?\s*(.*)$"
+                        match = re.match(pattern, line, re.I)
+                        
+                        if match:
+                            heading_part = match.group(1).strip()
+                            remainder = match.group(2).strip()
+
                             # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
-                            # with a catchphrase, not a heading.
-                            if len(line) < 150:
-                                pg_lines.append("\n" + line.strip() + "\n")
+                            # with a catchphrase, UNLESS the heading part itself is very clearly a heading.
+                            if len(line) < 150 or (len(heading_part) < 80 and remainder):
+                                pg_lines.append("\n" + heading_part + "\n")
+                                if remainder:
+                                    pg_lines.append(remainder)
                                 is_sh = True
                                 break
                     if is_sh:

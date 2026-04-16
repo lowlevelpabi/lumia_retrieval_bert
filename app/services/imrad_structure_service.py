@@ -15,22 +15,21 @@ from typing import List, Dict, Any, Optional
 # RESULTS_SUBHEADINGS labels.
 
 METHODOLOGY_LABELS: List[str] = [
-    "Research Design", "Research Approach and Design", "Research Approach", "Research Settings",
+    "Research Design", "Research Approach", "Research Settings",
     "Business Process", "Participants of the Study", "Sampling Technique",
+    "Sampling Techniques", "Data to be Gathered",
     "Research Instruments", "Data Collection, Instrument, and Procedure",
-    "Sources of Data", "Statistical Treatment of Data", "Data Analysis Plan", "Data Analysis",
+    "Sources of Data", "Statistical Treatment of Data", "Data Analysis",
     "Ethical Considerations", "Development Model", 
     "Analysis and Quick Design", "Prototype Cycles", "Testing", "Implementation",
+    "Requirement Analysis", "System Development", "System Evaluation",
 ]
 
 RESULTS_LABELS: List[str] = [
     "Discussion of the Methodology Phases", "Discussion of Findings",
-    "Participation in the Study", "System Software Evaluation Results",
-    "Functional Requirements", "Non-Functional Requirements",
-    "System Testing", "User Acceptance Testing",
+    "System Software Evaluation Results", "System Testing", "User Acceptance Testing",
     "Functionality", "Reliability", "Usability", "Efficiency",
-    "Portability", "Maintainability", "Descriptive Statistics",
-    "Hypothesis Testing", "Correlation Analysis",
+    "Portability", "Maintainability",
 ]
 
 ALL_SUBHEADING_LABELS: List[str] = METHODOLOGY_LABELS + RESULTS_LABELS
@@ -144,7 +143,7 @@ def _structure_section(
         is_subheading = False
         if labels:
             for label in labels:
-                pattern = r"^\s*(?:[IVXLC\d]+[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
+                pattern = r"^\s*(?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
                 match = re.match(pattern, stripped)
                 if match:
                     heading_text = match.group(1).strip()

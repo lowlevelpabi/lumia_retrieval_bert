@@ -500,15 +500,28 @@ async def get_repository_stats(db: Session = Depends(get_db)):
 # To disable the feature after evaluation, set ENABLE_SAMPLE_DOCS=false and
 # restart the backend — no code changes required.
 
-# Safe mapping: slug → filename (prevents path traversal)
-_SAMPLE_DOCS: list[dict] = [
-    {"id": "sample-1",          "filename": "BORROWED_THESIS_DOCUMENT_OK1.pdf",   "name": "THESIS_DOCUMENT_OK1"},
-    {"id": "sample-2",          "filename": "BORROWED_THESIS_DOCUMENT_OK2.pdf",   "name": "THESIS_DOCUMENT_OK2"},
-    {"id": "sample-3",          "filename": "BORROWED_THESIS_DOCUMENT_OK3.pdf",   "name": "THESIS_DOCUMENT_OK3"},
-    {"id": "sample-4",          "filename": "BORROWED_CAPSTONE_DOCUMENT_OK1.pdf", "name": "CAPSTONE_DOCUMENT_OK1"},
-    {"id": "sample-fail-empty", "filename": "EMPTY_DOCUMENT_FAIL.pdf",            "name": "[FAIL] Empty Document Case"},
-    {"id": "sample-fail-imrad", "filename": "NON_IMRAD_DOCUMENT_FAIL.pdf",        "name": "[FAIL] Non-IMRAD Format Case"},
-]
+# Discover PDF files in the SAMPLE_DOCS_DIR at runtime so the list
+# doesn't need to be manually maintained. Each file's id is the
+# filename without extension (stable and safe), and name is the
+# filename without extension by default.
+def _discover_sample_docs():
+    docs_dir = getattr(settings, "SAMPLE_DOCS_DIR", None)
+    if not docs_dir or not os.path.isdir(docs_dir):
+        return []
+
+    try:
+        files = sorted(os.listdir(docs_dir))
+    except Exception:
+        return []
+
+    docs = []
+    for fname in files:
+        if not fname.lower().endswith(".pdf"):
+            continue
+        file_id = os.path.splitext(fname)[0]
+        name = os.path.splitext(fname)[0]
+        docs.append({"id": file_id, "filename": fname, "name": name})
+    return docs
 
 @router.get("/sample-documents", dependencies=[Depends(get_current_user)])
 async def list_sample_documents():
@@ -523,7 +536,7 @@ async def list_sample_documents():
 
     docs_dir = settings.SAMPLE_DOCS_DIR
     result = []
-    for doc in _SAMPLE_DOCS:
+    for doc in _discover_sample_docs():
         path = os.path.join(docs_dir, doc["filename"])
         if os.path.isfile(path):
             result.append({
@@ -549,8 +562,8 @@ async def fetch_sample_document(doc_id: str):
     if not settings.ENABLE_SAMPLE_DOCS:
         raise HTTPException(status_code=404, detail="Sample documents are not available.")
 
-    # Resolve slug → filename via the safe static map (no path traversal possible)
-    doc_meta = next((d for d in _SAMPLE_DOCS if d["id"] == doc_id), None)
+    # Resolve slug → filename by discovering current sample docs
+    doc_meta = next((d for d in _discover_sample_docs() if d["id"] == doc_id), None)
     if not doc_meta:
         raise HTTPException(status_code=404, detail="Sample document not found.")
 
