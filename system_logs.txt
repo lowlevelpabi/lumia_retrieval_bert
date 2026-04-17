@@ -4200,3 +4200,5 @@
 [2026-04-17 22:33:26]  WARN   No IMRAD sections detected
 [2026-04-17 22:33:26]   OK    IMRAD summaries generated   sections=[]
 [2026-04-17 22:33:26]   OK    Extraction complete   file=0efeb5dd-9cf7-481e-81b9-c002db0c6088_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:18:37]  INFO   Initializing EasyOCR (English)
+[2026-04-17 23:18:38]   OK    EasyOCR initialized

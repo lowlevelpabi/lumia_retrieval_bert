@@ -49,7 +49,13 @@ async def upload_status(session_id: str):
     """
     return StreamingResponse(
         task_manager.subscribe(session_id),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Critical for Cloudflare/Nginx buffering
+            "Content-Type": "text/event-stream",
+        }
     )
 
 @router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(get_current_user)])
