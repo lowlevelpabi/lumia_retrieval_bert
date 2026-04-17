@@ -169,18 +169,21 @@ class OCRService:
             TITLE_STOP_PATTERNS = [
                 r'\b(submitted|presented|in partial|fulfillment|requirements|degree|bachelor|undergraduate|thesis|capstone|adviser|supervisor|prepared)\b',
                 r'\b(cavite|university|college|department|campus)\b',
-                # "imus" only stops when paired with campus/city context —
-                # NOT when it appears in a title phrase like "FOR PESO IMUS"
+                # "imus" only stops when paired with campus/city context
                 r'\bimus\s+campus\b',
                 r'^imus\s*city',
                 r'^(by|presented by|submitted by)$',
                 r'\b(20[1-2][0-9])\b',
-                r'[A-Z]{2,},\s+[A-Z]+',
-                r'^[A-Z][a-z]+,\s+[A-Z]',
+            ]
+            # Case-sensitive anchored patterns for author names to avoid matching title fragments
+            NAME_STOP_PATTERNS = [
+                r'^[A-Z]{2,},\s+[A-Z]{2,}(?:\s+[A-Z][A-Z\s\.]*)?$', # ALL CAPS: REYES, YNAA M.
+                r'^[A-Z][a-z]+,\s+[A-Z][a-z]+(?:\s+[A-Z][A-Z\s\.]*)?$', # Title Case: Reyes, Ynaa M.
             ]
             title_lines = []
             for line in lines[:15]:
-                is_stop = any(re.search(p, line, re.IGNORECASE) for p in TITLE_STOP_PATTERNS)
+                is_stop = (any(re.search(p, line, re.IGNORECASE) for p in TITLE_STOP_PATTERNS) or
+                           any(re.match(p, line) for p in NAME_STOP_PATTERNS))
                 looks_like_title = (
                     len(line) > 3 and
                     not line.endswith('.') and

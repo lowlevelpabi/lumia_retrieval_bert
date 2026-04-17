@@ -561,11 +561,13 @@ def _extract_page_spatially(
     try:
         import fitz
     except ImportError:
+        log.warn("PyMuPDF (fitz) not found — skipping spatial media extraction")
         return None
 
     try:
         doc = fitz.open(pdf_path)
-    except Exception:
+    except Exception as e:
+        log.error(f"Failed to open PDF for spatial extraction: {pdf_path}", exc=e)
         return None
 
     pg_idx = page_num_1based - 1
@@ -648,6 +650,9 @@ def _extract_page_spatially(
         tb["cap_start"] = start_pos
         tb["is_table"] = block_text.upper().find("TABLE", start_pos) != -1
         captions.append(tb)
+    
+    if captions:
+        log.regex(f"Found {len(captions)} media captions on page {page_num_1based}")
 
     # ── Step 3: Gather structural data for the entire page ─────────────
 
@@ -881,6 +886,7 @@ def _extract_page_spatially(
             "y1": zone_y1,
             "marker": marker
         })
+        log.success(f"Extracted {'table' if is_table else 'figure'} {mid} on page {page_num_1based}")
 
     # Now reconstruct page text with spatial filtering
     page_text_lines = []
@@ -1439,8 +1445,9 @@ class IMRADService:
             vectors["title"] = embedding_service.get_embedding(title[:512])
         if INCLUDE_ABSTRACT_VECTOR and abstract and abstract.strip():
             vectors["abstract"] = embedding_service.get_embedding(abstract[:4000])
+        active_names = self.get_all_vector_names()
         for key, content in sections.items():
-            if key in IMRAD_SECTION_KEYS and content and len(content.strip()) >= MIN_SECTION_CHARS:
+            if key in active_names and content and len(content.strip()) >= MIN_SECTION_CHARS:
                 vectors[key] = embedding_service.get_embedding(content)
         log.ml("Vectors built", keys=str(list(vectors.keys())))
         return vectors

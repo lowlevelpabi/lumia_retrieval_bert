@@ -646,7 +646,12 @@ async def search_papers(
         if query and query.strip():
             # ── SEMANTIC SEARCH (Original Core Logic) ──
             if not candidate_ids:
-                return []  # Metadata filters already narrowed to zero
+                return PaginatedSearchResults(
+                    results=[],
+                    total=0,
+                    page=page,
+                    page_size=page_size
+                )
 
             print(f"Generating query embedding for BERT search: '{query}'...")
             query_vector = embedding_service.get_embedding(query)

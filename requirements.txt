@@ -8,7 +8,7 @@ transformers
 torch
 sentence-transformers
 keybert
-easyocr
+pytesseract
 pdf2image
 python-multipart
 python-dotenv
@@ -19,3 +19,4 @@ hashids
 alembic
 httpx
 safetensors
+pymupdf

@@ -2422,3 +2422,1781 @@
 [2026-04-17 04:37:08]   OK    EasyOCR initialized
 [2026-04-17 04:50:54]  INFO   Initializing EasyOCR (English)
 [2026-04-17 04:50:56]   OK    EasyOCR initialized
+[2026-04-17 18:17:51]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:17:58]   OK    EasyOCR initialized
+[2026-04-17 18:18:43]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:18:45]   OK    EasyOCR initialized
+[2026-04-17 18:23:01]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:23:02]   OK    EasyOCR initialized
+[2026-04-17 18:24:44]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:24:45]   OK    EasyOCR initialized
+[2026-04-17 18:28:31]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:28:33]   OK    EasyOCR initialized
+[2026-04-17 18:29:08] 
+============================================================
+  Extracting — 947539ca-946a-482f-98bd-81fcaa826be5_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+============================================================
+[2026-04-17 18:29:08]  INFO   Direct text extraction via pypdf...
+[2026-04-17 18:29:08]  INFO   PDF loaded   pages=66
+[2026-04-17 18:29:09]  INFO   Running OCR supplement on low-text pages   total=6  processing=6  pages=[23, 62, 63, 64, 65, 66]
+[2026-04-17 18:29:09]  INFO   Tesseract not found or configured — OCR supplement engine: EasyOCR (slow)
+[2026-04-17 18:29:51]  INFO   Page map after OCR supplement   covered=66/66
+[2026-04-17 18:29:51]  INFO   pypdf meta text extracted   chars=11770
+[2026-04-17 18:29:51]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 18:29:51]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 18:29:51]  INFO   EasyOCR processing page   page=1
+[2026-04-17 18:30:01]  INFO   EasyOCR processing page   page=2
+[2026-04-17 18:30:12]  INFO   EasyOCR processing page   page=3
+[2026-04-17 18:30:23]  REGEX  Author scan region   chars=455  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 18:30:23]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 18:30:24]   │  REGEX pg=50 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 18:30:24]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 18:30:25]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 18:30:25]   │  REGEX pg=27 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 18:30:25]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 18:30:27]   │  REGEX pg=47 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 18:30:27]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 18:30:27]   ML    Verdict — 'References:'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 18:30:27]  INFO   Section start pages   pages={'introduction': 8, 'methods': 24, 'results': 37, 'discussion': 37, 'references': 48}
+[2026-04-17 18:30:27]  INFO   Section 'introduction' extracted   pages=[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]  chars=2532
+[2026-04-17 18:30:27]  INFO   Section 'methods' extracted   pages=[24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=14442
+[2026-04-17 18:30:28]  INFO   Section 'results' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=10430
+[2026-04-17 18:30:28]  INFO   Section 'discussion' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=14491
+[2026-04-17 18:30:28]  INFO   Section 'references' extracted   pages=[48]  chars=568
+[2026-04-17 18:30:28]   ML    Summary ready — 'introduction'   chars=2532
+[2026-04-17 18:30:28]   ML    Summary ready — 'methods'   chars=14442
+[2026-04-17 18:30:28]   ML    Summary ready — 'results'   chars=10430
+[2026-04-17 18:30:28]   ML    Summary ready — 'discussion'   chars=14491
+[2026-04-17 18:30:28]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:30:28]   OK    Extraction complete   file=947539ca-946a-482f-98bd-81fcaa826be5_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+[2026-04-17 18:30:28]   ML    Summary ready — 'introduction'   chars=2532
+[2026-04-17 18:30:28]   ML    Summary ready — 'methods'   chars=14442
+[2026-04-17 18:30:28]   ML    Summary ready — 'results'   chars=10430
+[2026-04-17 18:30:28]   ML    Summary ready — 'discussion'   chars=14491
+[2026-04-17 18:31:00]   ML    Summary ready — 'introduction'   chars=2532
+[2026-04-17 18:31:00]   ML    Summary ready — 'methods'   chars=14442
+[2026-04-17 18:31:00]   ML    Summary ready — 'results'   chars=10430
+[2026-04-17 18:31:00]   ML    Summary ready — 'discussion'   chars=10430
+[2026-04-17 18:31:00]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:32:32] 
+============================================================
+  Extracting — 722fc733-3c06-4ebb-85c9-9b192da5497f_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 18:32:32]  INFO   Direct text extraction via pypdf...
+[2026-04-17 18:32:32]  INFO   PDF loaded   pages=145
+[2026-04-17 18:32:34]  INFO   Running OCR supplement on low-text pages   total=58  processing=30  pages=[20, 38, 39, 40, 41, 70, 71, 72, 73, 74]
+[2026-04-17 18:32:34]  INFO   Tesseract not found or configured — OCR supplement engine: EasyOCR (slow)
+[2026-04-17 18:36:39]  INFO   Page map after OCR supplement   covered=145/145
+[2026-04-17 18:36:39]  INFO   pypdf meta text extracted   chars=12786
+[2026-04-17 18:36:39]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 18:36:39]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 18:36:40]  INFO   EasyOCR processing page   page=1
+[2026-04-17 18:36:50]  INFO   EasyOCR processing page   page=2
+[2026-04-17 18:37:01]  INFO   EasyOCR processing page   page=3
+[2026-04-17 18:37:12]  REGEX  Author scan region   chars=523  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 18:37:12]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 18:37:14]   │  REGEX pg=109 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 18:37:14]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 18:37:16]   │  REGEX pg=59 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 18:37:16]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 18:37:19]   │  REGEX pg=102 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 18:37:19]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 18:37:20]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 18:37:20]  INFO   Section start pages   pages={'introduction': 13, 'methods': 36, 'results': 48, 'discussion': 48, 'references': 60}
+[2026-04-17 18:37:21]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]  chars=3333
+[2026-04-17 18:37:21]  INFO   Section 'methods' extracted   pages=[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=13945
+[2026-04-17 18:37:21]  INFO   Section 'results' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=11784
+[2026-04-17 18:37:21]  INFO   Section 'discussion' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=17419
+[2026-04-17 18:37:21]  INFO   Section 'references' extracted   pages=[60, 61, 62, 63, 64, 65]  chars=11028
+[2026-04-17 18:37:21]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:37:21]   ML    Summary ready — 'methods'   chars=13945
+[2026-04-17 18:37:21]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:37:21]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:37:21]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:37:21]   OK    Extraction complete   file=722fc733-3c06-4ebb-85c9-9b192da5497f_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+[2026-04-17 18:37:21]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:37:21]   ML    Summary ready — 'methods'   chars=13945
+[2026-04-17 18:37:21]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:37:21]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:40:14]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:40:15]   OK    EasyOCR initialized
+[2026-04-17 18:44:38]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:44:39]   OK    EasyOCR initialized
+[2026-04-17 18:45:22] 
+============================================================
+  Extracting — c5393161-8adb-4552-95c5-9691953d95d2_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 18:45:22]  INFO   Direct text extraction via pypdf...
+[2026-04-17 18:45:22]  INFO   PDF loaded   pages=145
+[2026-04-17 18:45:24]  INFO   Running OCR supplement on low-text pages   total=58  processing=30  pages=[20, 38, 39, 40, 41, 70, 71, 72, 73, 74]
+[2026-04-17 18:45:24]  INFO   Tesseract not found or configured — OCR supplement engine: EasyOCR (slow)
+[2026-04-17 18:46:10]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:46:12]   OK    EasyOCR initialized
+[2026-04-17 18:46:49] 
+============================================================
+  Extracting — 1eb9f862-4da3-4eb5-8ea6-d5e6ef02d7a5_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 18:46:49]  INFO   Direct text extraction via pypdf...
+[2026-04-17 18:46:50]  INFO   PDF loaded   pages=145
+[2026-04-17 18:46:51]  INFO   Running OCR supplement on low-text pages   total=58  processing=30  pages=[20, 38, 39, 40, 41, 70, 71, 72, 73, 74]
+[2026-04-17 18:46:51]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 18:47:10]  INFO   Page map after OCR supplement   covered=145/145
+[2026-04-17 18:47:10]  INFO   pypdf meta text extracted   chars=12786
+[2026-04-17 18:47:10]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 18:47:10]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 18:47:10]  INFO   Tesseract processing page   page=1
+[2026-04-17 18:47:11]  INFO   Tesseract processing page   page=2
+[2026-04-17 18:47:12]  INFO   Tesseract processing page   page=3
+[2026-04-17 18:47:12]  REGEX  Author scan region   chars=523  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 18:47:12]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 18:47:14]   │  REGEX pg=109 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 18:47:14]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 18:47:15]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 18:47:16]   │  REGEX pg=59 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 18:47:16]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 18:47:19]   │  REGEX pg=102 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 18:47:19]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 18:47:20]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 18:47:20]  INFO   Section start pages   pages={'introduction': 13, 'methods': 36, 'results': 48, 'discussion': 48, 'references': 60}
+[2026-04-17 18:47:20]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]  chars=3333
+[2026-04-17 18:47:20]  INFO   Section 'methods' extracted   pages=[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=13952
+[2026-04-17 18:47:20]  INFO   Section 'results' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=11784
+[2026-04-17 18:47:20]  INFO   Section 'discussion' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=17419
+[2026-04-17 18:47:20]  INFO   Section 'references' extracted   pages=[60, 61, 62, 63, 64, 65]  chars=11028
+[2026-04-17 18:47:20]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:47:20]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:47:20]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:47:20]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:47:20]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:47:20]   OK    Extraction complete   file=1eb9f862-4da3-4eb5-8ea6-d5e6ef02d7a5_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+[2026-04-17 18:47:20]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:47:20]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:47:20]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:47:20]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:47:30]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:47:30]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:47:30]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:47:30]   ML    Summary ready — 'discussion'   chars=11784
+[2026-04-17 18:47:30]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:50:30]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:50:32]   OK    EasyOCR initialized
+[2026-04-17 18:51:00] 
+============================================================
+  Extracting — 0751661f-02b4-4442-844f-21efd7713656_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 18:51:00]  INFO   Direct text extraction via pypdf...
+[2026-04-17 18:51:00]  INFO   PDF loaded   pages=145
+[2026-04-17 18:51:02]  INFO   Running OCR supplement on low-text pages   total=58  processing=30  pages=[20, 38, 39, 40, 41, 70, 71, 72, 73, 74]
+[2026-04-17 18:51:02]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 18:51:22]  INFO   Page map after OCR supplement   covered=145/145
+[2026-04-17 18:51:22]  INFO   pypdf meta text extracted   chars=12786
+[2026-04-17 18:51:22]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 18:51:22]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 18:51:22]  INFO   Tesseract processing page   page=1
+[2026-04-17 18:51:23]  INFO   Tesseract processing page   page=2
+[2026-04-17 18:51:23]  INFO   Tesseract processing page   page=3
+[2026-04-17 18:51:24]  REGEX  Author scan region   chars=523  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 18:51:24]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 18:51:26]   │  REGEX pg=109 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 18:51:26]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 18:51:26]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 18:51:27]   │  REGEX pg=59 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 18:51:27]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 18:51:30]   │  REGEX pg=102 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 18:51:30]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 18:51:31]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 18:51:31]  INFO   Section start pages   pages={'introduction': 13, 'methods': 36, 'results': 48, 'discussion': 48, 'references': 60}
+[2026-04-17 18:51:31]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]  chars=3333
+[2026-04-17 18:51:31]  INFO   Section 'methods' extracted   pages=[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=13952
+[2026-04-17 18:51:31]  INFO   Section 'results' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=11784
+[2026-04-17 18:51:31]  INFO   Section 'discussion' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=17419
+[2026-04-17 18:51:31]  INFO   Section 'references' extracted   pages=[60, 61, 62, 63, 64, 65]  chars=11028
+[2026-04-17 18:51:31]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:51:31]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:51:31]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:51:31]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:51:31]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:51:31]   OK    Extraction complete   file=0751661f-02b4-4442-844f-21efd7713656_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+[2026-04-17 18:51:31]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:51:31]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:51:31]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:51:31]   ML    Summary ready — 'discussion'   chars=17419
+[2026-04-17 18:51:39]   ML    Summary ready — 'introduction'   chars=3333
+[2026-04-17 18:51:39]   ML    Summary ready — 'methods'   chars=13952
+[2026-04-17 18:51:39]   ML    Summary ready — 'results'   chars=11784
+[2026-04-17 18:51:39]   ML    Summary ready — 'discussion'   chars=11784
+[2026-04-17 18:51:39]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 18:53:58]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:53:59]   OK    EasyOCR initialized
+[2026-04-17 18:56:54]  INFO   Initializing EasyOCR (English)
+[2026-04-17 18:56:56]   OK    EasyOCR initialized
+[2026-04-17 19:00:20] 
+============================================================
+  Extracting — 97bbe367-772e-442f-9a9a-ab7f35ce9393_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 19:00:20]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:00:20]  INFO   PDF loaded   pages=145
+[2026-04-17 19:00:22]  INFO   Running OCR supplement on low-text pages   total=58  processing=30  pages=[20, 38, 39, 40, 41, 70, 71, 72, 73, 74]
+[2026-04-17 19:00:22]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 19:00:41]  INFO   Page map after OCR supplement   covered=145/145
+[2026-04-17 19:00:41]  INFO   pypdf meta text extracted   chars=12786
+[2026-04-17 19:00:41]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:00:41]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:00:41]  INFO   Tesseract processing page   page=1
+[2026-04-17 19:00:42]  INFO   Tesseract processing page   page=2
+[2026-04-17 19:00:42]  INFO   Tesseract processing page   page=3
+[2026-04-17 19:00:43]  REGEX  Author scan region   chars=523  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 19:00:43]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 19:00:45]   │  REGEX pg=109 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 19:00:45]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 19:00:45]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 19:00:46]   │  REGEX pg=59 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 19:00:46]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 19:00:49]   │  REGEX pg=102 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 19:00:49]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 19:00:50]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 19:00:50]  INFO   Section start pages   pages={'introduction': 13, 'methods': 36, 'results': 48, 'discussion': 48, 'references': 60}
+[2026-04-17 19:00:50]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]  chars=3323
+[2026-04-17 19:00:50]  REGEX  Found 1 media captions on page 36
+[2026-04-17 19:00:50]   OK    Extracted figure F_36_0 on page 36
+[2026-04-17 19:00:50]  REGEX  Found 1 media captions on page 38
+[2026-04-17 19:00:51]   OK    Extracted figure F_38_1 on page 38
+[2026-04-17 19:00:51]  REGEX  Found 1 media captions on page 39
+[2026-04-17 19:00:51]   OK    Extracted figure F_39_2 on page 39
+[2026-04-17 19:00:51]  REGEX  Found 1 media captions on page 40
+[2026-04-17 19:00:51]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 19:00:51]  REGEX  Found 1 media captions on page 41
+[2026-04-17 19:00:51]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 19:00:51]  REGEX  Found 1 media captions on page 44
+[2026-04-17 19:00:51]   OK    Extracted table T_44_5 on page 44
+[2026-04-17 19:00:51]  INFO   Section 'methods' extracted   pages=[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=12708
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 51
+[2026-04-17 19:00:52]   OK    Extracted table T_51_6 on page 51
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 52
+[2026-04-17 19:00:52]   OK    Extracted table T_52_7 on page 52
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 53
+[2026-04-17 19:00:52]   OK    Extracted table T_53_8 on page 53
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 54
+[2026-04-17 19:00:52]   OK    Extracted table T_54_9 on page 54
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 55
+[2026-04-17 19:00:52]   OK    Extracted table T_55_10 on page 55
+[2026-04-17 19:00:52]  INFO   Section 'results' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=9985
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 51
+[2026-04-17 19:00:52]   OK    Extracted table T_51_11 on page 51
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 52
+[2026-04-17 19:00:52]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 19:00:52]  REGEX  Found 1 media captions on page 53
+[2026-04-17 19:00:53]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 19:00:53]  REGEX  Found 1 media captions on page 54
+[2026-04-17 19:00:53]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 19:00:53]  REGEX  Found 1 media captions on page 55
+[2026-04-17 19:00:53]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 19:00:53]  INFO   Section 'discussion' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]  chars=15603
+[2026-04-17 19:00:53]  INFO   Section 'references' extracted   pages=[60, 61, 62, 63, 64, 65]  chars=11028
+[2026-04-17 19:00:53]   ML    Summary ready — 'introduction'   chars=3323
+[2026-04-17 19:00:53]   ML    Summary ready — 'methods'   chars=12708
+[2026-04-17 19:00:53]   ML    Summary ready — 'results'   chars=9985
+[2026-04-17 19:00:53]   ML    Summary ready — 'discussion'   chars=15603
+[2026-04-17 19:00:53]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 19:00:53]   OK    Extraction complete   file=97bbe367-772e-442f-9a9a-ab7f35ce9393_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+[2026-04-17 19:00:53]   ML    Summary ready — 'introduction'   chars=3323
+[2026-04-17 19:00:53]   ML    Summary ready — 'methods'   chars=12708
+[2026-04-17 19:00:53]   ML    Summary ready — 'results'   chars=9985
+[2026-04-17 19:00:53]   ML    Summary ready — 'discussion'   chars=15603
+[2026-04-17 19:01:09]   ML    Summary ready — 'introduction'   chars=3323
+[2026-04-17 19:01:09]   ML    Summary ready — 'methods'   chars=12708
+[2026-04-17 19:01:09]   ML    Summary ready — 'results'   chars=9985
+[2026-04-17 19:01:09]   ML    Summary ready — 'discussion'   chars=9985
+[2026-04-17 19:01:09]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 19:04:18]   OK    Tesseract OCR v5.5.0.20241111 ready
+[2026-04-17 19:05:58]   OK    Tesseract OCR v5.5.0.20241111 ready
+[2026-04-17 19:06:17]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:06:19]   OK    EasyOCR initialized
+[2026-04-17 19:12:03]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:12:04]   OK    EasyOCR initialized
+[2026-04-17 19:12:05]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:13:49]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:13:51]   OK    EasyOCR initialized
+[2026-04-17 19:13:51]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:14:13] 
+============================================================
+  Extracting — 7b0de8bb-f8ab-4b1d-9c92-6cf4dfff0fb7_SCANNEDTHESISCSDOCUOK5.pdf
+============================================================
+[2026-04-17 19:14:13]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:14:13]  INFO   PDF loaded   pages=31
+[2026-04-17 19:14:13]  INFO   Running OCR supplement on low-text pages   total=31  processing=31  pages=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+[2026-04-17 19:14:13]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 19:14:46]  INFO   Page map after OCR supplement   covered=4/31
+[2026-04-17 19:14:46]  INFO   pypdf meta text extracted   chars=10
+[2026-04-17 19:14:46]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:14:46]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:14:47]  INFO   Tesseract processing page   page=1
+[2026-04-17 19:14:47]  INFO   Tesseract processing page   page=2
+[2026-04-17 19:14:48]  INFO   Tesseract processing page   page=3
+[2026-04-17 19:14:49]  REGEX  Author scan region   chars=13  truncated_at=none
+[2026-04-17 19:14:49]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 19:14:49]   │  REGEX pg=31 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 19:14:49]   │  REGEX pg=24 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 19:14:49]   │  REGEX pg=25 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 19:14:49]   │  REGEX pg=31 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 19:14:49]   │  REGEX pg=31 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 19:14:49]  WARN   No IMRAD sections detected
+[2026-04-17 19:14:49]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:14:49]   OK    Extraction complete   file=7b0de8bb-f8ab-4b1d-9c92-6cf4dfff0fb7_SCANNEDTHESISCSDOCUOK5.pdf
+[2026-04-17 19:16:19]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:16:21]   OK    EasyOCR initialized
+[2026-04-17 19:16:21]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:16:37]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:16:39]   OK    EasyOCR initialized
+[2026-04-17 19:16:39]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:16:59] 
+============================================================
+  Extracting — a8c836bd-c401-4d9d-8c62-1412675e36c3_SCANNEDTHESISCSDOCUOK5.pdf
+============================================================
+[2026-04-17 19:16:59]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:16:59]  INFO   PDF loaded   pages=31
+[2026-04-17 19:16:59]  INFO   Running OCR supplement on low-text pages   total=31  processing=31  pages=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+[2026-04-17 19:16:59]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 19:17:31]  INFO   Page map after OCR supplement   covered=4/31
+[2026-04-17 19:17:31]  INFO   pypdf meta text extracted   chars=10
+[2026-04-17 19:17:31]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:17:31]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:17:32]  INFO   Tesseract processing page   page=1
+[2026-04-17 19:17:32]  INFO   Tesseract processing page   page=2
+[2026-04-17 19:17:33]  INFO   Tesseract processing page   page=3
+[2026-04-17 19:17:34]  REGEX  Author scan region   chars=13  truncated_at=none
+[2026-04-17 19:17:34]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 19:17:34]   │  REGEX pg=31 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 19:17:34]   │  REGEX pg=24 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 19:17:34]   │  REGEX pg=25 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 19:17:34]   │  REGEX pg=31 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 19:17:34]   │  REGEX pg=31 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 19:17:34]  WARN   No IMRAD sections detected
+[2026-04-17 19:17:34]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:17:34]   OK    Extraction complete   file=a8c836bd-c401-4d9d-8c62-1412675e36c3_SCANNEDTHESISCSDOCUOK5.pdf
+[2026-04-17 19:18:40]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:18:41]   OK    EasyOCR initialized
+[2026-04-17 19:18:42]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:18:57]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:18:59]   OK    EasyOCR initialized
+[2026-04-17 19:18:59]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:19:21] 
+============================================================
+  Extracting — 69632879-d363-4357-8a37-812bd161e503_SCANNEDTHESISCSDOCUOK5.pdf
+============================================================
+[2026-04-17 19:19:21]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:19:21]  INFO   PDF loaded   pages=31
+[2026-04-17 19:19:21]  INFO   Running OCR supplement on low-text pages   total=31  processing=31  pages=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+[2026-04-17 19:19:21]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 19:19:57]  INFO   Page map after OCR supplement   covered=4/31
+[2026-04-17 19:19:57]  INFO   pypdf meta text extracted   chars=10
+[2026-04-17 19:19:57]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:19:57]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:19:58]  INFO   Tesseract processing page   page=1
+[2026-04-17 19:19:59]  INFO   Tesseract processing page   page=2
+[2026-04-17 19:19:59]  INFO   Tesseract processing page   page=3
+[2026-04-17 19:20:00]  REGEX  Author scan region   chars=13  truncated_at=none
+[2026-04-17 19:20:00]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 19:20:00]  WARN   No IMRAD sections detected
+[2026-04-17 19:20:00]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:20:00]   OK    Extraction complete   file=69632879-d363-4357-8a37-812bd161e503_SCANNEDTHESISCSDOCUOK5.pdf
+[2026-04-17 19:25:03]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:25:04]   OK    EasyOCR initialized
+[2026-04-17 19:25:05]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:25:22] 
+============================================================
+  Extracting — d79ab1a5-fb8e-405b-8933-faed9bc73eb6_SCANNEDTHESISCSDOCUOK5.pdf
+============================================================
+[2026-04-17 19:25:22]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:25:22]  INFO   PDF loaded   pages=31
+[2026-04-17 19:25:22]  INFO   Running OCR supplement on low-text pages   total=31  processing=31
+[2026-04-17 19:25:34]  INFO   Page 1 OCR success   engine=EasyOCR (Fallback)  chars=442
+[2026-04-17 19:25:48]  INFO   Page 2 OCR success   engine=EasyOCR (Fallback)  chars=1714
+[2026-04-17 19:26:02]  INFO   Page 3 OCR success   engine=EasyOCR (Fallback)  chars=1619
+[2026-04-17 19:26:16]  INFO   Page 4 OCR success   engine=EasyOCR (Fallback)  chars=1932
+[2026-04-17 19:26:30]  INFO   Page 5 OCR success   engine=EasyOCR (Fallback)  chars=1522
+[2026-04-17 19:26:44]  INFO   Page 6 OCR success   engine=EasyOCR (Fallback)  chars=1818
+[2026-04-17 19:26:58]  INFO   Page 7 OCR success   engine=EasyOCR (Fallback)  chars=1508
+[2026-04-17 19:27:12]  INFO   Page 8 OCR success   engine=EasyOCR (Fallback)  chars=1624
+[2026-04-17 19:27:25]  INFO   Page 9 OCR success   engine=EasyOCR (Fallback)  chars=1754
+[2026-04-17 19:27:37]  INFO   Page 10 OCR success   engine=EasyOCR (Fallback)  chars=859
+[2026-04-17 19:27:53]  INFO   Page 11 OCR success   engine=EasyOCR (Fallback)  chars=1545
+[2026-04-17 19:28:07]  INFO   Page 12 OCR success   engine=EasyOCR (Fallback)  chars=1702
+[2026-04-17 19:28:17]  INFO   Page 13 OCR success   engine=EasyOCR (Fallback)  chars=449
+[2026-04-17 19:28:30]  INFO   Page 14 OCR success   engine=EasyOCR (Fallback)  chars=1079
+[2026-04-17 19:28:43]  INFO   Page 15 OCR success   engine=EasyOCR (Fallback)  chars=1562
+[2026-04-17 19:28:59]  INFO   Page 16 OCR success   engine=EasyOCR (Fallback)  chars=1761
+[2026-04-17 19:29:14]  INFO   Page 17 OCR success   engine=EasyOCR (Fallback)  chars=1844
+[2026-04-17 19:29:29]  INFO   Page 18 OCR success   engine=EasyOCR (Fallback)  chars=2025
+[2026-04-17 19:29:43]  INFO   Page 19 OCR success   engine=EasyOCR (Fallback)  chars=1636
+[2026-04-17 19:29:57]  INFO   Page 20 OCR success   engine=EasyOCR (Fallback)  chars=1905
+[2026-04-17 19:30:11]  INFO   Page 21 OCR success   engine=EasyOCR (Fallback)  chars=1420
+[2026-04-17 19:30:24]  INFO   Page 22 OCR success   engine=EasyOCR (Fallback)  chars=1349
+[2026-04-17 19:30:38]  INFO   Page 23 OCR success   engine=EasyOCR (Fallback)  chars=1465
+[2026-04-17 19:30:51]  INFO   Page 24 OCR success   engine=EasyOCR (Fallback)  chars=1203
+[2026-04-17 19:31:06]  INFO   Page 25 OCR success   engine=EasyOCR (Fallback)  chars=1480
+[2026-04-17 19:31:19]  INFO   Page 26 OCR success   engine=EasyOCR (Fallback)  chars=1379
+[2026-04-17 19:31:31]  INFO   Page 27 OCR success   engine=EasyOCR (Fallback)  chars=824
+[2026-04-17 19:31:43]  INFO   Page 28 OCR success   engine=EasyOCR (Fallback)  chars=602
+[2026-04-17 19:31:56]  INFO   Page 29 OCR success   engine=EasyOCR (Fallback)  chars=1133
+[2026-04-17 19:32:11]  INFO   Page 30 OCR success   engine=EasyOCR (Fallback)  chars=2076
+[2026-04-17 19:32:23]  INFO   Page 31 OCR success   engine=EasyOCR (Fallback)  chars=515
+[2026-04-17 19:32:23]  INFO   Page map after OCR supplement   covered=31/31
+[2026-04-17 19:32:23]  INFO   pypdf meta text extracted   chars=14802
+[2026-04-17 19:32:23]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:32:23]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:32:25]  REGEX  Author scan region   chars=2144  truncated_at=none
+[2026-04-17 19:32:25]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 19:32:26]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 19:32:27]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 19:32:28]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 19:32:29]   ML    Verdict — 'METHODOLOGy'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 19:32:30]   ML    Verdict — 'reference'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 19:32:30]   ML    Verdict — 'references:'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 19:32:30]  INFO   Section start pages   pages={'introduction': 3, 'methods': 14, 'results': 22, 'discussion': 22, 'references': 19}
+[2026-04-17 19:32:30]  INFO   Section 'references' extracted   pages=[19, 20, 21]  chars=3463
+[2026-04-17 19:32:30]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:32:30]   OK    Extraction complete   file=d79ab1a5-fb8e-405b-8933-faed9bc73eb6_SCANNEDTHESISCSDOCUOK5.pdf
+[2026-04-17 19:33:29]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:33:30]   OK    EasyOCR initialized
+[2026-04-17 19:33:31]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:33:48]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:33:49]   OK    EasyOCR initialized
+[2026-04-17 19:33:50]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:34:16] 
+============================================================
+  Extracting — e9b8cf82-b92b-4a4d-bc29-66b2d98b8e7c_SCANNEDTHESISCSDOCUOK5.pdf
+============================================================
+[2026-04-17 19:34:16]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:34:16]  INFO   PDF loaded   pages=31
+[2026-04-17 19:34:16]  INFO   Running OCR supplement on low-text pages   total=31  processing=31
+[2026-04-17 19:34:29]  INFO   Page 1 OCR success   engine=EasyOCR (Fallback)  chars=442
+[2026-04-17 19:34:42]  INFO   Page 2 OCR success   engine=EasyOCR (Fallback)  chars=1714
+[2026-04-17 19:34:56]  INFO   Page 3 OCR success   engine=EasyOCR (Fallback)  chars=1619
+[2026-04-17 19:35:10]  INFO   Page 4 OCR success   engine=EasyOCR (Fallback)  chars=1932
+[2026-04-17 19:35:23]  INFO   Page 5 OCR success   engine=EasyOCR (Fallback)  chars=1522
+[2026-04-17 19:35:37]  INFO   Page 6 OCR success   engine=EasyOCR (Fallback)  chars=1818
+[2026-04-17 19:35:50]  INFO   Page 7 OCR success   engine=EasyOCR (Fallback)  chars=1508
+[2026-04-17 19:36:04]  INFO   Page 8 OCR success   engine=EasyOCR (Fallback)  chars=1624
+[2026-04-17 19:36:17]  INFO   Page 9 OCR success   engine=EasyOCR (Fallback)  chars=1754
+[2026-04-17 19:36:28]  INFO   Page 10 OCR success   engine=EasyOCR (Fallback)  chars=859
+[2026-04-17 19:36:44]  INFO   Page 11 OCR success   engine=EasyOCR (Fallback)  chars=1545
+[2026-04-17 19:36:57]  INFO   Page 12 OCR success   engine=EasyOCR (Fallback)  chars=1702
+[2026-04-17 19:37:08]  INFO   Page 13 OCR success   engine=EasyOCR (Fallback)  chars=449
+[2026-04-17 19:37:20]  INFO   Page 14 OCR success   engine=EasyOCR (Fallback)  chars=1079
+[2026-04-17 19:37:34]  INFO   Page 15 OCR success   engine=EasyOCR (Fallback)  chars=1562
+[2026-04-17 19:37:49]  INFO   Page 16 OCR success   engine=EasyOCR (Fallback)  chars=1761
+[2026-04-17 19:38:03]  INFO   Page 17 OCR success   engine=EasyOCR (Fallback)  chars=1844
+[2026-04-17 19:38:18]  INFO   Page 18 OCR success   engine=EasyOCR (Fallback)  chars=2025
+[2026-04-17 19:38:32]  INFO   Page 19 OCR success   engine=EasyOCR (Fallback)  chars=1636
+[2026-04-17 19:38:46]  INFO   Page 20 OCR success   engine=EasyOCR (Fallback)  chars=1905
+[2026-04-17 19:39:00]  INFO   Page 21 OCR success   engine=EasyOCR (Fallback)  chars=1420
+[2026-04-17 19:39:13]  INFO   Page 22 OCR success   engine=EasyOCR (Fallback)  chars=1349
+[2026-04-17 19:39:26]  INFO   Page 23 OCR success   engine=EasyOCR (Fallback)  chars=1465
+[2026-04-17 19:39:39]  INFO   Page 24 OCR success   engine=EasyOCR (Fallback)  chars=1203
+[2026-04-17 19:39:53]  INFO   Page 25 OCR success   engine=EasyOCR (Fallback)  chars=1480
+[2026-04-17 19:40:06]  INFO   Page 26 OCR success   engine=EasyOCR (Fallback)  chars=1379
+[2026-04-17 19:40:18]  INFO   Page 27 OCR success   engine=EasyOCR (Fallback)  chars=824
+[2026-04-17 19:40:29]  INFO   Page 28 OCR success   engine=EasyOCR (Fallback)  chars=602
+[2026-04-17 19:40:42]  INFO   Page 29 OCR success   engine=EasyOCR (Fallback)  chars=1133
+[2026-04-17 19:40:57]  INFO   Page 30 OCR success   engine=EasyOCR (Fallback)  chars=2076
+[2026-04-17 19:41:09]  INFO   Page 31 OCR success   engine=EasyOCR (Fallback)  chars=515
+[2026-04-17 19:41:09]  INFO   Page map after OCR supplement   covered=31/31
+[2026-04-17 19:41:09]  INFO   pypdf meta text extracted   chars=14802
+[2026-04-17 19:41:09]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:41:09]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:41:11]  REGEX  Author scan region   chars=2144  truncated_at=none
+[2026-04-17 19:41:11]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 19:41:12]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 19:41:12]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 19:41:13]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 19:41:15]   ML    Verdict — 'METHODOLOGy'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 19:41:15]   ML    Verdict — 'reference'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 19:41:15]   ML    Verdict — 'references:'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 19:41:15]  INFO   Section start pages   pages={'introduction': 3, 'methods': 14, 'results': 22, 'discussion': 22, 'references': 19}
+[2026-04-17 19:41:16]  INFO   Section 'references' extracted   pages=[19, 20, 21]  chars=3463
+[2026-04-17 19:41:16]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:41:16]   OK    Extraction complete   file=e9b8cf82-b92b-4a4d-bc29-66b2d98b8e7c_SCANNEDTHESISCSDOCUOK5.pdf
+[2026-04-17 19:43:11]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:43:12]   OK    EasyOCR initialized
+[2026-04-17 19:43:13]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:44:21]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:44:23]   OK    EasyOCR initialized
+[2026-04-17 19:44:23]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:44:54]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:44:55]   OK    EasyOCR initialized
+[2026-04-17 19:44:56]   OK    Tesseract OCR verified at C:\Program Files\Tesseract-OCR\tesseract.exe
+[2026-04-17 19:46:00] 
+============================================================
+  Extracting — 0b895fe4-8b75-4fb6-8ed8-604588f58234_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+============================================================
+[2026-04-17 19:46:00]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:46:00]  INFO   PDF loaded   pages=145
+[2026-04-17 19:46:02]  INFO   Running OCR supplement on low-text pages   total=58  processing=58
+[2026-04-17 19:46:03]  INFO   Page 20 OCR success   engine=Tesseract  chars=1057
+[2026-04-17 19:46:04]  INFO   Page 38 OCR success   engine=Tesseract  chars=136
+[2026-04-17 19:46:04]  INFO   Page 39 OCR success   engine=Tesseract  chars=179
+[2026-04-17 19:46:05]  INFO   Page 40 OCR success   engine=Tesseract  chars=192
+[2026-04-17 19:46:06]  INFO   Page 41 OCR success   engine=Tesseract  chars=162
+[2026-04-17 19:46:07]  INFO   Page 70 OCR success   engine=Tesseract  chars=1075
+[2026-04-17 19:46:08]  INFO   Page 71 OCR success   engine=Tesseract  chars=383
+[2026-04-17 19:46:09]  INFO   Page 72 OCR success   engine=Tesseract  chars=402
+[2026-04-17 19:46:10]  INFO   Page 73 OCR success   engine=Tesseract  chars=866
+[2026-04-17 19:46:11]  INFO   Page 74 OCR success   engine=Tesseract  chars=415
+[2026-04-17 19:46:12]  INFO   Page 75 OCR success   engine=Tesseract  chars=589
+[2026-04-17 19:46:13]  INFO   Page 76 OCR success   engine=Tesseract  chars=244
+[2026-04-17 19:46:14]  INFO   Page 77 OCR success   engine=Tesseract  chars=344
+[2026-04-17 19:46:15]  INFO   Page 85 OCR success   engine=Tesseract  chars=1428
+[2026-04-17 19:46:16]  INFO   Page 86 OCR success   engine=Tesseract  chars=434
+[2026-04-17 19:46:17]  INFO   Page 87 OCR success   engine=Tesseract  chars=393
+[2026-04-17 19:46:18]  INFO   Page 88 OCR success   engine=Tesseract  chars=360
+[2026-04-17 19:46:18]  INFO   Page 89 OCR success   engine=Tesseract  chars=290
+[2026-04-17 19:46:19]  INFO   Page 90 OCR success   engine=Tesseract  chars=871
+[2026-04-17 19:46:20]  INFO   Page 91 OCR success   engine=Tesseract  chars=593
+[2026-04-17 19:46:21]  INFO   Page 92 OCR success   engine=Tesseract  chars=572
+[2026-04-17 19:46:22]  INFO   Page 93 OCR success   engine=Tesseract  chars=239
+[2026-04-17 19:46:23]  INFO   Page 94 OCR success   engine=Tesseract  chars=501
+[2026-04-17 19:46:23]  INFO   Page 95 OCR success   engine=Tesseract  chars=185
+[2026-04-17 19:46:24]  INFO   Page 96 OCR success   engine=Tesseract  chars=454
+[2026-04-17 19:46:26]  INFO   Page 97 OCR success   engine=Tesseract  chars=1917
+[2026-04-17 19:46:27]  INFO   Page 98 OCR success   engine=Tesseract  chars=444
+[2026-04-17 19:46:28]  INFO   Page 99 OCR success   engine=Tesseract  chars=261
+[2026-04-17 19:46:29]  INFO   Page 100 OCR success   engine=Tesseract  chars=895
+[2026-04-17 19:46:29]  INFO   Page 101 OCR success   engine=Tesseract  chars=465
+[2026-04-17 19:46:30]  INFO   Page 102 OCR success   engine=Tesseract  chars=377
+[2026-04-17 19:46:31]  INFO   Page 103 OCR success   engine=Tesseract  chars=93
+[2026-04-17 19:46:42]  INFO   Page 120 OCR success   engine=EasyOCR (Fallback)  chars=56
+[2026-04-17 19:46:51]  INFO   Page 121 OCR success   engine=EasyOCR (Fallback)  chars=66
+[2026-04-17 19:47:00]  INFO   Page 122 OCR success   engine=EasyOCR (Fallback)  chars=26
+[2026-04-17 19:47:02]  INFO   Page 123 OCR success   engine=Tesseract  chars=2475
+[2026-04-17 19:47:03]  INFO   Page 124 OCR success   engine=Tesseract  chars=1653
+[2026-04-17 19:47:05]  INFO   Page 125 OCR success   engine=Tesseract  chars=2138
+[2026-04-17 19:47:06]  INFO   Page 126 OCR success   engine=Tesseract  chars=818
+[2026-04-17 19:47:07]  INFO   Page 127 OCR success   engine=Tesseract  chars=798
+[2026-04-17 19:47:08]  INFO   Page 128 OCR success   engine=Tesseract  chars=829
+[2026-04-17 19:47:09]  INFO   Page 129 OCR success   engine=Tesseract  chars=549
+[2026-04-17 19:47:10]  INFO   Page 130 OCR success   engine=Tesseract  chars=717
+[2026-04-17 19:47:11]  INFO   Page 131 OCR success   engine=Tesseract  chars=805
+[2026-04-17 19:47:12]  INFO   Page 132 OCR success   engine=Tesseract  chars=960
+[2026-04-17 19:47:13]  INFO   Page 133 OCR success   engine=Tesseract  chars=823
+[2026-04-17 19:47:14]  INFO   Page 134 OCR success   engine=Tesseract  chars=770
+[2026-04-17 19:47:15]  INFO   Page 135 OCR success   engine=Tesseract  chars=1213
+[2026-04-17 19:47:16]  INFO   Page 136 OCR success   engine=Tesseract  chars=726
+[2026-04-17 19:47:17]  INFO   Page 137 OCR success   engine=Tesseract  chars=797
+[2026-04-17 19:47:18]  INFO   Page 138 OCR success   engine=Tesseract  chars=1131
+[2026-04-17 19:47:19]  INFO   Page 139 OCR success   engine=Tesseract  chars=1552
+[2026-04-17 19:47:21]  INFO   Page 140 OCR success   engine=Tesseract  chars=1489
+[2026-04-17 19:47:21]  INFO   Page 141 OCR success   engine=Tesseract  chars=313
+[2026-04-17 19:47:23]  INFO   Page 142 OCR success   engine=Tesseract  chars=1493
+[2026-04-17 19:47:23]  INFO   Page 143 OCR success   engine=Tesseract  chars=345
+[2026-04-17 19:47:24]  INFO   Page 144 OCR success   engine=Tesseract  chars=1469
+[2026-04-17 19:47:25]  INFO   Page 145 OCR success   engine=Tesseract  chars=318
+[2026-04-17 19:47:25]  INFO   Page map after OCR supplement   covered=145/145
+[2026-04-17 19:47:25]  INFO   pypdf meta text extracted   chars=12786
+[2026-04-17 19:47:25]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:47:25]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:47:28]  REGEX  Author scan region   chars=523  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 19:47:28]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 19:47:29]   │  REGEX pg=109 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 19:47:30]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 19:47:30]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 19:47:31]   │  REGEX pg=59 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 19:47:31]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 19:47:34]   │  REGEX pg=102 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 19:47:34]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 19:47:35]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 19:47:35]  INFO   Section start pages   pages={'introduction': 13, 'methods': 36, 'results': 48, 'discussion': 48, 'references': 60}
+[2026-04-17 19:47:35]  ERROR  IMRAD extraction failed (non-fatal)   exc=NameError: name 'reader' is not defined
+[2026-04-17 19:47:35]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 19:47:35]   OK    Extraction complete   file=0b895fe4-8b75-4fb6-8ed8-604588f58234_ALERTOENHANCINGEMERGENCYRESPONSEANDREPORTINGUSING.pdf
+[2026-04-17 19:50:23]  INFO   Initializing EasyOCR (English)
+[2026-04-17 19:50:24]   OK    EasyOCR initialized
+[2026-04-17 19:55:50] 
+============================================================
+  Extracting — 70370d6a-9b12-4e00-ad40-7ddd0129715c_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 19:55:50]  INFO   Direct text extraction via pypdf...
+[2026-04-17 19:55:50]  INFO   PDF loaded   pages=132
+[2026-04-17 19:55:52]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 19:55:52]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 19:56:13]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 19:56:13]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 19:56:13]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 19:56:13]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 19:56:14]  INFO   Tesseract processing page   page=1
+[2026-04-17 19:56:14]  INFO   Tesseract processing page   page=2
+[2026-04-17 19:56:15]  INFO   Tesseract processing page   page=3
+[2026-04-17 19:56:16]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 19:56:16]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 19:56:18]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 19:56:18]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 19:56:18]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 19:56:19]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 19:56:19]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 19:56:22]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 19:56:22]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 19:56:23]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 19:56:23]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 19:56:23]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 19:56:23]  REGEX  Found 1 media captions on page 38
+[2026-04-17 19:56:23]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 19:56:23]  REGEX  Found 1 media captions on page 39
+[2026-04-17 19:56:23]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 19:56:23]  REGEX  Found 2 media captions on page 40
+[2026-04-17 19:56:24]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 19:56:24]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 19:56:24]  REGEX  Found 1 media captions on page 41
+[2026-04-17 19:56:24]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 19:56:24]  REGEX  Found 1 media captions on page 42
+[2026-04-17 19:56:24]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 19:56:24]  REGEX  Found 1 media captions on page 45
+[2026-04-17 19:56:24]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 19:56:24]  REGEX  Found 1 media captions on page 47
+[2026-04-17 19:56:24]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 19:56:24]  REGEX  Found 1 media captions on page 48
+[2026-04-17 19:56:24]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 19:56:24]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12521
+[2026-04-17 19:56:24]  REGEX  Found 2 media captions on page 51
+[2026-04-17 19:56:24]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 19:56:24]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 19:56:24]  REGEX  Found 2 media captions on page 52
+[2026-04-17 19:56:24]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 19:56:25]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 19:56:25]  REGEX  Found 1 media captions on page 53
+[2026-04-17 19:56:25]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 19:56:25]  REGEX  Found 1 media captions on page 54
+[2026-04-17 19:56:25]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 19:56:25]  REGEX  Found 2 media captions on page 55
+[2026-04-17 19:56:25]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 19:56:25]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 19:56:25]  REGEX  Found 2 media captions on page 56
+[2026-04-17 19:56:25]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 19:56:25]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 19:56:25]  REGEX  Found 2 media captions on page 57
+[2026-04-17 19:56:25]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 19:56:25]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 19:56:25]  REGEX  Found 2 media captions on page 58
+[2026-04-17 19:56:25]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 19:56:25]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 19:56:25]  REGEX  Found 1 media captions on page 59
+[2026-04-17 19:56:25]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 19:56:25]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=7575
+[2026-04-17 19:56:25]  REGEX  Found 2 media captions on page 51
+[2026-04-17 19:56:26]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 19:56:26]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 19:56:26]  REGEX  Found 2 media captions on page 52
+[2026-04-17 19:56:26]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 19:56:26]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 19:56:26]  REGEX  Found 1 media captions on page 53
+[2026-04-17 19:56:26]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 19:56:26]  REGEX  Found 1 media captions on page 54
+[2026-04-17 19:56:26]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 19:56:26]  REGEX  Found 2 media captions on page 55
+[2026-04-17 19:56:26]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 19:56:26]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 19:56:26]  REGEX  Found 2 media captions on page 56
+[2026-04-17 19:56:26]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 19:56:26]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 19:56:26]  REGEX  Found 2 media captions on page 57
+[2026-04-17 19:56:26]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 19:56:26]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 19:56:26]  REGEX  Found 2 media captions on page 58
+[2026-04-17 19:56:26]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 19:56:26]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 19:56:26]  REGEX  Found 1 media captions on page 59
+[2026-04-17 19:56:26]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 19:56:27]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=11021
+[2026-04-17 19:56:27]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 19:56:27]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 19:56:27]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 19:56:27]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 19:56:27]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 19:56:27]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 19:56:27]   OK    Extraction complete   file=70370d6a-9b12-4e00-ad40-7ddd0129715c_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 19:56:27]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 19:56:27]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 19:56:27]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 19:56:27]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 19:56:37]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 19:56:37]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 19:56:37]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 19:56:37]   ML    Summary ready — 'discussion'   chars=7575
+[2026-04-17 19:56:37]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:03:16]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:03:18]   OK    EasyOCR initialized
+[2026-04-17 20:03:36]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:03:37]   OK    EasyOCR initialized
+[2026-04-17 20:04:55] 
+============================================================
+  Extracting — ee8776ec-02cb-4d7a-ab4e-1678c6bd3412_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:04:55]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:04:55]  INFO   PDF loaded   pages=132
+[2026-04-17 20:04:57]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:04:57]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:05:19]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:05:19]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:05:19]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:05:19]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:05:19]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:05:19]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:05:20]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:05:21]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:05:21]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:05:23]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:05:23]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:05:23]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:05:25]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:05:25]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:05:27]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:05:27]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:05:28]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:05:28]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:05:28]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:05:28]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:05:28]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:05:28]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:05:28]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:05:28]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:05:28]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:05:29]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:05:29]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:05:29]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:05:29]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:05:29]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:05:29]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:05:29]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12493
+[2026-04-17 20:05:29]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:05:29]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:05:29]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:05:29]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:05:29]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:05:29]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:05:29]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:05:29]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:05:29]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:05:29]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:05:30]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:05:30]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:05:30]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:05:30]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:05:30]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:05:30]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:05:30]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:05:30]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:05:30]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:05:30]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:05:30]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=10201
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:05:30]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:05:30]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:05:30]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:05:30]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:05:30]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:05:30]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:05:30]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:05:30]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:05:30]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:05:30]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:05:30]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:05:30]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:05:30]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:05:31]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:05:31]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:05:31]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:05:31]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:05:31]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:05:31]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:05:31]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:05:31]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=13647
+[2026-04-17 20:05:31]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:05:31]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:05:31]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:05:31]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:05:31]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:05:31]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:05:31]   OK    Extraction complete   file=ee8776ec-02cb-4d7a-ab4e-1678c6bd3412_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:05:31]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:05:31]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:05:31]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:05:31]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:05:52]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:05:52]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:05:52]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:05:52]   ML    Summary ready — 'discussion'   chars=10201
+[2026-04-17 20:05:52]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:13:44]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:13:46]   OK    EasyOCR initialized
+[2026-04-17 20:14:25] 
+============================================================
+  Extracting — d5410ca8-dec8-4402-ac22-f57b9e7fc86e_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:14:25]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:14:25]  INFO   PDF loaded   pages=132
+[2026-04-17 20:14:27]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:14:27]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:14:48]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:14:48]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:14:48]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:14:48]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:14:48]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:14:49]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:14:50]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:14:51]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:14:51]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:14:52]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:14:52]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:14:52]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:14:54]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:14:54]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:14:56]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:14:56]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:14:57]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:14:57]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:14:57]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:14:57]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:14:57]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:14:57]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:14:57]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:14:57]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:14:57]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:14:58]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:14:58]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:14:58]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:14:58]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:14:58]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:14:58]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:14:58]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12493
+[2026-04-17 20:14:58]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:14:58]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:14:58]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:14:58]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:14:58]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:14:58]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:14:58]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:14:58]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:14:58]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:14:58]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:14:59]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:14:59]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:14:59]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:14:59]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:14:59]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:14:59]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:14:59]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:14:59]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:14:59]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:14:59]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:14:59]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=10201
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:14:59]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:14:59]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:14:59]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:14:59]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:14:59]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:14:59]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:14:59]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:14:59]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:14:59]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:14:59]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:14:59]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:14:59]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:14:59]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:14:59]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:14:59]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:15:00]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:15:00]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:15:00]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:15:00]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:15:00]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=13647
+[2026-04-17 20:15:00]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:15:00]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:15:00]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:15:00]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:15:00]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:15:00]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:15:00]   OK    Extraction complete   file=d5410ca8-dec8-4402-ac22-f57b9e7fc86e_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:15:00]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:15:00]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:15:00]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:15:00]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:16:56]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:16:56]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:16:56]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:16:56]   ML    Summary ready — 'discussion'   chars=10201
+[2026-04-17 20:16:56]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:17:45]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:17:46]   OK    EasyOCR initialized
+[2026-04-17 20:18:13] 
+============================================================
+  Extracting — 4347f500-79e1-4ac5-ab16-1d3a3c9d6f61_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:18:13]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:18:14]  INFO   PDF loaded   pages=132
+[2026-04-17 20:18:15]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:18:15]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:18:37]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:18:37]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:18:37]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:18:37]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:18:37]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:18:38]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:18:38]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:18:39]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:18:39]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:18:41]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:18:41]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:18:41]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:18:43]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:18:43]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:18:45]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:18:45]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:18:46]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:18:46]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:18:46]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:18:46]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:18:46]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:18:46]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:18:46]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:18:46]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:18:47]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:18:47]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:18:47]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:18:47]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:18:47]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:18:47]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:18:47]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:18:47]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12493
+[2026-04-17 20:18:47]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:18:47]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:18:47]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:18:47]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:18:47]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:18:47]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:18:47]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:18:48]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:18:48]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:18:48]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:18:48]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:18:48]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:18:48]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:18:48]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:18:48]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:18:48]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:18:48]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:18:48]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:18:48]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:18:48]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:18:48]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=10201
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:18:48]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:18:48]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:18:48]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:18:48]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:18:48]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:18:48]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:18:48]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:18:48]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:18:48]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:18:48]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:18:48]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:18:49]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:18:49]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:18:49]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:18:49]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:18:49]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:18:49]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:18:49]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:18:49]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:18:49]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:18:49]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:18:49]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:18:49]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=13647
+[2026-04-17 20:18:49]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:18:49]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:18:49]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:18:49]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:18:49]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:18:49]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:18:49]   OK    Extraction complete   file=4347f500-79e1-4ac5-ab16-1d3a3c9d6f61_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:18:49]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:18:49]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:18:49]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:18:49]   ML    Summary ready — 'discussion'   chars=13647
+[2026-04-17 20:18:54]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:18:54]   ML    Summary ready — 'methods'   chars=12493
+[2026-04-17 20:18:54]   ML    Summary ready — 'results'   chars=10201
+[2026-04-17 20:18:54]   ML    Summary ready — 'discussion'   chars=10201
+[2026-04-17 20:18:55]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:19:36]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:19:38]   OK    EasyOCR initialized
+[2026-04-17 20:20:06] 
+============================================================
+  Extracting — ff366a78-5edc-4ae7-9373-7d6f4c4cd20a_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:20:06]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:20:06]  INFO   PDF loaded   pages=132
+[2026-04-17 20:20:08]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:20:08]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:20:30]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:20:30]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:20:30]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:20:30]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:20:30]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:20:31]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:20:31]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:20:32]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:20:32]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:20:34]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:20:34]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:20:34]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:20:36]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:20:36]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:20:38]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:20:38]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:20:39]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:20:39]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:20:39]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:20:39]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:20:39]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:20:39]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:20:39]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:20:40]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:20:40]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:20:40]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:20:40]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:20:40]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:20:40]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:20:40]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:20:40]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:20:40]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:20:40]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:20:40]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:20:40]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:20:40]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:20:40]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12521
+[2026-04-17 20:20:40]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:20:40]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:20:40]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:20:40]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:20:41]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:20:41]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:20:41]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:20:41]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:20:41]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:20:41]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:20:41]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:20:41]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:20:41]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:20:41]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:20:41]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:20:41]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:20:41]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:20:41]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:20:41]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:20:41]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:20:41]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:20:41]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:20:41]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:20:41]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:20:41]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=7575
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:20:42]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:20:42]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:20:42]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:20:42]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:20:42]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:20:42]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:20:42]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:20:42]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:20:42]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:20:42]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:20:42]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:20:42]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:20:42]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:20:42]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:20:42]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:20:42]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:20:42]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:20:42]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:20:43]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:20:43]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=11021
+[2026-04-17 20:20:43]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:20:43]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:20:43]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:20:43]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:20:43]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:20:43]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:20:43]   OK    Extraction complete   file=ff366a78-5edc-4ae7-9373-7d6f4c4cd20a_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:20:43]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:20:43]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:20:43]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:20:43]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:20:48]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:20:48]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:20:48]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:20:48]   ML    Summary ready — 'discussion'   chars=7575
+[2026-04-17 20:20:48]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:21:30]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:21:32]   OK    EasyOCR initialized
+[2026-04-17 20:21:59] 
+============================================================
+  Extracting — c741c6d8-2641-46ad-bdc5-b23276a77a71_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:21:59]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:21:59]  INFO   PDF loaded   pages=132
+[2026-04-17 20:22:01]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:22:01]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:22:23]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:22:23]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:22:23]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:22:23]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:22:24]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:22:24]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:22:25]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:22:26]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:22:26]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:22:28]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:22:28]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:22:28]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:22:29]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:22:29]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:22:32]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:22:32]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:22:33]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:22:33]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:22:33]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:22:33]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:22:33]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:22:33]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:22:33]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:22:33]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:22:34]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:22:34]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:22:34]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:22:34]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:22:34]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:22:34]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:22:34]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:22:34]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:22:34]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:22:34]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:22:34]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:22:34]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:22:34]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12521
+[2026-04-17 20:22:34]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:22:34]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:22:34]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:22:34]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:22:34]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:22:35]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:22:35]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:22:35]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:22:35]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:22:35]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:22:35]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:22:35]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:22:35]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:22:35]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:22:35]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:22:35]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:22:35]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:22:35]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:22:35]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:22:35]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:22:35]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:22:35]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:22:35]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:22:35]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:22:35]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=7575
+[2026-04-17 20:22:35]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:22:36]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:22:36]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:22:36]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:22:36]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:22:36]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:22:36]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:22:36]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:22:36]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:22:36]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:22:36]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:22:36]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:22:36]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:22:36]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:22:36]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:22:36]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:22:36]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:22:36]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:22:36]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:22:36]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:22:36]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:22:36]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:22:36]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:22:36]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:22:37]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=11021
+[2026-04-17 20:22:37]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:22:37]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:22:37]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:22:37]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:22:37]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:22:37]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:22:37]   OK    Extraction complete   file=c741c6d8-2641-46ad-bdc5-b23276a77a71_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:22:37]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:22:37]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:22:37]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:22:37]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:22:42]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:22:42]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:22:42]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:22:42]   ML    Summary ready — 'discussion'   chars=7575
+[2026-04-17 20:22:42]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:38:31] 
+============================================================
+  Extracting — 6c893702-5a6d-48fc-91df-67a66b51d9ba_INTEGRATINGAIANDGAMEBASEDLEARNINGINSUPPLEMENTARY.pdf
+============================================================
+[2026-04-17 20:38:31]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:38:31]  INFO   PDF loaded   pages=126
+[2026-04-17 20:38:33]  INFO   Running OCR supplement on low-text pages   total=21  processing=21  pages=[49, 51, 77, 81, 83, 84, 85, 94, 99, 101]
+[2026-04-17 20:38:33]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:38:48]  INFO   Page map after OCR supplement   covered=126/126
+[2026-04-17 20:38:48]  INFO   pypdf meta text extracted   chars=12217
+[2026-04-17 20:38:48]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:38:48]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:38:49]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:38:49]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:38:50]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:38:51]  REGEX  Author scan region   chars=1378  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:38:52]   │  REGEX pg=95 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:38:52]   ML    Verdict — 'RESULT AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.86  tier=Tier 0 — DistilBERT
+[2026-04-17 20:38:54]   │  REGEX pg=51 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:38:54]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:38:56]   │  REGEX pg=89 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:38:56]   ML    Verdict — 'Methods'   label=heading_methods → methods  score=0.73  tier=Tier 0 — DistilBERT
+[2026-04-17 20:38:57]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:38:57]  INFO   Section start pages   pages={'introduction': 20, 'methods': 48, 'results': 64, 'discussion': 64, 'references': 74}
+[2026-04-17 20:38:57]  INFO   Section 'introduction' extracted   pages=[20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]  chars=2343
+[2026-04-17 20:38:57]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:38:57]   OK    Extracted table T_48_0 on page 48
+[2026-04-17 20:38:57]  REGEX  Found 1 media captions on page 50
+[2026-04-17 20:38:57]   OK    Extracted figure F_50_1 on page 50
+[2026-04-17 20:38:57]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:38:57]   OK    Extracted figure F_51_2 on page 51
+[2026-04-17 20:38:58]   OK    Extracted figure F_51_3 on page 51
+[2026-04-17 20:38:58]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:38:58]   OK    Extracted figure F_52_4 on page 52
+[2026-04-17 20:38:58]   OK    Extracted table T_52_5 on page 52
+[2026-04-17 20:38:58]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:38:58]   OK    Extracted table T_54_6 on page 54
+[2026-04-17 20:38:58]  REGEX  Found 1 media captions on page 56
+[2026-04-17 20:38:58]   OK    Extracted figure F_56_7 on page 56
+[2026-04-17 20:38:58]  REGEX  Found 1 media captions on page 58
+[2026-04-17 20:38:58]   OK    Extracted table T_58_8 on page 58
+[2026-04-17 20:38:58]  REGEX  Found 2 media captions on page 60
+[2026-04-17 20:38:59]   OK    Extracted table T_60_9 on page 60
+[2026-04-17 20:38:59]   OK    Extracted table T_60_10 on page 60
+[2026-04-17 20:38:59]  REGEX  Found 1 media captions on page 62
+[2026-04-17 20:38:59]   OK    Extracted table T_62_11 on page 62
+[2026-04-17 20:38:59]  INFO   Section 'methods' extracted   pages=[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]  chars=14435
+[2026-04-17 20:38:59]  REGEX  Found 1 media captions on page 66
+[2026-04-17 20:38:59]   OK    Extracted table T_66_12 on page 66
+[2026-04-17 20:38:59]  REGEX  Found 2 media captions on page 67
+[2026-04-17 20:38:59]   OK    Extracted table T_67_13 on page 67
+[2026-04-17 20:38:59]   OK    Extracted table T_67_14 on page 67
+[2026-04-17 20:38:59]  REGEX  Found 3 media captions on page 68
+[2026-04-17 20:38:59]   OK    Extracted table T_68_15 on page 68
+[2026-04-17 20:38:59]   OK    Extracted table T_68_16 on page 68
+[2026-04-17 20:38:59]   OK    Extracted table T_68_17 on page 68
+[2026-04-17 20:38:59]  REGEX  Found 1 media captions on page 70
+[2026-04-17 20:38:59]   OK    Extracted table T_70_18 on page 70
+[2026-04-17 20:38:59]  INFO   Section 'results' extracted   pages=[64, 65, 66, 67, 68, 69, 70, 71, 72, 73]  chars=8139
+[2026-04-17 20:38:59]  REGEX  Found 1 media captions on page 66
+[2026-04-17 20:38:59]   OK    Extracted table T_66_19 on page 66
+[2026-04-17 20:38:59]  REGEX  Found 2 media captions on page 67
+[2026-04-17 20:39:00]   OK    Extracted table T_67_20 on page 67
+[2026-04-17 20:39:00]   OK    Extracted table T_67_21 on page 67
+[2026-04-17 20:39:00]  REGEX  Found 3 media captions on page 68
+[2026-04-17 20:39:00]   OK    Extracted table T_68_22 on page 68
+[2026-04-17 20:39:00]   OK    Extracted table T_68_23 on page 68
+[2026-04-17 20:39:00]   OK    Extracted table T_68_24 on page 68
+[2026-04-17 20:39:00]  REGEX  Found 1 media captions on page 70
+[2026-04-17 20:39:00]   OK    Extracted table T_70_25 on page 70
+[2026-04-17 20:39:00]  INFO   Section 'discussion' extracted   pages=[64, 65, 66, 67, 68, 69, 70, 71, 72, 73]  chars=12868
+[2026-04-17 20:39:00]  INFO   Section 'references' extracted   pages=[74, 75, 76]  chars=5296
+[2026-04-17 20:39:00]   ML    Summary ready — 'introduction'   chars=2343
+[2026-04-17 20:39:00]   ML    Summary ready — 'methods'   chars=14435
+[2026-04-17 20:39:00]   ML    Summary ready — 'results'   chars=8139
+[2026-04-17 20:39:00]   ML    Summary ready — 'discussion'   chars=12868
+[2026-04-17 20:39:00]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:39:00]   OK    Extraction complete   file=6c893702-5a6d-48fc-91df-67a66b51d9ba_INTEGRATINGAIANDGAMEBASEDLEARNINGINSUPPLEMENTARY.pdf
+[2026-04-17 20:39:00]   ML    Summary ready — 'introduction'   chars=2343
+[2026-04-17 20:39:00]   ML    Summary ready — 'methods'   chars=14435
+[2026-04-17 20:39:00]   ML    Summary ready — 'results'   chars=8139
+[2026-04-17 20:39:00]   ML    Summary ready — 'discussion'   chars=12868
+[2026-04-17 20:41:23] 
+============================================================
+  Extracting — 39b877d5-5f22-4823-9381-e7f2bcaf24cc_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:41:23]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:41:23]  INFO   PDF loaded   pages=132
+[2026-04-17 20:41:25]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:41:25]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:41:46]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:41:46]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:41:46]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:41:46]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:41:46]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:41:47]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:41:48]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:41:49]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:41:49]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:41:51]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:41:51]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:41:52]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:41:52]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:41:55]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:41:55]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:41:56]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:41:56]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:41:56]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:41:56]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:41:56]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:41:56]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:41:56]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:41:56]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:41:56]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:41:56]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:41:56]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:41:56]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:41:56]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:41:56]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:41:57]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:41:57]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:41:57]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:41:57]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:41:57]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:41:57]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:41:57]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12521
+[2026-04-17 20:41:57]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:41:57]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:41:57]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:41:57]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:41:57]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:41:57]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:41:57]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:41:57]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:41:57]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:41:57]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:41:57]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:41:57]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:41:57]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:41:57]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:41:58]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:41:58]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:41:58]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:41:58]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:41:58]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:41:58]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:41:58]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:41:58]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:41:58]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:41:58]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:41:58]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=7575
+[2026-04-17 20:41:58]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:41:58]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:41:58]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:41:58]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:41:58]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:41:58]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:41:58]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:41:59]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:41:59]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:41:59]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:41:59]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:41:59]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:41:59]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:41:59]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:41:59]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:41:59]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:41:59]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:41:59]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:41:59]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:41:59]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:41:59]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:41:59]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:41:59]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:41:59]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:41:59]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=11021
+[2026-04-17 20:41:59]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:41:59]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:41:59]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:41:59]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:41:59]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:41:59]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:41:59]   OK    Extraction complete   file=39b877d5-5f22-4823-9381-e7f2bcaf24cc_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:41:59]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:41:59]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:41:59]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:41:59]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:44:09]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:44:10]   OK    EasyOCR initialized
+[2026-04-17 20:44:27]  INFO   Initializing EasyOCR (English)
+[2026-04-17 20:44:28]   OK    EasyOCR initialized
+[2026-04-17 20:44:46] 
+============================================================
+  Extracting — 91e7ba30-21ec-4550-9611-1701da69ed8d_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+============================================================
+[2026-04-17 20:44:46]  INFO   Direct text extraction via pypdf...
+[2026-04-17 20:44:46]  INFO   PDF loaded   pages=132
+[2026-04-17 20:44:48]  INFO   Running OCR supplement on low-text pages   total=55  processing=30  pages=[2, 69, 70, 71, 80, 81, 82, 83, 85, 86]
+[2026-04-17 20:44:48]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 20:45:11]  INFO   Page map after OCR supplement   covered=132/132
+[2026-04-17 20:45:11]  INFO   pypdf meta text extracted   chars=12461
+[2026-04-17 20:45:11]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 20:45:11]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 20:45:11]  INFO   Tesseract processing page   page=1
+[2026-04-17 20:45:12]  INFO   Tesseract processing page   page=2
+[2026-04-17 20:45:12]  INFO   Tesseract processing page   page=3
+[2026-04-17 20:45:13]  REGEX  Author scan region   chars=1245  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 20:45:13]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 20:45:15]   │  REGEX pg=100 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 20:45:15]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 20:45:15]   ML    Verdict — 'RESULTS AND DISCUSSIONS'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 20:45:16]   │  REGEX pg=53 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 20:45:16]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 20:45:19]   │  REGEX pg=93 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 20:45:19]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 20:45:20]   ML    Verdict — 'REFERENCES'   label=heading_other → None  score=0.71  tier=Tier 0 — DistilBERT
+[2026-04-17 20:45:20]  INFO   Section start pages   pages={'introduction': 13, 'methods': 37, 'results': 50, 'discussion': 50, 'references': 63}
+[2026-04-17 20:45:20]  INFO   Section 'introduction' extracted   pages=[13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=1515
+[2026-04-17 20:45:20]  REGEX  Found 1 media captions on page 38
+[2026-04-17 20:45:20]   OK    Extracted figure F_38_0 on page 38
+[2026-04-17 20:45:20]  REGEX  Found 1 media captions on page 39
+[2026-04-17 20:45:20]   OK    Extracted figure F_39_1 on page 39
+[2026-04-17 20:45:20]  REGEX  Found 2 media captions on page 40
+[2026-04-17 20:45:20]   OK    Extracted table T_40_2 on page 40
+[2026-04-17 20:45:21]   OK    Extracted figure F_40_3 on page 40
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 41
+[2026-04-17 20:45:21]   OK    Extracted figure F_41_4 on page 41
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 42
+[2026-04-17 20:45:21]   OK    Extracted figure F_42_5 on page 42
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 45
+[2026-04-17 20:45:21]   OK    Extracted table T_45_6 on page 45
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 47
+[2026-04-17 20:45:21]   OK    Extracted table T_47_7 on page 47
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 48
+[2026-04-17 20:45:21]   OK    Extracted table T_48_8 on page 48
+[2026-04-17 20:45:21]  INFO   Section 'methods' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  chars=12521
+[2026-04-17 20:45:21]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:45:21]   OK    Extracted table T_51_9 on page 51
+[2026-04-17 20:45:21]   OK    Extracted table T_51_10 on page 51
+[2026-04-17 20:45:21]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:45:21]   OK    Extracted table T_52_11 on page 52
+[2026-04-17 20:45:21]   OK    Extracted table T_52_12 on page 52
+[2026-04-17 20:45:21]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:45:22]   OK    Extracted table T_53_13 on page 53
+[2026-04-17 20:45:22]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:45:22]   OK    Extracted table T_54_14 on page 54
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:45:22]   OK    Extracted table T_55_15 on page 55
+[2026-04-17 20:45:22]   OK    Extracted table T_55_16 on page 55
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:45:22]   OK    Extracted table T_56_17 on page 56
+[2026-04-17 20:45:22]   OK    Extracted table T_56_18 on page 56
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:45:22]   OK    Extracted table T_57_19 on page 57
+[2026-04-17 20:45:22]   OK    Extracted table T_57_20 on page 57
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:45:22]   OK    Extracted table T_58_21 on page 58
+[2026-04-17 20:45:22]   OK    Extracted table T_58_22 on page 58
+[2026-04-17 20:45:22]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:45:22]   OK    Extracted table T_59_23 on page 59
+[2026-04-17 20:45:22]  INFO   Section 'results' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=7575
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 51
+[2026-04-17 20:45:22]   OK    Extracted table T_51_24 on page 51
+[2026-04-17 20:45:22]   OK    Extracted table T_51_25 on page 51
+[2026-04-17 20:45:22]  REGEX  Found 2 media captions on page 52
+[2026-04-17 20:45:23]   OK    Extracted table T_52_26 on page 52
+[2026-04-17 20:45:23]   OK    Extracted table T_52_27 on page 52
+[2026-04-17 20:45:23]  REGEX  Found 1 media captions on page 53
+[2026-04-17 20:45:23]   OK    Extracted table T_53_28 on page 53
+[2026-04-17 20:45:23]  REGEX  Found 1 media captions on page 54
+[2026-04-17 20:45:23]   OK    Extracted table T_54_29 on page 54
+[2026-04-17 20:45:23]  REGEX  Found 2 media captions on page 55
+[2026-04-17 20:45:23]   OK    Extracted table T_55_30 on page 55
+[2026-04-17 20:45:23]   OK    Extracted table T_55_31 on page 55
+[2026-04-17 20:45:23]  REGEX  Found 2 media captions on page 56
+[2026-04-17 20:45:23]   OK    Extracted table T_56_32 on page 56
+[2026-04-17 20:45:23]   OK    Extracted table T_56_33 on page 56
+[2026-04-17 20:45:23]  REGEX  Found 2 media captions on page 57
+[2026-04-17 20:45:23]   OK    Extracted table T_57_34 on page 57
+[2026-04-17 20:45:23]   OK    Extracted table T_57_35 on page 57
+[2026-04-17 20:45:23]  REGEX  Found 2 media captions on page 58
+[2026-04-17 20:45:23]   OK    Extracted table T_58_36 on page 58
+[2026-04-17 20:45:23]   OK    Extracted table T_58_37 on page 58
+[2026-04-17 20:45:23]  REGEX  Found 1 media captions on page 59
+[2026-04-17 20:45:23]   OK    Extracted table T_59_38 on page 59
+[2026-04-17 20:45:24]  INFO   Section 'discussion' extracted   pages=[50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]  chars=11021
+[2026-04-17 20:45:24]  INFO   Section 'references' extracted   pages=[63, 64, 65]  chars=6015
+[2026-04-17 20:45:24]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:45:24]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:45:24]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:45:24]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:45:24]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 20:45:24]   OK    Extraction complete   file=91e7ba30-21ec-4550-9611-1701da69ed8d_PAWSENSEAMACHINELEARNINGPOWEREDSYSTEMFORREALTIME.pdf
+[2026-04-17 20:45:24]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:45:24]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:45:24]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:45:24]   ML    Summary ready — 'discussion'   chars=11021
+[2026-04-17 20:46:19]   ML    Summary ready — 'introduction'   chars=1515
+[2026-04-17 20:46:19]   ML    Summary ready — 'methods'   chars=12521
+[2026-04-17 20:46:19]   ML    Summary ready — 'results'   chars=7575
+[2026-04-17 20:46:19]   ML    Summary ready — 'discussion'   chars=7575
+[2026-04-17 20:46:20]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 21:34:08] 
+============================================================
+  Extracting — 347a06c2-3b2e-4435-a76b-f135065efabf_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+============================================================
+[2026-04-17 21:34:08]  INFO   Direct text extraction via pypdf...
+[2026-04-17 21:34:08]  INFO   PDF loaded   pages=66
+[2026-04-17 21:34:10]  INFO   Running OCR supplement on low-text pages   total=6  processing=6  pages=[23, 62, 63, 64, 65, 66]
+[2026-04-17 21:34:10]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 21:34:14]  INFO   Page map after OCR supplement   covered=66/66
+[2026-04-17 21:34:14]  INFO   pypdf meta text extracted   chars=11770
+[2026-04-17 21:34:14]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 21:34:14]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 21:34:14]  INFO   Tesseract processing page   page=1
+[2026-04-17 21:34:15]  INFO   Tesseract processing page   page=2
+[2026-04-17 21:34:15]  INFO   Tesseract processing page   page=3
+[2026-04-17 21:34:16]  REGEX  Author scan region   chars=455  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 21:34:16]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 21:34:17]   │  REGEX pg=50 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 21:34:17]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 21:34:18]   │  REGEX pg=27 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 21:34:18]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 21:34:19]   │  REGEX pg=47 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 21:34:19]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 21:34:20]   ML    Verdict — 'References:'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 21:34:20]  INFO   Section start pages   pages={'introduction': 8, 'methods': 24, 'results': 37, 'discussion': 37, 'references': 48}
+[2026-04-17 21:34:20]  INFO   Section 'introduction' extracted   pages=[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]  chars=2527
+[2026-04-17 21:34:20]  REGEX  Found 2 media captions on page 25
+[2026-04-17 21:34:20]   OK    Extracted figure F_25_0 on page 25
+[2026-04-17 21:34:20]   OK    Extracted figure F_25_1 on page 25
+[2026-04-17 21:34:20]  REGEX  Found 1 media captions on page 27
+[2026-04-17 21:34:20]   OK    Extracted figure F_27_2 on page 27
+[2026-04-17 21:34:20]  REGEX  Found 1 media captions on page 29
+[2026-04-17 21:34:21]   OK    Extracted table T_29_3 on page 29
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 30
+[2026-04-17 21:34:21]   OK    Extracted table T_30_4 on page 30
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 31
+[2026-04-17 21:34:21]   OK    Extracted figure F_31_5 on page 31
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 33
+[2026-04-17 21:34:21]   OK    Extracted table T_33_6 on page 33
+[2026-04-17 21:34:21]  REGEX  Found 2 media captions on page 34
+[2026-04-17 21:34:21]   OK    Extracted table T_34_7 on page 34
+[2026-04-17 21:34:21]   OK    Extracted table T_34_8 on page 34
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 36
+[2026-04-17 21:34:21]   OK    Extracted table T_36_9 on page 36
+[2026-04-17 21:34:21]  INFO   Section 'methods' extracted   pages=[24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=12113
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 38
+[2026-04-17 21:34:21]   OK    Extracted table T_38_10 on page 38
+[2026-04-17 21:34:21]  REGEX  Found 1 media captions on page 39
+[2026-04-17 21:34:22]   OK    Extracted table T_39_11 on page 39
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 40
+[2026-04-17 21:34:22]   OK    Extracted table T_40_12 on page 40
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 41
+[2026-04-17 21:34:22]   OK    Extracted table T_41_13 on page 41
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 42
+[2026-04-17 21:34:22]   OK    Extracted table T_42_14 on page 42
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 43
+[2026-04-17 21:34:22]   OK    Extracted table T_43_15 on page 43
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 44
+[2026-04-17 21:34:22]   OK    Extracted table T_44_16 on page 44
+[2026-04-17 21:34:22]  INFO   Section 'results' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=8307
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 38
+[2026-04-17 21:34:22]   OK    Extracted table T_38_17 on page 38
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 39
+[2026-04-17 21:34:22]   OK    Extracted table T_39_18 on page 39
+[2026-04-17 21:34:22]  REGEX  Found 1 media captions on page 40
+[2026-04-17 21:34:23]   OK    Extracted table T_40_19 on page 40
+[2026-04-17 21:34:23]  REGEX  Found 1 media captions on page 41
+[2026-04-17 21:34:23]   OK    Extracted table T_41_20 on page 41
+[2026-04-17 21:34:23]  REGEX  Found 1 media captions on page 42
+[2026-04-17 21:34:23]   OK    Extracted table T_42_21 on page 42
+[2026-04-17 21:34:23]  REGEX  Found 1 media captions on page 43
+[2026-04-17 21:34:23]   OK    Extracted table T_43_22 on page 43
+[2026-04-17 21:34:23]  REGEX  Found 1 media captions on page 44
+[2026-04-17 21:34:23]   OK    Extracted table T_44_23 on page 44
+[2026-04-17 21:34:23]  INFO   Section 'discussion' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=12361
+[2026-04-17 21:34:23]  INFO   Section 'references' extracted   pages=[48]  chars=568
+[2026-04-17 21:34:23]   ML    Summary ready — 'introduction'   chars=2527
+[2026-04-17 21:34:23]   ML    Summary ready — 'methods'   chars=12113
+[2026-04-17 21:34:23]   ML    Summary ready — 'results'   chars=8307
+[2026-04-17 21:34:23]   ML    Summary ready — 'discussion'   chars=12361
+[2026-04-17 21:34:23]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 21:34:23]   OK    Extraction complete   file=347a06c2-3b2e-4435-a76b-f135065efabf_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+[2026-04-17 21:34:23]   ML    Summary ready — 'introduction'   chars=2527
+[2026-04-17 21:34:23]   ML    Summary ready — 'methods'   chars=12113
+[2026-04-17 21:34:23]   ML    Summary ready — 'results'   chars=8307
+[2026-04-17 21:34:23]   ML    Summary ready — 'discussion'   chars=12361
+[2026-04-17 21:40:48]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion', 'references']
+[2026-04-17 21:40:53]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion', 'references']
+[2026-04-17 21:42:34]  INFO   Initializing EasyOCR (English)
+[2026-04-17 21:42:36]   OK    EasyOCR initialized
+[2026-04-17 21:43:17]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 21:43:45]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 22:03:05]  INFO   Initializing EasyOCR (English)
+[2026-04-17 22:03:06]   OK    EasyOCR initialized
+[2026-04-17 22:32:15] 
+============================================================
+  Extracting — 0182ede8-d9c6-4a00-ac23-b63bd00abd33_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+============================================================
+[2026-04-17 22:32:15]  INFO   Direct text extraction via pypdf...
+[2026-04-17 22:32:15]  INFO   PDF loaded   pages=66
+[2026-04-17 22:32:16]  INFO   Running OCR supplement on low-text pages   total=6  processing=6  pages=[23, 62, 63, 64, 65, 66]
+[2026-04-17 22:32:16]  INFO   OCR supplement engine: Tesseract (fast)
+[2026-04-17 22:32:20]  INFO   Page map after OCR supplement   covered=66/66
+[2026-04-17 22:32:20]  INFO   pypdf meta text extracted   chars=11770
+[2026-04-17 22:32:20]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 22:32:20]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 22:32:21]  INFO   Tesseract processing page   page=1
+[2026-04-17 22:32:21]  INFO   Tesseract processing page   page=2
+[2026-04-17 22:32:22]  INFO   Tesseract processing page   page=3
+[2026-04-17 22:32:23]  REGEX  Author scan region   chars=455  truncated_at='BIOGRAPHICAL DATA'
+[2026-04-17 22:32:23]  REGEX  Abstract boilerplate paragraph stripped
+[2026-04-17 22:32:24]   │  REGEX pg=50 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 22:32:24]   ML    Model loaded   tier=Tier 0 — DistilBERT 9-class  model=./distilbert_imrad_model
+[2026-04-17 22:32:24]   ML    Verdict — 'RESULTS AND DISCUSSION'   label=heading_discussion → results_and_discussion  score=0.87  tier=Tier 0 — DistilBERT
+[2026-04-17 22:32:24]   │  REGEX pg=27 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 22:32:25]   ML    Verdict — 'INTRODUCTION'   label=heading_intro → introduction  score=0.84  tier=Tier 0 — DistilBERT
+[2026-04-17 22:32:26]   │  REGEX pg=47 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 22:32:26]   ML    Verdict — 'METHODOLOGY'   label=heading_methods → methods  score=0.82  tier=Tier 0 — DistilBERT
+[2026-04-17 22:32:27]   ML    Verdict — 'References:'   label=heading_other → None  score=0.66  tier=Tier 0 — DistilBERT
+[2026-04-17 22:32:27]  INFO   Section start pages   pages={'introduction': 8, 'methods': 24, 'results': 37, 'discussion': 37, 'references': 48}
+[2026-04-17 22:32:27]  INFO   Section 'introduction' extracted   pages=[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]  chars=2527
+[2026-04-17 22:32:27]  REGEX  Found 2 media captions on page 25
+[2026-04-17 22:32:27]   OK    Extracted figure F_25_0 on page 25
+[2026-04-17 22:32:27]   OK    Extracted figure F_25_1 on page 25
+[2026-04-17 22:32:27]  REGEX  Found 1 media captions on page 27
+[2026-04-17 22:32:27]   OK    Extracted figure F_27_2 on page 27
+[2026-04-17 22:32:27]  REGEX  Found 1 media captions on page 29
+[2026-04-17 22:32:28]   OK    Extracted table T_29_3 on page 29
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 30
+[2026-04-17 22:32:28]   OK    Extracted table T_30_4 on page 30
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 31
+[2026-04-17 22:32:28]   OK    Extracted figure F_31_5 on page 31
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 33
+[2026-04-17 22:32:28]   OK    Extracted table T_33_6 on page 33
+[2026-04-17 22:32:28]  REGEX  Found 2 media captions on page 34
+[2026-04-17 22:32:28]   OK    Extracted table T_34_7 on page 34
+[2026-04-17 22:32:28]   OK    Extracted table T_34_8 on page 34
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 36
+[2026-04-17 22:32:28]   OK    Extracted table T_36_9 on page 36
+[2026-04-17 22:32:28]  INFO   Section 'methods' extracted   pages=[24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]  chars=12113
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 38
+[2026-04-17 22:32:28]   OK    Extracted table T_38_10 on page 38
+[2026-04-17 22:32:28]  REGEX  Found 1 media captions on page 39
+[2026-04-17 22:32:28]   OK    Extracted table T_39_11 on page 39
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 40
+[2026-04-17 22:32:29]   OK    Extracted table T_40_12 on page 40
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 41
+[2026-04-17 22:32:29]   OK    Extracted table T_41_13 on page 41
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 42
+[2026-04-17 22:32:29]   OK    Extracted table T_42_14 on page 42
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 43
+[2026-04-17 22:32:29]   OK    Extracted table T_43_15 on page 43
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 44
+[2026-04-17 22:32:29]   OK    Extracted table T_44_16 on page 44
+[2026-04-17 22:32:29]  INFO   Section 'results' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=8307
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 38
+[2026-04-17 22:32:29]   OK    Extracted table T_38_17 on page 38
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 39
+[2026-04-17 22:32:29]   OK    Extracted table T_39_18 on page 39
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 40
+[2026-04-17 22:32:29]   OK    Extracted table T_40_19 on page 40
+[2026-04-17 22:32:29]  REGEX  Found 1 media captions on page 41
+[2026-04-17 22:32:30]   OK    Extracted table T_41_20 on page 41
+[2026-04-17 22:32:30]  REGEX  Found 1 media captions on page 42
+[2026-04-17 22:32:30]   OK    Extracted table T_42_21 on page 42
+[2026-04-17 22:32:30]  REGEX  Found 1 media captions on page 43
+[2026-04-17 22:32:30]   OK    Extracted table T_43_22 on page 43
+[2026-04-17 22:32:30]  REGEX  Found 1 media captions on page 44
+[2026-04-17 22:32:30]   OK    Extracted table T_44_23 on page 44
+[2026-04-17 22:32:30]  INFO   Section 'discussion' extracted   pages=[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]  chars=12361
+[2026-04-17 22:32:30]  INFO   Section 'references' extracted   pages=[48]  chars=568
+[2026-04-17 22:32:30]   ML    Summary ready — 'introduction'   chars=2527
+[2026-04-17 22:32:30]   ML    Summary ready — 'methods'   chars=12113
+[2026-04-17 22:32:30]   ML    Summary ready — 'results'   chars=8307
+[2026-04-17 22:32:30]   ML    Summary ready — 'discussion'   chars=12361
+[2026-04-17 22:32:30]   OK    IMRAD summaries generated   sections=['introduction', 'methods', 'results', 'discussion']
+[2026-04-17 22:32:30]   OK    Extraction complete   file=0182ede8-d9c6-4a00-ac23-b63bd00abd33_eCafe_A_WEB_APPLICATION_SALES_PERFORMANCE.pdf
+[2026-04-17 22:32:30]   ML    Summary ready — 'introduction'   chars=2527
+[2026-04-17 22:32:30]   ML    Summary ready — 'methods'   chars=12113
+[2026-04-17 22:32:30]   ML    Summary ready — 'results'   chars=8307
+[2026-04-17 22:32:30]   ML    Summary ready — 'discussion'   chars=12361
+[2026-04-17 22:32:42]   ML    Summary ready — 'introduction'   chars=2527
+[2026-04-17 22:32:42]   ML    Summary ready — 'methods'   chars=12113
+[2026-04-17 22:32:42]   ML    Summary ready — 'results'   chars=8307
+[2026-04-17 22:32:42]   ML    Summary ready — 'discussion'   chars=8307
+[2026-04-17 22:32:42]   ML    Vectors built   keys=['title', 'abstract', 'introduction', 'methods', 'results', 'discussion']
+[2026-04-17 22:33:19] 
+============================================================
+  Extracting — 0efeb5dd-9cf7-481e-81b9-c002db0c6088_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 22:33:19]  INFO   Direct text extraction via pypdf...
+[2026-04-17 22:33:19]  INFO   PDF loaded   pages=9
+[2026-04-17 22:33:19]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 22:33:19]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 22:33:19]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 22:33:19]  INFO   Meta OCR engine: Tesseract
+[2026-04-17 22:33:19]  INFO   Tesseract processing page   page=1
+[2026-04-17 22:33:21]  INFO   Tesseract processing page   page=2
+[2026-04-17 22:33:22]  INFO   Tesseract processing page   page=3
+[2026-04-17 22:33:23]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 22:33:23]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 22:33:24]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 22:33:24]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 22:33:24]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 22:33:25]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 22:33:25]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 22:33:26]  WARN   No IMRAD sections detected
+[2026-04-17 22:33:26]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 22:33:26]   OK    Extraction complete   file=0efeb5dd-9cf7-481e-81b9-c002db0c6088_NONIMRAD_PAGE_TEST.pdf
