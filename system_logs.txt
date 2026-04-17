@@ -4202,3 +4202,193 @@
 [2026-04-17 22:33:26]   OK    Extraction complete   file=0efeb5dd-9cf7-481e-81b9-c002db0c6088_NONIMRAD_PAGE_TEST.pdf
 [2026-04-17 23:18:37]  INFO   Initializing EasyOCR (English)
 [2026-04-17 23:18:38]   OK    EasyOCR initialized
+[2026-04-17 23:23:08]  INFO   Initializing EasyOCR (English)
+[2026-04-17 23:23:10]   OK    EasyOCR initialized
+[2026-04-17 23:23:26]  INFO   Initializing EasyOCR (English)
+[2026-04-17 23:23:28]   OK    EasyOCR initialized
+[2026-04-17 23:28:09] 
+============================================================
+  Extracting — 20ca0fe7-58d1-449e-a593-38de8a3d7604_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:28:09]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:28:09]  INFO   PDF loaded   pages=9
+[2026-04-17 23:28:10]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:28:10]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:28:10]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:28:10]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:28:10]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:28:27]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:28:42]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:28:57]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:28:57]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:28:58]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:28:58]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:28:58]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:28:59]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:29:00]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:29:00]  WARN   No IMRAD sections detected
+[2026-04-17 23:29:00]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:29:00]   OK    Extraction complete   file=20ca0fe7-58d1-449e-a593-38de8a3d7604_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:29:39] 
+============================================================
+  Extracting — 5aa8abf4-8653-49ba-b9f8-7de7375a026c_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:29:39]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:29:39]  INFO   PDF loaded   pages=9
+[2026-04-17 23:29:40]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:29:40]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:29:40]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:29:40]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:29:40]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:29:55]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:30:09]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:30:24]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:30:24]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:30:24]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:30:24]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:30:25]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:30:25]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:30:26]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:30:26]  WARN   No IMRAD sections detected
+[2026-04-17 23:30:26]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:30:26]   OK    Extraction complete   file=5aa8abf4-8653-49ba-b9f8-7de7375a026c_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:30:40]  INFO   Initializing EasyOCR (English)
+[2026-04-17 23:30:42]   OK    EasyOCR initialized
+[2026-04-17 23:33:06] 
+============================================================
+  Extracting — e516d330-6f24-46e3-8d3a-25ff6bddd94b_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:33:06]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:33:06]  INFO   PDF loaded   pages=9
+[2026-04-17 23:33:07]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:33:07]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:33:07]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:33:07]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:33:07]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:33:25]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:33:43]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:33:59]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:33:59]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:34:00]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:34:00]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:34:00]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:34:01]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:34:02]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:34:02]  WARN   No IMRAD sections detected
+[2026-04-17 23:34:02]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:34:02]   OK    Extraction complete   file=e516d330-6f24-46e3-8d3a-25ff6bddd94b_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:34:10] 
+============================================================
+  Extracting — 9acfb93d-bce0-459b-875c-62ebd63c1679_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:34:10]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:34:10]  INFO   PDF loaded   pages=9
+[2026-04-17 23:34:10]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:34:10]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:34:10]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:34:10]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:34:11]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:34:26]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:34:42]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:34:57]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:34:57]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:34:58]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:34:58]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:34:58]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:34:59]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:35:00]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:35:00]  WARN   No IMRAD sections detected
+[2026-04-17 23:35:00]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:35:00]   OK    Extraction complete   file=9acfb93d-bce0-459b-875c-62ebd63c1679_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:35:50] 
+============================================================
+  Extracting — c05393f3-9467-4ef6-9f7f-5f0b4ff05d4d_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:35:50]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:35:50]  INFO   PDF loaded   pages=9
+[2026-04-17 23:35:50]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:35:50]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:35:50]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:35:50]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:35:50]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:36:06]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:36:21]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:36:36]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:36:36]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:36:37]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:36:37]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:36:37]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:36:38]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:36:39]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:36:39]  WARN   No IMRAD sections detected
+[2026-04-17 23:36:39]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:36:39]   OK    Extraction complete   file=c05393f3-9467-4ef6-9f7f-5f0b4ff05d4d_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:37:16] 
+============================================================
+  Extracting — 90e15cfe-76ae-45c8-851f-4f9831833b8a_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:37:16]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:37:16]  INFO   PDF loaded   pages=9
+[2026-04-17 23:37:16]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:37:16]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:37:16]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:37:16]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:37:16]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:37:32]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:37:47]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:38:03]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:38:03]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:38:03]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:38:03]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:38:04]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:38:04]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:38:05]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:38:05]  WARN   No IMRAD sections detected
+[2026-04-17 23:38:05]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:38:05]   OK    Extraction complete   file=90e15cfe-76ae-45c8-851f-4f9831833b8a_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:41:00] 
+============================================================
+  Extracting — b19c8684-563c-4e8a-ae5b-d7b0b9dd1acc_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:41:00]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:41:00]  INFO   PDF loaded   pages=9
+[2026-04-17 23:41:01]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:41:01]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:41:01]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:41:01]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:41:01]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:41:17]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:41:33]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:41:48]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:41:48]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:41:48]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:41:48]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:41:49]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:41:49]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:41:50]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:41:50]  WARN   No IMRAD sections detected
+[2026-04-17 23:41:50]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:41:50]   OK    Extraction complete   file=b19c8684-563c-4e8a-ae5b-d7b0b9dd1acc_NONIMRAD_PAGE_TEST.pdf
+[2026-04-17 23:45:47] 
+============================================================
+  Extracting — 7ddb4fa2-a085-4473-a53f-7aeaf3860ffd_NONIMRAD_PAGE_TEST.pdf
+============================================================
+[2026-04-17 23:45:47]  INFO   Direct text extraction via pypdf...
+[2026-04-17 23:45:47]  INFO   PDF loaded   pages=9
+[2026-04-17 23:45:47]  INFO   Page map after OCR supplement   covered=9/9
+[2026-04-17 23:45:47]  INFO   pypdf meta text extracted   chars=22248
+[2026-04-17 23:45:47]  WARN   Direct extraction insufficient — falling back to OCR for meta pages
+[2026-04-17 23:45:47]  INFO   Meta OCR engine: EasyOCR
+[2026-04-17 23:45:48]  INFO   EasyOCR processing page   page=1
+[2026-04-17 23:46:03]  INFO   EasyOCR processing page   page=2
+[2026-04-17 23:46:19]  INFO   EasyOCR processing page   page=3
+[2026-04-17 23:46:35]  REGEX  Author scan region   chars=6000  truncated_at=none
+[2026-04-17 23:46:35]  WARN   Abstract extraction insufficient — no OCR fallback for text-based PDFs
+[2026-04-17 23:46:35]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results_and_discussion'
+[2026-04-17 23:46:35]   │  REGEX pg=4 skip — past late-doc cutoff (40%) for 'introduction'
+[2026-04-17 23:46:36]   │  REGEX pg=7 skip — past late-doc cutoff (70%) for 'methods'
+[2026-04-17 23:46:36]   │  REGEX pg=7 skip — past late-doc cutoff (75%) for 'results'
+[2026-04-17 23:46:37]   │  REGEX pg=9 skip — past late-doc cutoff (92%) for 'discussion'
+[2026-04-17 23:46:37]  WARN   No IMRAD sections detected
+[2026-04-17 23:46:37]   OK    IMRAD summaries generated   sections=[]
+[2026-04-17 23:46:37]   OK    Extraction complete   file=7ddb4fa2-a085-4473-a53f-7aeaf3860ffd_NONIMRAD_PAGE_TEST.pdf

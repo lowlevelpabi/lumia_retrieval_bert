@@ -45,18 +45,9 @@ os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 @router.get("/upload/status/{session_id}")
 async def upload_status(session_id: str):
     """
-    Step 1b: Stream real-time progress for a specific upload session.
+    Step 1b: Get the current progress for a specific upload session (Polling Mode).
     """
-    return StreamingResponse(
-        task_manager.subscribe(session_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Critical for Cloudflare/Nginx buffering
-            "Content-Type": "text/event-stream",
-        }
-    )
+    return task_manager.get_task(session_id)
 
 @router.post("/preview", response_model=UploadPreviewResponse, dependencies=[Depends(get_current_user)])
 async def upload_preview(
@@ -106,6 +97,10 @@ async def upload_preview(
 
     if not session_id:
         session_id = str(uuid.uuid4())
+    
+    # Immediate 5% update to show the server received the file
+    task_manager.update_task(session_id, 5, "File received, initializing...")
+    
     temp_path = os.path.join(TEMP_UPLOAD_DIR, f"{session_id}_{file.filename}")
     
     with open(temp_path, "wb") as buffer:

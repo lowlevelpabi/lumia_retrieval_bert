@@ -21,27 +21,38 @@ class TaskManager:
     async def subscribe(self, session_id: str) -> AsyncGenerator[str, None]:
         """
         SSE Generator: Streams status updates for a specific session.
+        Added padding and heartbeat to support Cloudflare/Proxies.
         """
+        # 1. Send 2KB of padding to force Cloudflare/Proxies to flush the buffer
+        yield f": {' ' * 2048}\n\n"
+        
         last_progress = -1
         last_message = ""
+        heartbeat_count = 0
         
         while True:
             task = self.get_task(session_id)
             curr_progress = task["progress"]
             curr_message = task["message"]
             
-            # Only send if something changed
+            # 2. Only send if something changed
             if curr_progress != last_progress or curr_message != last_message:
                 yield f"data: {json.dumps(task)}\n\n"
                 last_progress = curr_progress
                 last_message = curr_message
+            else:
+                # 3. Heartbeat: Send a comment every ~15 seconds to keep connection alive
+                heartbeat_count += 1
+                if heartbeat_count >= 30: # 30 * 0.5s = 15s
+                    yield ": heartbeat\n\n"
+                    heartbeat_count = 0
             
             if task["status"] in ["completed", "failed"]:
-                # Send final state once more just in case
+                # Final push
                 yield f"data: {json.dumps(task)}\n\n"
                 break
                 
-            await asyncio.sleep(0.5) # Poll interval for the stream
+            await asyncio.sleep(0.5)
 
     def remove_task(self, session_id: str):
         if session_id in self.tasks:
