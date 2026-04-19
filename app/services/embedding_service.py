@@ -2,17 +2,19 @@ from sentence_transformers import SentenceTransformer
 from typing import List
 import os
 
-model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
-model.save("./models/multi-qa-MiniLM-L6-cos-v1")
-
 class EmbeddingService:
     def __init__(self):
-        local_path = "./models/multi-qa-MiniLM-L6-cos-v1"
-        model_name = local_path if os.path.exists(local_path) else "multi-qa-MiniLM-cos-v1"
+        # Resolve path relative to project root
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        local_path = os.path.join(base_dir, "models", "multi-qa-MiniLM-L6-cos-v1")
 
-        print(f"Loading Multi-Vector Search Model: {model_name}...")
-
-        self.model = SentenceTransformer(model_name)
+        if os.path.exists(local_path):
+            print(f"Loading Multi-Vector Search Model (Local): {local_path}...")
+            # local_files_only=True prevents the model from trying to connect to Hugging Face
+            self.model = SentenceTransformer(local_path, local_files_only=True)
+        else:
+            print(f"Warning: Local model not found at {local_path}. Falling back to Hugging Face...")
+            self.model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
 
     def get_embedding(self, text: str) -> List[float]:
         """
