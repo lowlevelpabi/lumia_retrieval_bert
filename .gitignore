@@ -8,6 +8,9 @@ venv/
 # Qdrant local storage
 qdrant_storage/
 
+#logfile
+system_logs.txt
+
 # Databases
 thesis.db
 *.db.bak
@@ -33,3 +36,4 @@ sample_documents/
 extracted_data_heading/
 sample_data/
 imrad_document/
+models/
