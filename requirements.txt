@@ -20,3 +20,4 @@ alembic
 httpx
 safetensors
 pymupdf
+sentence-transformers>=5.4.1

@@ -5188,3 +5188,9 @@
 [2026-04-19 12:47:24]   ML    Summary ready — 'methods'   chars=3492
 [2026-04-19 12:47:24]   ML    Summary ready — 'results'   chars=7273
 [2026-04-19 12:47:24]   ML    Summary ready — 'discussion'   chars=11120
+[2026-04-19 16:50:53]  INFO   Initializing EasyOCR (English)
+[2026-04-19 16:50:56]   OK    EasyOCR initialized
+[2026-04-19 16:51:52]  INFO   Initializing EasyOCR (English)
+[2026-04-19 16:51:53]   OK    EasyOCR initialized
+[2026-04-19 17:34:07]  INFO   Initializing EasyOCR (English)
+[2026-04-19 17:34:10]   OK    EasyOCR initialized
