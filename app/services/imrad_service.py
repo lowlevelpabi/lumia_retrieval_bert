@@ -474,9 +474,9 @@ def _find_section_page(
     _LATE_CUTOFF: Dict[str, float] = {
         "introduction":          0.40,
         "methods":               0.70,
-        "results":               0.75,
-        "results_and_discussion": 0.75,
-        "discussion":            0.92,
+        "results":               0.90,
+        "results_and_discussion": 0.90,
+        "discussion":            0.96,
         "references":            1.0,
     }
     cutoff_ratio = _LATE_CUTOFF.get(section_key, 0.90)
