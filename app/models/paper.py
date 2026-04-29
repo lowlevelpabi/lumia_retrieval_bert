@@ -22,6 +22,7 @@ class Paper(Base):
     uploaded_by = Column(String, nullable=True)   # username of uploader
     uploader_role = Column(String, nullable=True)
     media = Column(JSON, nullable=True)           # Dictionary of {Table_ID: Base64_Image}
+    status = Column(String, default="Approved")   # "Approved" or "Pending"
 
     # ── Full extracted text (shown in "Regular" / full-text view) ─────────────
     introduction = Column(Text, nullable=True)
@@ -46,6 +47,10 @@ class Paper(Base):
     # deleted_at = <ts>  → paper is trashed; permanently purged after 15 days
     deleted_at = Column(DateTime(timezone=True), nullable=True, default=None)
     deleted_by = Column(String, nullable=True, default=None)
+
+    # ── Approval tracking ─────────────────────────────────────────────────────
+    approved_by = Column(String, nullable=True)   # username of approver
+    approved_at = Column(DateTime(timezone=True), nullable=True)
 
     def sections_dict(self) -> dict:
         """Return full-text sections as a dict for imrad_summary_service."""

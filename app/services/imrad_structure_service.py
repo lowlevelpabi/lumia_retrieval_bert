@@ -10,12 +10,16 @@ from __future__ import annotations
 import re
 from typing import List, Dict, Any, Optional
 
-# ── Subheading label lists ────────────────────────────────────────────────────
-# Must stay in sync with imrad_service.py METHODOLOGY_SUBHEADINGS and
-# RESULTS_SUBHEADINGS labels.
+INTRODUCTION_LABELS: List[str] = [
+    "Background of the Study", "Statement of the Problem", "Objectives of the Study",
+    "General Objective", "Specific Objectives", "Significance of the Study",
+    "Scope and Delimitation", "Scope and Limitation", "Conceptual Framework",
+    "Theoretical Framework", "Definition of Terms", "Problem Background",
+    "Project Context", "Purpose and Description", "General Description",
+]
 
 METHODOLOGY_LABELS: List[str] = [
-    "Research Design", "Research Approach", "Research Settings",
+    "Research Design", "Research Approach", "Research Settings", "Study Settings",
     "Business Process", "Participants of the Study", "Sampling Technique",
     "Sampling Techniques", "Data to be Gathered",
     "Research Instruments", "Data Collection, Instrument, and Procedure",
@@ -23,16 +27,18 @@ METHODOLOGY_LABELS: List[str] = [
     "Ethical Considerations", "Development Model", 
     "Analysis and Quick Design", "Prototype Cycles", "Testing", "Implementation",
     "Requirement Analysis", "System Development", "System Evaluation",
+    "Scope and Delimitation", "Scope and Limitation", "Definition of Terms",
+    "Conceptual Framework", "Theoretical Framework",
 ]
 
 RESULTS_LABELS: List[str] = [
     "Discussion of the Methodology Phases", "Discussion of Findings",
     "System Software Evaluation Results", "System Testing", "User Acceptance Testing",
     "Functionality", "Reliability", "Usability", "Efficiency",
-    "Portability", "Maintainability",
+    "Portability", "Maintainability", "Security", "Software Testing Results",
 ]
 
-ALL_SUBHEADING_LABELS: List[str] = METHODOLOGY_LABELS + RESULTS_LABELS
+ALL_SUBHEADING_LABELS: List[str] = INTRODUCTION_LABELS + METHODOLOGY_LABELS + RESULTS_LABELS
 
 # Section heading strings that should never appear as body content.
 # These are the chapter-level headings that _strip_page_header handles,
@@ -76,7 +82,9 @@ def _structure_section(
         return []
 
     # Choose relevant subheading labels
-    if section_key == "methods":
+    if section_key == "introduction":
+        labels = INTRODUCTION_LABELS
+    elif section_key == "methods":
         labels = METHODOLOGY_LABELS
     elif section_key in ("results", "results_and_discussion", "discussion"):
         labels = RESULTS_LABELS
@@ -141,6 +149,8 @@ def _structure_section(
 
         # 1. Check for standalone or inline subheading
         is_subheading = False
+        
+        # A. Check against our known label list
         if labels:
             for label in labels:
                 pattern = r"^\s*(?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
@@ -174,7 +184,24 @@ def _structure_section(
                     is_subheading = True
                     break
         
+        # B. Check for hierarchical numbering (e.g. "1.1 Something" or "A. Something")
+        # if not already caught by Path A and the line is short.
+        if not is_subheading:
+            # Matches "1.1 Title", "A. Title", "I. Title"
+            hierarchy_match = re.match(r'^(?:(?:[IVX\d]{1,4}|[A-Z])[\. ]+)+([A-Z][^a-z]{0,80})$', stripped)
+            if hierarchy_match and len(stripped) < 100:
+                flush_buffer()
+                flush_pending_media()
+                blocks.append({"type": "subheading", "text": stripped})
+                is_subheading = True
+
         if is_subheading:
+            continue
+
+        # ── 1.5 Check for Bullet/List items to prevent joining into a single paragraph ──
+        if re.match(r'^[\-\*•]\s+', stripped) or re.match(r'^\d+[\.\)]\s+', stripped):
+            flush_buffer()
+            blocks.append({"type": "text", "text": stripped})
             continue
 
         # 2. Check for Table/Figure Label (Caption) — only when no inline markers exist.

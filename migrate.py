@@ -79,6 +79,12 @@ def add_columns_if_missing():
                 "deleted_at": "DATETIME",
                 "deleted_by": "VARCHAR",
                 "references": "TEXT",
+                "status": "TEXT DEFAULT 'Approved'",
+                "uploaded_by": "VARCHAR",
+                "uploader_role": "VARCHAR",
+                "media": "TEXT",
+                "approved_by": "VARCHAR",
+                "approved_at": "DATETIME",
             }
             for col_name, col_type in to_add.items():
                 if col_name not in existing_cols:

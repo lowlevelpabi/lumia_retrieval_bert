@@ -24,6 +24,7 @@ class PaperBase(BaseModel):
     uploaded_by: Optional[str] = None
     uploader_role: Optional[str] = None
     media: Optional[Dict[str, str]] = None
+    status: Optional[str] = "Approved"
 
     # Full extracted text (regular view)
     introduction: Optional[str] = None
@@ -54,6 +55,9 @@ class PaperResponse(PaperBase):
     # Soft-delete / Recycle Bin fields
     deleted_at: Optional[datetime] = None
     deleted_by: Optional[str] = None
+    # Approval tracking
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
 
     @field_validator('id', mode='before')
     def encode_db_id(cls, v):
@@ -91,6 +95,7 @@ class PaperUpdate(BaseModel):
 
     # References (editable)
     references: Optional[str] = None
+    status: Optional[str] = None
 
 
 # ── IMRAD View ────────────────────────────────────────────────────────────────
@@ -154,6 +159,7 @@ class IMRADViewResponse(BaseModel):
 class SearchResult(BaseModel):
     id: str
     score: float
+    recommendation_reason: Optional[str] = None
     payload: dict
 
     @field_validator('id', mode='before')

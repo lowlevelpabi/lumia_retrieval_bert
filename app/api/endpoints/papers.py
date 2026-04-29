@@ -317,6 +317,9 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         file_path=final_path,
         uploaded_by=current_user.full_name or current_user.username,
         uploader_role=current_user.role,
+        status="Pending" if current_user.role == "Student" else "Approved",
+        approved_by=None if current_user.role == "Student" else (current_user.full_name or current_user.username),
+        approved_at=None if current_user.role == "Student" else datetime.now(),
 
         # Save IMRAD sections (manual overrides or defaults)
         introduction=data.introduction,
@@ -342,7 +345,7 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         print(f"[confirm_upload] Saved {len(db_paper.media)} visual table snippets.")
 
     db.add(ActivityLog(
-        action="Upload",
+        action="Upload (Pending)" if db_paper.status == "Pending" else "Upload",
         paper_title=db_paper.title,
         performed_by=current_user.full_name or current_user.username,
         performed_by_role=current_user.role,
@@ -435,6 +438,7 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
             "view_count": db_paper.view_count,
             "uploaded_by": db_paper.uploaded_by,
             "uploader_role": db_paper.uploader_role,
+            "status": db_paper.status,
             "created_at": db_paper.created_at.isoformat() if db_paper.created_at else None
         }
     )
@@ -621,8 +625,11 @@ async def search_papers(
         print(f"    Query: '{query}'")
         print(f"    Filters: min_yr={min_year}, max_yr={max_year}, dept={department}, type={project_type}")
         
-        # 1. SQL Metadata-Only Filter (active papers only — exclude soft-deleted)
-        sql_query = db.query(Paper).filter(Paper.deleted_at.is_(None))
+        # 1. SQL Metadata-Only Filter (active and approved papers only)
+        sql_query = db.query(Paper).filter(
+            Paper.deleted_at.is_(None),
+            Paper.status == "Approved"
+        )
         
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
@@ -795,13 +802,34 @@ async def get_paper_recommendations(
         raise HTTPException(status_code=404, detail="Paper not found")
 
     try:
-        print(f"--- Recommendations requested for Paper ID: {real_id} ---")
+        print(f"--- [Smart Recommendations] Paper ID: {real_id} ---")
         
-        # Construct Metadata Filter for Qdrant (Narrow Down)
+        # ── Step A: Load Source Paper from SQLite ──────────────────────────────
+        # We need the full IMRAD text from SQLite (not just the short abstract
+        # payload stored in Qdrant) to build per-section context embeddings.
+        source_paper = db.query(Paper).filter(Paper.id == real_id).first()
+        if not source_paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        # Build a section-keyed dict of the source paper's actual full text.
+        # Methods + Results are the strongest academic similarity signals.
+        # Prefer full extracted text; fall back to pre-generated summaries.
+        source_texts: dict = {
+            "title":        (source_paper.title or "").strip(),
+            "abstract":     (source_paper.abstract or "").strip(),
+            "introduction": (source_paper.introduction or source_paper.introduction_summary or "").strip(),
+            "methods":      (source_paper.methods or source_paper.methods_summary or "").strip(),
+            "results":      (source_paper.results or source_paper.results_summary or "").strip(),
+            "discussion":   (source_paper.discussion or source_paper.discussion_summary or "").strip(),
+        }
+        # Drop empty keys — vector_db.recommend() will fall back gracefully
+        source_texts = {k: v for k, v in source_texts.items() if v}
+        print(f"[Smart Recommendations] Source sections available: {list(source_texts.keys())}")
+
+        # ── Step B: Qdrant Filter (exclude source + optional metadata) ─────────
         qdrant_filter = models.Filter(
             must_not=[models.HasIdCondition(has_id=[real_id])]
         )
-        
         filter_conditions = []
         if author:
             filter_conditions.append(models.FieldCondition(key="author", match=models.MatchValue(value=author)))
@@ -809,60 +837,119 @@ async def get_paper_recommendations(
             filter_conditions.append(models.FieldCondition(key="year", match=models.MatchValue(value=year)))
         if department:
             filter_conditions.append(models.FieldCondition(key="department", match=models.MatchValue(value=department)))
-        
         if filter_conditions:
             qdrant_filter.must = filter_conditions
 
-        # ── Step A: Get Context for Keyword Boosting ──
-        # We use the source paper's title/keywords as a secondary signal
-        source_paper = db.query(Paper).filter(Paper.id == real_id).first()
-        source_words = set()
-        if source_paper:
-            source_words = set((source_paper.title or "").lower().split())
-
-        # ── Step B: Fetch Vector Recommendations ──
-        # results are already capped at 1.0 raw cosine by vector_db.py overhaul
-        results = vector_db.recommend(real_id, limit=limit, filter_obj=qdrant_filter)
+        # ── Step C: Context-Aware Vector Search ───────────────────────────────
+        # vector_db.recommend() embeds each source section as a live query vector
+        # and searches the matching IMRAD slot in Qdrant.  This means we find papers
+        # that are semantically similar in *what they did and found*, not just
+        # geometrically close to the source point in vector space.
+        results = vector_db.recommend(
+            real_id,
+            limit=60,               # generous pool; cross-encoder will refine
+            filter_obj=qdrant_filter,
+            source_texts=source_texts,
+        )
         
-        # ── Step C: Linear Hybrid Fusion ──
-        search_results = []
+        if not results:
+            return []
+
+        # ── Step D: Cross-Encoder Re-ranking with Rich Context ────────────────
+        # Build a compound context string: title + abstract + methodology + results.
+        # This gives the CE a full academic picture of the source paper — not just
+        # its topic, but what it studied and how.
+        ce_parts = [source_paper.title or ""]
+        if source_paper.abstract:
+            ce_parts.append(source_paper.abstract[:400])
+        methods_txt = source_paper.methods_summary or source_paper.methods or ""
+        if methods_txt:
+            ce_parts.append(methods_txt[:300])
+        results_txt = source_paper.results_summary or source_paper.results or ""
+        if results_txt:
+            ce_parts.append(results_txt[:200])
+        ce_query = " | ".join(p for p in ce_parts if p.strip())[:1000]
+
+        re_rank_candidates = []
         for hit in results:
-            vector_score = hit.score  # 0.0 to 1.0 from vector_db
-            
-            # Calculate Keyword Match Score (0 to 1) based on source paper metadata
-            keyword_score = 0.0
-            if source_words:
-                cand_title_words = set(hit.payload.get("title", "").lower().split())
-                cand_abs_words = set(hit.payload.get("abstract", "").lower().split())
-                
-                # Priority 1: Title match (80% of keyword weight)
-                title_overlap = len(source_words & cand_title_words) / len(source_words)
-                # Priority 2: Abstract match (20% of keyword weight)
-                content_overlap = len(source_words & cand_abs_words) / len(source_words)
-                
-                keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
+            if hit.payload.get("title") == source_paper.title:
+                continue
+            cand_title    = hit.payload.get("title") or ""
+            cand_abstract = hit.payload.get("abstract") or ""
+            cand_text     = f"{cand_title} | {cand_abstract[:500]}"
+            re_rank_candidates.append({
+                "id":      hit.id,
+                "score":   hit.score,
+                "text":    cand_text,
+                "payload": hit.payload
+            })
 
-            # COMBINE: 60% Semantic meaning + 40% Literal keyword matching
-            final_score = (vector_score * 0.6) + (keyword_score * 0.4)
+        reranked = rerank_with_cross_encoder(
+            query=ce_query,
+            candidates=re_rank_candidates,
+            top_k=limit
+        )
 
-            # EXPLICIT FILTER: Do not recommend the same paper (by ID or Title)
-            if int(hit.id) == int(real_id) or hit.payload.get("title") == source_paper.title:
+        # ── Step E: Score Fusion + Human-Readable Reason Generation ──────────
+        search_results = []
+        source_kws = set(k.strip().lower() for k in (source_paper.keywords or "").split(",") if k.strip())
+        
+        for c in reranked:
+            ce_score = c.get("rerank_score", 0.0)
+            # Normalize ms-marco cross-encoder range (~-10..+10) to 0–1
+            norm_ce = max(0.0, min(1.0, (ce_score + 5) / 10))
+            # 35% multi-section vector similarity + 65% cross-encoder deep context
+            final_score = (c["score"] * 0.35) + (norm_ce * 0.65)
+
+            if final_score < settings.RECOMMENDATION_THRESHOLD:
                 continue
 
+            # ── Narrative "Real" Reason Composition ──────────────────────────
+            cand_payload = c["payload"]
+            match_section = cand_payload.get("_match_section", "abstract")
+            
+            # Identify shared technical concepts (keywords)
+            cand_kws = set(k.strip().lower() for k in (cand_payload.get("keywords") or "").split(",") if k.strip())
+            overlap = sorted(list(source_kws & cand_kws))
+            
+            # Map sections to specific research actions
+            section_actions = {
+                "methods":      "shares a highly compatible methodological approach",
+                "results":      "provides complementary results and findings",
+                "discussion":   "aligns with the theoretical implications you are investigating",
+                "abstract":     "addresses a very similar core research objective",
+                "introduction": "operates within the same specific research domain",
+                "title":        "explores an almost identical topical area",
+            }
+            action = section_actions.get(match_section, "shows strong semantic alignment with your research")
+
+            if overlap:
+                # e.g., "Both studies focus on [keyword1] and [keyword2]. This paper [action]..."
+                concepts = ", ".join(overlap[:2])
+                if len(overlap) > 2:
+                    concepts += f", and {overlap[2]}"
+                composed_reason = f"Both studies focus on {concepts}. This research {action} to provide deeper insight into your current topic."
+            else:
+                # Fallback for no keyword overlap - uses the section action + semantic weight
+                if norm_ce > 0.85:
+                    composed_reason = f"This paper {action} with exceptional semantic depth and relevance to your study's objectives."
+                else:
+                    composed_reason = f"This study {action} and serves as a valuable comparative reference for your work."
+
             search_results.append(SearchResult(
-                id=encode_id(hit.id),
-                score=final_score,
-                payload=hit.payload
+                id=encode_id(c["id"]),
+                score=round(final_score, 4),
+                recommendation_reason=composed_reason,
+                payload=cand_payload
             ))
             
-        print(f"[Recommendations] Returning {len(search_results)} hybrid-scored recommendations.")
+        print(f"[Smart Recommendations] Returning {len(search_results)} context-aware recommendations.")
         return search_results
     except Exception as e:
         import traceback
         print(f"RECOMMENDATION ERROR: {type(e).__name__} - {e}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 @router.delete("/{paper_id}", dependencies=[Depends(faculty_or_admin_required)])
@@ -888,7 +975,7 @@ async def delete_paper(paper_id: str, db: Session = Depends(get_db), current_use
 
     # Log the action
     db.add(ActivityLog(
-        action="Delete",
+        action="Reject" if db_paper.status == "Pending" else "Delete",
         paper_title=db_paper.title,
         performed_by=performer,
         performed_by_role=current_user.role,
@@ -981,6 +1068,30 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
 
     # Update SQLite database fields
     update_data = updates.model_dump(exclude_unset=True)
+    
+    # Track approval if status changes to "Approved"
+    is_approving = update_data.get("status") == "Approved" and db_paper.status != "Approved"
+    
+    if is_approving:
+        db_paper.approved_by = current_user.full_name or current_user.username
+        db_paper.approved_at = datetime.now()
+        
+        db.add(ActivityLog(
+            action="Approve",
+            paper_title=db_paper.title,
+            performed_by=current_user.full_name or current_user.username,
+            performed_by_role=current_user.role,
+        ))
+
+    # Log general update if not approving (or as separate log if desired)
+    if not is_approving:
+        db.add(ActivityLog(
+            action="Update",
+            paper_title=db_paper.title,
+            performed_by=current_user.full_name or current_user.username,
+            performed_by_role=current_user.role,
+        ))
+
     for key, value in update_data.items():
         setattr(db_paper, key, value)
     
@@ -1017,7 +1128,9 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
             "citation_count": db_paper.citation_count,
             "view_count": db_paper.view_count,
             "uploaded_by": db_paper.uploaded_by,
-            "uploader_role": db_paper.uploader_role
+            "uploader_role": db_paper.uploader_role,
+            "approved_by": db_paper.approved_by,
+            "approved_at": db_paper.approved_at.isoformat() if db_paper.approved_at else None
         }
     )
 
@@ -1192,7 +1305,7 @@ async def cite_paper(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    """Allow a registered user to cite/vouch for a paper (once per user)."""
+    """Toggle citation status for a paper (cite/uncite)."""
     real_id = decode_id(paper_id)
     if real_id is None:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -1201,20 +1314,24 @@ async def cite_paper(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    already_cited = db.query(UserCitation).filter(
+    existing = db.query(UserCitation).filter(
         UserCitation.user_id == current_user.id,
         UserCitation.paper_id == real_id
     ).first()
 
-    if already_cited:
-        raise HTTPException(status_code=409, detail="You have already cited this paper")
-
-    citation = UserCitation(user_id=current_user.id, paper_id=real_id)
-    db.add(citation)
-    paper.citation_count = (paper.citation_count or 0) + 1
-    db.commit()
-    db.refresh(paper)
-    return {"has_cited": True, "citation_count": paper.citation_count}
+    if existing:
+        db.delete(existing)
+        paper.citation_count = max(0, (paper.citation_count or 1) - 1)
+        db.commit()
+        db.refresh(paper)
+        return {"has_cited": False, "citation_count": paper.citation_count}
+    else:
+        new_citation = UserCitation(user_id=current_user.id, paper_id=real_id)
+        db.add(new_citation)
+        paper.citation_count = (paper.citation_count or 0) + 1
+        db.commit()
+        db.refresh(paper)
+        return {"has_cited": True, "citation_count": paper.citation_count}
 
 
 @router.get("/{paper_id}/bookmark", response_model=BookmarkStatus)

@@ -165,7 +165,7 @@ SKIP_PAGE_PATTERNS: List[str] = [
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Research Design",              "patterns": [r"Research\s+(?:Approach\s+(?:and\s+)?)?Design", r"Research\s+Design"]},
     {"label": "Research Approach",            "patterns": [r"Research\s+Approach(?:\s+and\s+Design)?"]},
-    {"label": "Research Settings",            "patterns": [r"Research\s+Settings?"]},
+    {"label": "Research Settings",            "patterns": [r"Research\s+Settings?", r"Study\s+Settings?"]},
     {"label": "Business Process",             "patterns": [r"Business\s+Process"]},
     {"label": "Participants of the Study",    "patterns": [r"Participants?\s+of\s+the\s+Study", r"Participants?", r"Respondents?"]},
     {"label": "Sampling Technique",           "patterns": [r"Sampling\s+Techniques?"]},
@@ -184,6 +184,10 @@ METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Requirement Analysis",         "patterns": [r"Requirement\s+Analysis"]},
     {"label": "System Development",           "patterns": [r"System\s+Development"]},
     {"label": "System Evaluation",            "patterns": [r"System\s+Evaluation"]},
+    {"label": "Scope and Delimitation",       "patterns": [r"Scope\s+and\s+Delimitation", r"Scope\s+and\s+Limitation"]},
+    {"label": "Definition of Terms",          "patterns": [r"Definition\s+of\s+Terms"]},
+    {"label": "Conceptual Framework",         "patterns": [r"Conceptual\s+Framework"]},
+    {"label": "Theoretical Framework",        "patterns": [r"Theoretical\s+Framework"]},
 ]
 
 RESULTS_SUBHEADINGS: List[Dict] = [
@@ -198,6 +202,8 @@ RESULTS_SUBHEADINGS: List[Dict] = [
     {"label": "Maintainability",              "patterns": [r"^Maintainability$"]},
     {"label": "User Acceptance Testing",      "patterns": [r"User\s+Acceptance\s+(?:Testing|Test)", r"\bUAT\b"]},
     {"label": "System Testing",              "patterns": [r"System\s+Testing"]},
+    {"label": "Security",                     "patterns": [r"^Security$"]},
+    {"label": "Software Testing Results",     "patterns": [r"Software\s+Testing\s+Results"]},
 ]
 
 BOILERPLATE_PATTERNS: List[str] = [

@@ -569,7 +569,18 @@ def _get_cross_encoder():
     if _cross_encoder is None:
         try:
             from sentence_transformers import CrossEncoder
-            _cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL, device="cpu")
+            import logging
+            # Suppress the 'downloading weights' progress bar and HF hub warnings
+            logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+            logging.getLogger("transformers").setLevel(logging.ERROR)
+            
+            try:
+                # Try offline first to prevent network checks on every reload
+                _cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL, device="cpu", local_files_only=True)
+            except Exception:
+                # Fallback to online if it hasn't been downloaded yet
+                _cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL, device="cpu")
+                
             log.ml_load(CROSS_ENCODER_MODEL, tier="Cross-Encoder re-ranker")
         except Exception as e:
             log.ml_load_fail(CROSS_ENCODER_MODEL, e)
@@ -610,10 +621,20 @@ def rerank_with_cross_encoder(
         return candidates[:top_k]
 
     try:
-        pairs = [(query, c["text"]) for c in candidates]
-        scores = ce.predict(pairs)
-        for c, s in zip(candidates, scores):
+        # Cross-Encoders (especially ms-marco) can be asymmetric. 
+        # To guarantee mutual recommendations (if A recommends B, B recommends A),
+        # we score both directions and average them.
+        forward_pairs = [(query, c["text"]) for c in candidates]
+        reverse_pairs = [(c["text"], query) for c in candidates]
+        
+        forward_scores = ce.predict(forward_pairs)
+        reverse_scores = ce.predict(reverse_pairs)
+        
+        avg_scores = (forward_scores + reverse_scores) / 2.0
+        
+        for c, s in zip(candidates, avg_scores):
             c["rerank_score"] = float(s)
+            
         reranked = sorted(candidates, key=lambda x: x["rerank_score"], reverse=True)
         log.info("[Rerank] Cross-encoder re-ranked candidates",
                  total=str(len(candidates)), top_k=str(top_k))

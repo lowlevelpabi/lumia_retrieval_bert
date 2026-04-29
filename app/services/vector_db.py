@@ -17,13 +17,16 @@ SECTION_WEIGHTS: Dict[str, float] = {
     "discussion":   0.90,
 }
 
+# Recommendation section weights:
+# Methods + Results carry the most academic signal ("what was done" and "what was found").
+# Abstract/Title are strong anchors. Introduction/Discussion provide softer thematic context.
 RECOMMEND_WEIGHTS: Dict[str, float] = {
-    "methods":      1.50,
-    "results":      1.50,
-    "abstract":     1.20,
-    "title":        1.20,
-    "introduction": 1.00,
-    "discussion":   1.00,
+    "methods":      1.60,   # highest — technical approach alignment
+    "results":      1.60,   # highest — empirical findings alignment
+    "abstract":     1.30,   # strong anchor — paper summary
+    "title":        1.20,   # good anchor — topical label
+    "introduction": 0.90,   # softer — background context
+    "discussion":   0.90,   # softer — interpretive context
 }
 
 class VectorDB:
@@ -140,52 +143,100 @@ class VectorDB:
             )
         )
 
-    def recommend(self, paper_id: int, limit: int = 15, filter_obj: Any = None):
+    def recommend(
+        self,
+        paper_id: int,
+        limit: int = 15,
+        filter_obj: Any = None,
+        source_texts: Dict[str, str] = None,
+    ):
         """
-        Finds papers similar to the given paper_id using Weighted Multi-Vector similarity.
-        Prioritizes Methods and Results similarity for academically meaningful matches.
+        Context-Aware Multi-Section Recommendation.
+
+        Instead of using Qdrant's built-in RecommendInput (which only does geometric
+        vector neighborhood), this method:
+
+        1. Accepts the source paper's actual section texts (methods, results, abstract,
+           title, introduction, discussion) passed from the API layer.
+        2. Embeds each available section into a fresh query vector using the same
+           SentenceTransformer model used at upload time.
+        3. Runs a weighted semantic search per section across the entire corpus
+           (excluding the source paper itself via filter_obj).
+        4. Merges results using per-section RECOMMEND_WEIGHTS so that strong
+           methodology/results alignment outranks vague topical similarity.
+
+        This means recommendations are driven by the MEANING of what the paper
+        actually says, not just its position in Qdrant's vector space.
         """
+        from app.services.embedding_service import embedding_service
+
         active_vectors = imrad_service.get_all_vector_names()
-        
-        all_results = []
+
+        # If no source texts provided, fall back to title-only search (safe default)
+        if not source_texts:
+            source_texts = {}
+
+        all_results: List[Dict] = []  # list of {weighted_score, raw_hit, match_section}
+
         for vector_name in active_vectors:
             weight = RECOMMEND_WEIGHTS.get(vector_name, 1.0)
-            try:
-                results = self.client.query_points(
-                    collection_name=self.collection_name,
-                    using=vector_name,
-                    query=models.RecommendQuery(
-                        recommend=models.RecommendInput(positive=[paper_id])
-                    ),
-                    query_filter=filter_obj,
-                    limit=limit * 2 
-                )
-                for hit in results.points:
-                    all_results.append({
-                        "weighted_score": hit.score * weight,
-                        "raw_hit": hit
-                    })
-            except Exception:
+
+            # Resolve the section text to embed for this vector slot.
+            # Priority: exact section name → fallback to abstract → skip if nothing.
+            text_to_embed = (
+                source_texts.get(vector_name)
+                or source_texts.get("abstract")
+                or source_texts.get("title")
+                or ""
+            ).strip()
+
+            if not text_to_embed:
+                print(f"[Recommend] Skipping vector '{vector_name}' — no source text available.")
                 continue
 
-        # Max-merge by weighted score per paper ID
+            try:
+                # Embed the source paper's actual section text as a live query vector
+                query_vector = embedding_service.get_embedding(text_to_embed)
+
+                response = self.client.query_points(
+                    collection_name=self.collection_name,
+                    using=vector_name,
+                    query=query_vector,
+                    query_filter=filter_obj,
+                    limit=limit * 3,  # generous pool for cross-encoder re-ranking later
+                )
+                for hit in response.points:
+                    # Exclude the source paper itself
+                    if int(hit.id) == int(paper_id):
+                        continue
+                    all_results.append({
+                        "weighted_score": hit.score * weight,
+                        "raw_hit": hit,
+                        "match_section": vector_name,
+                    })
+            except Exception as e:
+                print(f"[Recommend] Skipping vector '{vector_name}' (error): {e}")
+                continue
+
+        # Max-merge: keep the best weighted score per paper ID
         merged: Dict[int, Any] = {}
         best_weighted: Dict[int, float] = {}
+        best_section: Dict[int, str] = {}
 
         for item in all_results:
             hit = item["raw_hit"]
             wscore = item["weighted_score"]
-            
-            # Exclude the source paper itself (Ensure type consistency for comparison)
-            if int(hit.id) == int(paper_id):
-                continue
-
             hid_int = int(hit.id)
+
             if hid_int not in best_weighted or wscore > best_weighted[hid_int]:
                 best_weighted[hid_int] = wscore
-                # Keep raw cosine score capped at 1.0
-                hit.score = min(1.0, hit.score)
+                best_section[hid_int] = item["match_section"]
+                hit.score = min(1.0, hit.score)  # cap raw cosine at 1.0
                 merged[hid_int] = hit
+
+        # Annotate each merged hit with the section that drove its best score
+        for hid_int, hit in merged.items():
+            hit.payload["_match_section"] = best_section.get(hid_int, "abstract")
 
         sorted_ids = sorted(merged.keys(), key=lambda x: best_weighted[x], reverse=True)
         return [merged[hid] for hid in sorted_ids][:limit]
