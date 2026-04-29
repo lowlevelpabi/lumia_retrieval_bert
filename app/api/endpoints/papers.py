@@ -634,11 +634,21 @@ async def search_papers(
         if author: sql_query = sql_query.filter(Paper.author.ilike(f"%{author}%"))
         if year: sql_query = sql_query.filter(Paper.year == year)
         
-        # Numeric Year Range Filter (CAST string column to Integer for the range check)
-        if min_year is not None:
-            sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
-        if max_year is not None:
-            sql_query = sql_query.filter(Paper.year.cast(Integer) <= max_year)
+        # Enforce 5-year range limit (typically within 5 years only)
+        current_year = datetime.now().year
+        
+        if min_year is None:
+            min_year = current_year - 4
+        else:
+            min_year = max(min_year, current_year - 4)
+            
+        if max_year is None:
+            max_year = current_year
+        else:
+            max_year = min(max_year, current_year)
+
+        sql_query = sql_query.filter(Paper.year.cast(Integer) >= min_year)
+        sql_query = sql_query.filter(Paper.year.cast(Integer) <= max_year)
             
         if department: sql_query = sql_query.filter(Paper.department == department)
         if project_type: sql_query = sql_query.filter(Paper.project_type == project_type)
@@ -652,7 +662,6 @@ async def search_papers(
 
         # 2. Handle Search Mode (Semantic vs Browse)
         if query and query.strip():
-            # ── SEMANTIC SEARCH (Original Core Logic) ──
             if not candidate_ids:
                 return PaginatedSearchResults(
                     results=[],
@@ -661,53 +670,98 @@ async def search_papers(
                     page_size=page_size
                 )
 
-            print(f"Generating query embedding for BERT search: '{query}'...")
-            query_vector = embedding_service.get_embedding(query)
+            # ── ROUTING LOGIC (Semantic vs Keyword) ──
+            cleaned_query = query.strip()
+            is_quoted = cleaned_query.startswith('"') and cleaned_query.endswith('"')
+            if is_quoted:
+                cleaned_query = cleaned_query[1:-1].strip()
 
-            # Constrain search to paper IDs matching metadata filters
-            qdrant_filter = models.Filter(
-                must=[models.HasIdCondition(has_id=candidate_ids)]
-            )
+            words = cleaned_query.split()
+            # Rule: Quoted string OR <= 2 words forces a pure keyword search
+            is_keyword_search = is_quoted or len(words) <= 2
 
-            print(f"Searching across IMRAD vectors in Qdrant (constrained to {len(candidate_ids)} papers)...")
-            semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=100)
-
-            effective_threshold = threshold if threshold is not None else settings.DEFAULT_SEARCH_THRESHOLD
-
-            # Build a paper-id lookup for metadata comparison
-            candidate_map = {p.id: p for p in candidate_papers}
-            query_words = set(query.lower().split())
-
-            # ── LINEAR HYBRID FUSION (Semantic + Keyword) ──
             search_results = []
-            for hit in semantic_results:
-                vector_score = hit.score
-                paper = candidate_map.get(hit.id)
-                
-                # Calculate Keyword Match Score (0 to 1)
-                keyword_score = 0.0
-                if paper and query_words:
-                    title_words = set((paper.title or "").lower().split())
-                    abs_words   = set((paper.abstract or "").lower().split())
-                    kw_words    = set((paper.keywords or "").lower().replace(",", " ").split())
+            effective_threshold = threshold if threshold is not None else settings.DEFAULT_SEARCH_THRESHOLD
+            query_words = set(cleaned_query.lower().split())
+
+            if is_keyword_search:
+                print(f"[Search] Routing to KEYWORD SEARCH: '{cleaned_query}'")
+                for paper in candidate_papers:
+                    keyword_score = 0.0
+                    if query_words:
+                        title_words = set((paper.title or "").lower().split())
+                        abs_words   = set((paper.abstract or "").lower().split())
+                        kw_words    = set((paper.keywords or "").lower().replace(",", " ").split())
+                        
+                        # Priority 1: Title (80% of keyword weight)
+                        title_overlap = len(query_words & title_words) / len(query_words)
+                        # Priority 2: Abstract/Keywords (20% of keyword weight)
+                        content_overlap = len(query_words & (abs_words | kw_words)) / len(query_words)
+                        
+                        keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
                     
-                    # Priority 1: Title (80% of keyword weight)
-                    title_overlap = len(query_words & title_words) / len(query_words)
-                    # Priority 2: Abstract/Keywords (20% of keyword weight)
-                    content_overlap = len(query_words & (abs_words | kw_words)) / len(query_words)
+                    if keyword_score > 0:
+                        search_results.append(SearchResult(
+                            id=encode_id(paper.id),
+                            score=keyword_score,
+                            payload={
+                                "title":          paper.title,
+                                "author":         paper.author,
+                                "year":           paper.year,
+                                "abstract":       paper.abstract,
+                                "department":     paper.department,
+                                "project_type":   paper.project_type,
+                                "degree_program": paper.degree_program,
+                                "citation_count": paper.citation_count,
+                                "view_count":     paper.view_count,
+                                "uploaded_by":    paper.uploaded_by,
+                                "uploader_role":  paper.uploader_role,
+                                "created_at":     paper.created_at.isoformat() if paper.created_at else None
+                            }
+                        ))
+            else:
+                print(f"[Search] Routing to SEMANTIC CONTEXT SEARCH: '{cleaned_query}'")
+                print(f"Generating query embedding for BERT search: '{cleaned_query}'...")
+                query_vector = embedding_service.get_embedding(cleaned_query)
+
+                # Constrain search to paper IDs matching metadata filters
+                qdrant_filter = models.Filter(
+                    must=[models.HasIdCondition(has_id=candidate_ids)]
+                )
+
+                print(f"Searching across IMRAD vectors in Qdrant (constrained to {len(candidate_ids)} papers)...")
+                semantic_results = vector_db.search_max(query_vector, filter_obj=qdrant_filter, section=section, limit=100)
+
+                # Build a paper-id lookup for metadata comparison
+                candidate_map = {p.id: p for p in candidate_papers}
+
+                for hit in semantic_results:
+                    vector_score = hit.score
+                    paper = candidate_map.get(hit.id)
                     
-                    keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
-                
-                # COMBINE: 60% Semantic meaning + 40% Literal keyword matching
-                # This ensures "Mobile" in title always ranks higher than "Desktop" for a "Mobile" search.
-                final_score = (vector_score * 0.6) + (keyword_score * 0.4)
-                
-                if final_score >= effective_threshold:
-                    search_results.append(SearchResult(
-                        id=encode_id(hit.id),
-                        score=final_score,
-                        payload=hit.payload
-                    ))
+                    # Calculate Keyword Match Score (0 to 1)
+                    keyword_score = 0.0
+                    if paper and query_words:
+                        title_words = set((paper.title or "").lower().split())
+                        abs_words   = set((paper.abstract or "").lower().split())
+                        kw_words    = set((paper.keywords or "").lower().replace(",", " ").split())
+                        
+                        # Priority 1: Title (80% of keyword weight)
+                        title_overlap = len(query_words & title_words) / len(query_words)
+                        # Priority 2: Abstract/Keywords (20% of keyword weight)
+                        content_overlap = len(query_words & (abs_words | kw_words)) / len(query_words)
+                        
+                        keyword_score = (title_overlap * 0.8) + (content_overlap * 0.2)
+                    
+                    # COMBINE: 60% Semantic meaning + 40% Literal keyword matching
+                    final_score = (vector_score * 0.6) + (keyword_score * 0.4)
+                    
+                    if final_score >= effective_threshold:
+                        search_results.append(SearchResult(
+                            id=encode_id(hit.id),
+                            score=final_score,
+                            payload=hit.payload
+                        ))
 
             # Final sort
             if sort == "newest":

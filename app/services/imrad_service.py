@@ -167,11 +167,14 @@ METHODOLOGY_SUBHEADINGS: List[Dict] = [
     {"label": "Research Approach",            "patterns": [r"Research\s+Approach(?:\s+and\s+Design)?"]},
     {"label": "Research Settings",            "patterns": [r"Research\s+Settings?", r"Study\s+Settings?"]},
     {"label": "Business Process",             "patterns": [r"Business\s+Process"]},
-    {"label": "Participants of the Study",    "patterns": [r"Participants?\s+of\s+the\s+Study", r"Participants?", r"Respondents?"]},
+    {"label": "Participant of the Study",     "patterns": [r"Participant of the Study"]},
+    {"label": "Participants of the Study",    "patterns": [r"Participants?\s+of\s+the\s+Study"]},
     {"label": "Sampling Technique",           "patterns": [r"Sampling\s+Techniques?"]},
     {"label": "Research Instruments",         "patterns": [r"Research\s+Instruments?"]},
-    {"label": "Data Collection, Instrument, and Procedure", "patterns": [r"Data\s+Collection,?\s+Instrument,?\s+and\s+Procedure", r"Data\s+Collection"]},
     {"label": "Sources of Data",              "patterns": [r"Sources?\s+of\s+Data"]},
+    {"label": "Data Sources",                 "patterns": [r"Data\s+Sources?"]},
+    {"label": "Data Collection Procedure",    "patterns": [r"Data\s+Collection\s+Procedure"]},
+    {"label": "Data Analysis Techniques",     "patterns": [r"Data\s+Analysis\s+Techniques?"]},
     {"label": "Data to be Gathered",          "patterns": [r"Data\s+to\s+be\s+[Gg]athered"]},
     {"label": "Statistical Treatment of Data","patterns": [r"Statistical\s+Treatment\s+of\s+Data", r"Statistical\s+Treatment"]},
     {"label": "Data Analysis",                "patterns": [r"Data\s+Analy(?:sis|tical)"]},
@@ -193,36 +196,31 @@ METHODOLOGY_SUBHEADINGS: List[Dict] = [
 RESULTS_SUBHEADINGS: List[Dict] = [
     {"label": "Discussion of the Methodology Phases", "patterns": [r"Discussion\s+of\s+(?:the\s+)?Methodology\s+Phases?"]},
     {"label": "Discussion of Findings",       "patterns": [r"Discussion\s+of\s+(?:the\s+)?(?:Findings?|Results?)"]},
-    {"label": "System Software Evaluation Results", "patterns": [r"System\s+(?:Software\s+)?Evaluation\s+Results?"]},
-    {"label": "Functionality",                "patterns": [r"^Functionality$"]},
-    {"label": "Reliability",                  "patterns": [r"^Reliability$"]},
-    {"label": "Usability",                    "patterns": [r"^Usability$"]},
-    {"label": "Efficiency",                   "patterns": [r"^Efficiency$"]},
-    {"label": "Portability",                  "patterns": [r"^Portability$"]},
-    {"label": "Maintainability",              "patterns": [r"^Maintainability$"]},
+    {"label": "System Software Evaluation Result", "patterns": [r"System\s+(?:Software\s+)?Evaluation\s+Result?"]},
     {"label": "User Acceptance Testing",      "patterns": [r"User\s+Acceptance\s+(?:Testing|Test)", r"\bUAT\b"]},
     {"label": "System Testing",              "patterns": [r"System\s+Testing"]},
     {"label": "Security",                     "patterns": [r"^Security$"]},
-    {"label": "Software Testing Results",     "patterns": [r"Software\s+Testing\s+Results"]},
+    {"label": "Software Testing Results",     "patterns": [r"Software\s+Testing\s+Result?"]},
+    {"label": "Software Testing Results",     "patterns": [r"Software\s+Testing\s+Result\s?"]},
 ]
 
 BOILERPLATE_PATTERNS: List[str] = [
-    r"Cavite State University", r"CvSU", r"Imus Campus", r"IMUS\s+CAVITE",
-    r"Bachelor of Science", r"in partial fulfillment",
-    r"requirements for the degree", r"Undergraduate Thesis", r"Capstone Project",
-    r"Adviser\s*[:]", r"Prepared under the supervision",
+    r"^\s*Cavite State University\b", r"^\s*CvSU\b", r"^\s*Imus Campus\b", r"^\s*IMUS\s+CAVITE\b",
+    r"^\s*Bachelor of Science\b", r"^\s*in partial fulfillment\b",
+    r"^\s*requirements for the degree\b", r"^\s*Undergraduate Thesis\b", r"^\s*Capstone Project\b",
+    r"^\s*Adviser\s*[:]", r"^\s*Prepared under the supervision\b",
     r"^\s*Department\s+of\s+[A-Za-z\s]+\s*$", r"^\s*College\s+of\s+[A-Za-z\s]+\s*$",
-    r"Contribution\s+No\.?", r"Imus\s+City",
+    r"^\s*Contribution\s+No\.?", r"^\s*Imus\s+City\b",
     r"^\s*\d+\s*$", r"^\s*[ivxIVX]+\s*$",
     r"^\s*CHAPTER\s+[IVXLC\d]+\s*$", r"^\s*SECTION\s+[IVXLC\d]+\s*$",
-    r"Republic of the Philippines", r"Commission on Higher Education",
+    r"^\s*Republic of the Philippines\b", r"^\s*Commission on Higher Education\b",
     r"^\s*CHAIRPERSON\s*$", r"^\s*COORDINATOR\s*$", r"^\s*DEAN\s*$",
     r"^\s*Submitted\s+by\s*[:]?\s*$", r"^\s*Prepared\s+by\s*[:]?\s*$",
     r"^\s*Presented\s+to\s*[:]?\s*$", r"^\s*Approved\s+by\s*[:]?\s*$",
     r"^\s*AUTHORS?\s*$", r"^\s*TITLE\s+PAGE\s*$",
-    r"\bM[rs]\.\s+[A-Z][a-z]+\s+[A-Z]\.\s+[A-Z][a-z]+\b", # "Ms. Sherilyn F. Fajutagana" style
-    r"^[A-Z]{2,},\s+[A-Z]{2,}(?:\s+[A-Z]\.)?$", # "REYES, YNAA MARUF A." style
-    r"^(?:Prof\.|Dr\.|Engr\.|Ms\.|Mr\.|Mrs\.)\s+[A-Z][a-z]+(?:\s+[A-Z]\.)?\s+[A-Z][a-z]+", # "Prof. Grace S. Ibañez" style
+    r"^\s*\bM[rs]\.\s+[A-Z][a-z]+\s+[A-Z]\.\s+[A-Z][a-z]+\b", # "Ms. Sherilyn F. Fajutagana" style
+    r"^\s*[A-Z]{2,},\s+[A-Z]{2,}(?:\s+[A-Z]\.)?$", # "REYES, YNAA MARUF A." style
+    r"^\s*(?:Prof\.|Dr\.|Engr\.|Ms\.|Mr\.|Mrs\.)\s+[A-Z][a-z]+(?:\s+[A-Z]\.)?\s+[A-Z][a-z]+", # "Prof. Grace S. Ibañez" style
 ]
 
 # Subset of BOILERPLATE_PATTERNS that is safe to apply inside the References
@@ -1202,10 +1200,22 @@ class IMRADService:
 
 
                 pg_lines: List[str] = []
+                in_caption = False
                 for line in page_text.split("\n"):
                     line = line.strip()
                     if not line:
                         continue
+                        
+                    if in_caption:
+                        looks_like_continuation = (
+                            len(line) < 120 and
+                            not TRUE_CAP_RE.match(line) and 
+                            (line[0].islower() or line.split()[0].lower() in ["using", "based", "for", "in", "from", "with", "and", "of", "the", "to", "on", "at"])
+                        )
+                        if looks_like_continuation:
+                            continue
+                        else:
+                            in_caption = False
                     if any(re.search(bp, line, re.I) for bp in active_boilerplate):
                         continue
                     # Skip bare page numbers / roman numerals only for non-reference sections
@@ -1276,23 +1286,32 @@ class IMRADService:
                     # not mentions of keywords deep inside paragraphs.
                     is_sh = False
                     for entry in sh_list:
-                        # Match at start of line, allowing optional numbers: "1. Phase Name" or "A. Phase Name"
-                        # We also capture the remainder of the line to support "inline" headings.
-                        pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + entry["patterns"][0] + r")\b[\.\:]?\s*(.*)$"
-                        match = re.match(pattern, line, re.I)
-                        
-                        if match:
-                            heading_part = match.group(1).strip()
-                            remainder = match.group(2).strip()
+                        for pat in entry["patterns"]:
+                            # Match at start of line, allowing optional numbers: "1. Phase Name" or "A. Phase Name"
+                            # We also capture the remainder of the line to support "inline" headings.
+                            pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + pat + r")\b[\.\:]?\s*(.*)$"
+                            match = re.match(pattern, line, re.I)
+                            
+                            if match:
+                                heading_part = match.group(1).strip()
+                                remainder = match.group(2).strip()
 
-                            # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
-                            # with a catchphrase, UNLESS the heading part itself is very clearly a heading.
-                            if len(line) < 150 or (len(heading_part) < 80 and remainder):
-                                pg_lines.append("\n" + heading_part + "\n")
+                                # Skip if it looks like a table row (short, contains numbers or interpretations)
                                 if remainder:
-                                    pg_lines.append(remainder)
-                                is_sh = True
-                                break
+                                    is_interpretation = any(term in remainder for term in ["Excellent", "Satisfactory", "Fair", "Poor"])
+                                    if len(remainder) < 40 and (re.search(r'\b\d+\.\d+\b', remainder) or is_interpretation):
+                                        continue
+
+                                # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
+                                # with a catchphrase, UNLESS the heading part itself is very clearly a heading.
+                                if len(line) < 150 or (len(heading_part) < 80 and remainder):
+                                    pg_lines.append("\n" + heading_part + "\n")
+                                    if remainder:
+                                        pg_lines.append(remainder)
+                                    is_sh = True
+                                    break
+                        if is_sh:
+                            break
                     if is_sh:
                         continue
 
@@ -1300,34 +1319,36 @@ class IMRADService:
                     # If this line starts with "Table N." or "table N.", we map it
                     # to our spatial markers and preserve any following text.
                     cap_match = TRUE_CAP_RE.match(line)
-                    if page_markers and cap_match:
-                        line_norm = re.sub(r'\s+', ' ', line).strip()
-                        matched_marker = None
-                        for cap_text, marker in page_markers.items():
-                            cap_norm = re.sub(r'\s+', ' ', cap_text).strip()
-                            # Case-insensitive prefix match
-                            if line_norm[:40].lower().startswith(cap_norm[:40].lower()):
-                                matched_marker = marker
-                                break
-                            # Prefix-only fallback: "Table 2" == "table 2"
-                            line_prefix = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', line_norm, re.I)
-                            cap_prefix  = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', cap_norm,  re.I)
-                            if line_prefix and cap_prefix and line_prefix.group(1).lower() == cap_prefix.group(1).lower():
-                                matched_marker = marker
-                                break
-                        
-                        if matched_marker:
-                            pg_lines.append(f"\n{matched_marker}\n")
-                            # ── Merged Line Check ──
-                            # Find the end of the caption part in the original line
-                            # We strip the caption part and keep the remainder of the line.
-                            end_pos = cap_match.end()
-                            remainder = line[end_pos:].strip()
-                            if remainder:
-                                # Recursively process the remainder or just add it
-                                # (Better to just add it as text)
-                                pg_lines.append(remainder)
-                            continue 
+                    if cap_match:
+                        in_caption = True
+                        if page_markers:
+                            line_norm = re.sub(r'\s+', ' ', line).strip()
+                            matched_marker = None
+                            for cap_text, marker in page_markers.items():
+                                cap_norm = re.sub(r'\s+', ' ', cap_text).strip()
+                                # Case-insensitive prefix match
+                                if line_norm[:40].lower().startswith(cap_norm[:40].lower()):
+                                    matched_marker = marker
+                                    break
+                                # Prefix-only fallback: "Table 2" == "table 2"
+                                line_prefix = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', line_norm, re.I)
+                                cap_prefix  = re.match(r'((?:Table|Figure|Fig\.?)\s+\d+)', cap_norm,  re.I)
+                                if line_prefix and cap_prefix and line_prefix.group(1).lower() == cap_prefix.group(1).lower():
+                                    matched_marker = marker
+                                    break
+                            
+                            if matched_marker:
+                                pg_lines.append(f"\n{matched_marker}\n")
+                                # ── Merged Line Check ──
+                                # Find the end of the caption part in the original line
+                                # We strip the caption part and keep the remainder of the line.
+                                end_pos = cap_match.end()
+                                remainder = line[end_pos:].strip()
+                                if remainder:
+                                    # Recursively process the remainder or just add it
+                                    # (Better to just add it as text)
+                                    pg_lines.append(remainder)
+                                continue 
 
 
                     pg_lines.append(line)

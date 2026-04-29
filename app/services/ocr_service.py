@@ -632,6 +632,46 @@ class OCRService:
             except Exception as sum_err:
                 log.error("IMRAD summary generation failed (non-fatal)", exc=sum_err)
 
+            # ── Subheading discovery — learn unknown labels from this paper ───
+            # Runs after extraction so it never blocks or breaks the pipeline.
+            try:
+                from app.services.subheading_discovery_service import subheading_discovery_service
+
+                # Attempt to extract bold line hints from PyMuPDF (already used
+                # in imrad_service for spatial extraction — zero extra I/O cost).
+                bold_lines_by_section: dict = {}
+                try:
+                    import fitz  # PyMuPDF — already a project dependency
+                    doc = fitz.open(pdf_path)
+                    full_sec_pages_for_bold = extracted_imrad.get("full_section_pages", {})
+                    for sec_key, page_nums in full_sec_pages_for_bold.items():
+                        bold_set: set = set()
+                        for pg_num in page_nums:
+                            if pg_num < 1 or pg_num > len(doc):
+                                continue
+                            page = doc[pg_num - 1]
+                            for block in page.get_text("dict")["blocks"]:
+                                for line in block.get("lines", []):
+                                    line_text = "".join(s["text"] for s in line["spans"]).strip()
+                                    if not line_text:
+                                        continue
+                                    # A line is "bold" if any span has a bold font flag
+                                    if any("Bold" in s.get("font", "") or (s.get("flags", 0) & 16) for s in line["spans"]):
+                                        bold_set.add(line_text)
+                        if bold_set:
+                            bold_lines_by_section[sec_key] = bold_set
+                    doc.close()
+                except Exception as bold_err:
+                    log.warn("SubheadingDiscovery: bold extraction skipped", reason=str(bold_err)[:80])
+
+                if session_id: task_manager.update_task(session_id, 88, "Learning new subheadings...")
+                subheading_discovery_service.scan_and_register(
+                    sections_raw,
+                    bold_lines_by_section=bold_lines_by_section or None,
+                )
+            except Exception as disc_err:
+                log.error("SubheadingDiscovery: scan failed (non-fatal)", exc=disc_err)
+
             metadata = {
                 "title":                detected_title,
                 "author":               final_author,

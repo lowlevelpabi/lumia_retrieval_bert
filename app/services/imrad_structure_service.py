@@ -20,11 +20,11 @@ INTRODUCTION_LABELS: List[str] = [
 
 METHODOLOGY_LABELS: List[str] = [
     "Research Design", "Research Approach", "Research Settings", "Study Settings",
-    "Business Process", "Participants of the Study", "Sampling Technique",
-    "Sampling Techniques", "Data to be Gathered",
-    "Research Instruments", "Data Collection, Instrument, and Procedure",
-    "Sources of Data", "Statistical Treatment of Data", "Data Analysis",
-    "Ethical Considerations", "Development Model", 
+    "Business Process", "Participant of the Study", "Participants of the Study", "Respondents of the Study", "Respondents",
+    "Sampling Technique", "Sampling Techniques", "Data to be Gathered",
+    "Research Instruments", "Data Collection Procedure",
+    "Data Analysis Techniques", "Sources of Data", "Data Sources", "Statistical Treatment of Data", "Statistical Treatment", 
+    "Data Analysis", "Data Analytical", "Ethical Considerations", "Development Model", 
     "Analysis and Quick Design", "Prototype Cycles", "Testing", "Implementation",
     "Requirement Analysis", "System Development", "System Evaluation",
     "Scope and Delimitation", "Scope and Limitation", "Definition of Terms",
@@ -32,10 +32,9 @@ METHODOLOGY_LABELS: List[str] = [
 ]
 
 RESULTS_LABELS: List[str] = [
-    "Discussion of the Methodology Phases", "Discussion of Findings",
-    "System Software Evaluation Results", "System Testing", "User Acceptance Testing",
-    "Functionality", "Reliability", "Usability", "Efficiency",
-    "Portability", "Maintainability", "Security", "Software Testing Results",
+    "Discussion of the Methodology Phases", "Discussion of Findings", "Discussion of Results",
+    "System Software Evaluation Result", "System Testing", "User Acceptance Testing",
+    "User Acceptance Test", "UAT", "Software Testing Results",
 ]
 
 ALL_SUBHEADING_LABELS: List[str] = INTRODUCTION_LABELS + METHODOLOGY_LABELS + RESULTS_LABELS
@@ -153,8 +152,8 @@ def _structure_section(
         # A. Check against our known label list
         if labels:
             for label in labels:
-                pattern = r"^\s*(?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*(" + re.escape(label) + r")[\.\:]?\s*(.*)$"
-                match = re.match(pattern, stripped)
+                pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + re.escape(label) + r")[\.\:]?\s*(.*)$"
+                match = re.match(pattern, stripped, re.I)
                 if match:
                     heading_text = match.group(1).strip()
                     
@@ -162,6 +161,12 @@ def _structure_section(
                         continue
                         
                     remainder = match.group(2).strip()
+                    
+                    # Skip if it looks like a table row (short, contains numbers or interpretations)
+                    if remainder:
+                        is_interpretation = any(term in remainder for term in ["Excellent", "Satisfactory", "Fair", "Poor"])
+                        if len(remainder) < 40 and (re.search(r'\b\d+\.\d+\b', remainder) or is_interpretation):
+                            continue
                     
                     # ── Lookahead for continuation ───────────────────────────
                     # If this line ends the heading part and there's a following line
@@ -300,3 +305,16 @@ class IMRADStructureService:
 
 
 imrad_structure_service = IMRADStructureService()
+
+# ── Auto-patch label lists with any promoted registry entries ─────────────────
+# Imported here (after the label list definitions) to avoid circular imports.
+# This runs once at module load — any confirmed entries in the registry are
+# merged into INTRODUCTION_LABELS / METHODOLOGY_LABELS / RESULTS_LABELS so
+# every subsequent _structure_section() call benefits immediately.
+try:
+    from app.services.subheading_discovery_service import subheading_discovery_service as _sds
+    _sds.patch_label_lists()
+except Exception as _e:
+    # Never let a registry error break the structuring pipeline
+    import sys
+    print(f"[SubheadingDiscovery] patch_label_lists skipped: {_e}", file=sys.stderr)
