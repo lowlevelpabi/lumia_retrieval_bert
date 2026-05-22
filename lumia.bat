@@ -14,6 +14,6 @@ echo Activating virtual environment...
 call venv\Scripts\activate
 
 echo Launching FastAPI server with Uvicorn...
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 
 pause

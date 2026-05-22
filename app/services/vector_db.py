@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.http import models
+from qdrant_client import models
 from app.core.config import settings
 from typing import List, Dict, Any
 from app.services.imrad_service import imrad_service

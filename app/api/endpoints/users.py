@@ -10,7 +10,7 @@ from app.models.paper import Paper
 from app.models.citation import UserCitation
 from app.models.bookmark import UserBookmark
 from app.schemas.paper import PaperResponse
-from app.schemas.user import UserResponse, UserRoleUpdate, UserCreateStaff, PasswordUpdate
+from app.schemas.user import UserResponse, UserRoleUpdate, UserCreateStaff, PasswordUpdate, ThemeUpdate
 from app.core.security import verify_password, get_password_hash
 
 router = APIRouter()
@@ -91,6 +91,26 @@ def update_my_password(
         if not student:
             raise HTTPException(status_code=404, detail="User not found.")
         student.hashed_password = new_hash
+
+    db.commit()
+
+@router.patch("/me/theme", status_code=204)
+def update_my_theme(
+    body: ThemeUpdate,
+    current_user: Student = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the current user's dark mode preference.
+    """
+    staff = db.query(AuthorizedUser).filter(AuthorizedUser.id == current_user.id).first()
+    if staff:
+        staff.dark_mode = 1 if body.dark_mode else 0
+    else:
+        student = db.query(Student).filter(Student.id == current_user.id).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="User not found.")
+        student.dark_mode = 1 if body.dark_mode else 0
 
     db.commit()
 

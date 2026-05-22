@@ -1,48 +1,21 @@
 {
   "Study Setting": {
-    "count": 1,
+    "count": 2,
     "section": "methods",
-    "confirmed": false,
+    "confirmed": true,
     "source": "auto",
     "score": 0.9,
     "first_seen": "2026-04-29",
-    "last_seen": "2026-04-29"
+    "last_seen": "2026-05-06"
   },
   "Research Approach and Design": {
-    "count": 1,
+    "count": 2,
     "section": "methods",
-    "confirmed": false,
+    "confirmed": true,
     "source": "auto",
     "score": 0.85,
     "first_seen": "2026-04-29",
-    "last_seen": "2026-04-29"
-  },
-  "Reserve, Kerala, India. Journal of Geovisualization and Spatial Analysis, 5(14). https://doi.org/10.1007/s41651-021-00082-x": {
-    "count": 1,
-    "section": "references",
-    "confirmed": false,
-    "source": "auto",
-    "score": 0.57,
-    "first_seen": "2026-04-29",
-    "last_seen": "2026-04-29"
-  },
-  "Communications, Information System and Computer Engineering (CISCE) , 1153–1157. https://doi.org/10.1109/CISCE62493.2024.10653090": {
-    "count": 1,
-    "section": "references",
-    "confirmed": false,
-    "source": "auto",
-    "score": 0.561,
-    "first_seen": "2026-04-29",
-    "last_seen": "2026-04-29"
-  },
-  "Amiscosa, M. N. (2019). Morphological Characterization of Coffea liberica and Coffea": {
-    "count": 1,
-    "section": "references",
-    "confirmed": false,
-    "source": "auto",
-    "score": 0.555,
-    "first_seen": "2026-04-29",
-    "last_seen": "2026-04-29"
+    "last_seen": "2026-05-06"
   },
   "Data Analysis Techniques": {
     "count": 1,
@@ -52,5 +25,23 @@
     "score": 0.9,
     "first_seen": "2026-04-29",
     "last_seen": "2026-04-29"
+  },
+  "Research Setting": {
+    "count": 2,
+    "section": "methods",
+    "confirmed": true,
+    "source": "auto",
+    "score": 0.65,
+    "first_seen": "2026-05-11",
+    "last_seen": "2026-05-11"
+  },
+  "System Evaluation Result": {
+    "count": 2,
+    "section": "results",
+    "confirmed": true,
+    "source": "auto",
+    "score": 0.65,
+    "first_seen": "2026-05-11",
+    "last_seen": "2026-05-11"
   }
 }

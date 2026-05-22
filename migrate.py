@@ -93,6 +93,32 @@ def add_columns_if_missing():
                 else:
                     print(f"     Already exists: papers.{col_name}")
 
+        # students table timestamps
+        if "students" in _existing_tables(conn):
+            existing_cols = {c["name"] for c in inspector.get_columns("students")}
+            to_add = {
+                "created_at": "DATETIME",
+                "updated_at": "DATETIME",
+                "dark_mode": "INTEGER DEFAULT 0"
+            }
+            for col_name, col_type in to_add.items():
+                if col_name not in existing_cols:
+                    conn.execute(text(f"ALTER TABLE students ADD COLUMN {col_name} {col_type}"))
+                    print(f"  +  Added column  : students.{col_name}")
+
+        # authorized_users table timestamps
+        if "authorized_users" in _existing_tables(conn):
+            existing_cols = {c["name"] for c in inspector.get_columns("authorized_users")}
+            to_add = {
+                "created_at": "DATETIME",
+                "updated_at": "DATETIME",
+                "dark_mode": "INTEGER DEFAULT 0"
+            }
+            for col_name, col_type in to_add.items():
+                if col_name not in existing_cols:
+                    conn.execute(text(f"ALTER TABLE authorized_users ADD COLUMN {col_name} {col_type}"))
+                    print(f"  +  Added column  : authorized_users.{col_name}")
+
     print("     Done.")
 
 

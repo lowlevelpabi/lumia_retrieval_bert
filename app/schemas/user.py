@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 from app.models.enums import UserRole
 
 class UserBase(BaseModel):
@@ -17,6 +18,8 @@ class UserCreateStaff(BaseModel):
 
 class UserResponse(UserBase):
     id: str
+    created_at: Optional[datetime] = None
+    dark_mode: bool = False
 
     class Config:
         from_attributes = True
@@ -36,3 +39,6 @@ class UserRoleUpdate(BaseModel):
 class PasswordUpdate(BaseModel):
     current_password: str
     new_password: str
+
+class ThemeUpdate(BaseModel):
+    dark_mode: bool

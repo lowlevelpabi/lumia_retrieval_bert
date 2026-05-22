@@ -10,7 +10,7 @@ are placed at exactly the position they occupy in the original PDF.
 
 import re
 import base64
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Union, Any, Tuple, Set
 from difflib import SequenceMatcher
 from app.services.logging_service import log
 
@@ -72,9 +72,10 @@ HEADING_KEYWORDS: Dict[str, List[str]] = {
         "CONCLUSION", "CONCLUSIONS", "CONCLUSIONS AND RECOMMENDATIONS",
         "CONCLUSION AND RECOMMENDATION",
         "SUMMARY CONCLUSIONS AND RECOMMENDATIONS",
-        "V. CONCLUSION", "5. CONCLUSION",
-        "CHAPTER V", "CHAPTER 5", "CHAPTER FIVE", "V.",
         "SUMMARY, CONCLUSIONS AND RECOMMENDATIONS",
+        "SUMMARY, CONCLUSION, AND RECOMMENDATION",
+        "SUMMARY, CONCLUSIONS, AND RECOMMENDATIONS",
+        "V. CONCLUSION", "5. CONCLUSION",
         "SUMMARY AND CONCLUSIONS",
         "SUMMARY, FINDINGS, CONCLUSIONS AND RECOMMENDATIONS",
         "SUMMARY OF FINDINGS",
@@ -163,7 +164,7 @@ SKIP_PAGE_PATTERNS: List[str] = [
 ]
 
 METHODOLOGY_SUBHEADINGS: List[Dict] = [
-    {"label": "Research Design",              "patterns": [r"Research\s+(?:Approach\s+(?:and\s+)?)?Design", r"Research\s+Design"]},
+    {"label": "Research Design",              "patterns": [r"Research\s+Design"]},
     {"label": "Research Approach",            "patterns": [r"Research\s+Approach(?:\s+and\s+Design)?"]},
     {"label": "Research Settings",            "patterns": [r"Research\s+Settings?", r"Study\s+Settings?"]},
     {"label": "Business Process",             "patterns": [r"Business\s+Process"]},
@@ -246,6 +247,18 @@ REFERENCE_ENTRY_RE = re.compile(
     r'|[A-ZÀ-Ö][a-zà-ö\-]+,\s+[A-Z][a-z]+'  # APA surname, Firstname
     r')',
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Geometry & Smart Chunking Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Thresholds for vertical gaps (in points) based on manuscript rules:
+# 1. Heading to body: 3 single lines (~36-40 pts)
+# 2. Subheading to body: 2 single lines (~24-28 pts)
+# Standard line height for size 11 text is ~13-15 pts.
+GEOM_HEADING_GAP_MIN: float    = 32.0
+GEOM_SUBHEADING_GAP_MIN: float = 22.0
+GEOM_STANDARD_GAP_MAX: float   = 18.0
 
 _SECTION_HEADING_LINES: set = {
     kw.upper() for kws in HEADING_KEYWORDS.values() for kw in kws
@@ -461,6 +474,7 @@ def _find_section_page(
     section_key: str,
     page_text_map: Dict[int, str],
     min_page: int = 1,
+    pdf_doc: Optional[Any] = None,
 ) -> Optional[int]:
     from app.services.ml_service import classify_heading
 
@@ -515,28 +529,176 @@ def _find_section_page(
             elif fp_score >= FUZZY_THRESHOLD:
                 penalised = target_score * 0.55
             if penalised >= FUZZY_THRESHOLD:
-                nominees.append((page_num, clean, penalised))
+                nominees.append((page_num, clean, penalised, "regex"))
+
+    # ── Structural Boost ──────────────────────────────────────────────────────
+    # If we have the PyMuPDF doc, look for lines with significant whitespace.
+    # If a geometry candidate matches the ML classifier for this section,
+    # it becomes a very strong nominee.
+    if pdf_doc:
+        for page_num in sorted(page_text_map.keys()):
+            if page_num < min_page or page_num > max_page:
+                continue
+            
+            # Use geometry to find isolates
+            page = pdf_doc.load_page(page_num - 1)
+            geom_lines = _get_page_geometry(page)
+            struct_candidates = _identify_structural_candidates(geom_lines)
+            
+            for cand in struct_candidates:
+                # We check the ML verdict for every structural isolate
+                ml_section, ml_score = classify_heading(cand["text"])
+                if ml_section == section_key and ml_score >= 0.40:
+                    # Give it a high score boost
+                    boosted_score = 0.85 + (cand["score"] * 0.1)
+                    nominees.append((page_num, cand["text"], min(0.99, boosted_score), "geometry"))
+                    log.info(f"Geometry candidate confirmed by ML", 
+                             text=cand["text"][:30], section=section_key, score=round(boosted_score, 2))
 
     if not nominees:
         return None
 
-    # Sort by score DESC, then page ASC — prefer earlier pages when scores
-    # are within the same 0.05 bucket (handles duplicate headings in back matter
-    # that score similarly to the real one earlier in the document).
+    # Sort by score DESC, then page ASC
     nominees.sort(key=lambda x: (-round(x[2] * 20) / 20, x[0]))
 
-    for page_num, clean, regex_score in nominees:
+    for page_num, clean, score, source in nominees:
         ml_section, ml_score = classify_heading(clean)
         if ml_section == section_key:
             return page_num
-        if ml_section is None and ml_score == 0.0 and regex_score >= 0.85:
+        if ml_section is None and ml_score == 0.0 and score >= 0.85:
             return page_num
-        if regex_score >= 0.95:
+        if score >= 0.95:
             return page_num
 
     if nominees[0][2] >= 0.92:
         return nominees[0][0]
     return None
+
+
+def _get_page_geometry(page: Any) -> List[Dict[str, Any]]:
+    """
+    Extracts lines with their Y-coordinates, font size, and bold status.
+    Uses PyMuPDF 'dict' mode for high-fidelity spatial data.
+    """
+    lines = []
+    try:
+        page_dict = page.get_text("dict", flags=0)
+        for block in page_dict.get("blocks", []):
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                spans = line.get("spans", [])
+                if not spans:
+                    continue
+                
+                # Combine spans into a single line text
+                text = "".join(s["text"] for s in spans).strip()
+                if not text:
+                    continue
+                
+                # Use the median font size and max bold status across spans
+                sizes = [s["size"] for s in spans]
+                avg_size = sum(sizes) / len(sizes)
+                is_bold = any("Bold" in s.get("font", "") or (s.get("flags", 0) & 16) for s in spans)
+                
+                bbox = line["bbox"] # (x0, y0, x1, y1)
+                lines.append({
+                    "text":    text,
+                    "y0":      bbox[1],
+                    "y1":      bbox[3],
+                    "height":  bbox[3] - bbox[1],
+                    "size":    round(avg_size, 1),
+                    "is_bold": is_bold,
+                })
+        
+        # Sort by vertical position
+        lines.sort(key=lambda x: x["y0"])
+    except Exception as e:
+        log.error("Failed to extract page geometry", exc=e)
+    
+    return lines
+
+
+def _identify_structural_candidates(lines: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Analyzes vertical gaps between lines to find heading/subheading candidates.
+    Returns a list of candidate dicts with 'type' (heading/subheading) and 'text'.
+    """
+    candidates = []
+    for i in range(len(lines)):
+        line = lines[i]
+        txt = line["text"]
+        
+        # Heading candidates must be short
+        # Most subheadings are 2-6 words. Long ones are usually sentences.
+        word_count = len(txt.split())
+        if word_count > 7 or len(txt) > 60:
+            continue
+            
+        # Subheadings almost never end with a period or colon (avoids body text)
+        # Also skip lines ending in common conjunctions/prepositions (likely line wraps in paragraphs)
+        if re.search(r'[\.\:\?]$', txt) or re.search(r'\b(?:and|or|the|in|of|to|for|with|by|a|an)\s*$', txt, re.I):
+            continue
+
+        # Ignore lines that are entirely lowercase (likely paragraph continuations)
+        if txt.islower():
+            continue
+
+        # Ignore single words that are all-caps (likely table headers or junk like "PROCESS", "SCORES")
+        if word_count == 1 and txt.isupper():
+            continue
+
+        # Heuristic: If it has many words, it should have a decent Title Case ratio
+        if word_count >= 4:
+            cap_words = sum(1 for w in txt.split() if w[0].isupper())
+            if cap_words / word_count < 0.5:
+                continue
+
+        # Skip major section headers (blacklist)
+        # Check against both the exact strings and fuzzy matches for common chapter patterns
+        clean_txt = re.sub(r'^(?:CHAPTER\s+[IVX\d]+\s+)', '', txt, flags=re.I).strip()
+        if clean_txt.upper() in _SECTION_HEADING_LINES:
+            continue
+            
+        # Skip pure numeric lines (page numbers)
+        if re.fullmatch(r'[\d\s\.\-]+', txt):
+            continue
+
+        gap_above = 0.0
+        gap_below = 0.0
+        
+        if i > 0:
+            gap_above = line["y0"] - lines[i-1]["y1"]
+        if i < len(lines) - 1:
+            gap_below = lines[i+1]["y0"] - line["y1"]
+
+        # ── Manuscript Rule 1: HEADING (3 single lines) ──
+        # Usually found at the start of a chapter or major section.
+        is_heading_geom = gap_above > GEOM_HEADING_GAP_MIN or gap_below > GEOM_HEADING_GAP_MIN
+        
+        # ── Manuscript Rule 2: SUBHEADING (2 single lines) ──
+        is_subheading_geom = gap_above > GEOM_SUBHEADING_GAP_MIN or gap_below > GEOM_SUBHEADING_GAP_MIN
+
+        # Check for user's specific "Size 11 + Bold" heuristic as a booster
+        # but don't make it mandatory (that's the "middle ground").
+        is_size_11 = 10.5 <= line["size"] <= 11.5
+        is_bold = line["is_bold"]
+
+        score = 0.0
+        if is_heading_geom:    score += 0.4
+        if is_subheading_geom: score += 0.2
+        if is_size_11:         score += 0.2
+        if is_bold:            score += 0.2
+
+        if score >= 0.4:
+            candidates.append({
+                "text": txt,
+                "score": score,
+                "type": "heading" if is_heading_geom else "subheading",
+                "geometry": {"gap_above": gap_above, "gap_below": gap_below, "size": line["size"]}
+            })
+            
+    return candidates
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1053,24 +1215,27 @@ class IMRADService:
         all_pages = sorted(page_text_map.keys())
 
         # ── 1. Locate section start pages ────────────────────────────────
-        combined_page = _find_section_page("results_and_discussion", page_text_map, min_page=1)
+        # Open PDF once to pass doc handle for structural analysis
+        pdf_doc = None
+        if pdf_path:
+            try:
+                import fitz
+                pdf_doc = fitz.open(pdf_path)
+            except Exception as e:
+                log.warn(f"Failed to open PDF for structural section discovery: {e}")
+
+        combined_page = _find_section_page("results_and_discussion", page_text_map, min_page=1, pdf_doc=pdf_doc)
         section_start_pages: Dict[str, int] = {}
         min_p = 1
 
         for key in IMRAD_SECTION_KEYS:
             if combined_page is not None and key in ("results", "discussion"):
-                # Both keys share the same combined page — assign it but do NOT
-                # advance min_p, and do NOT search for a separate page, because
-                # there is no standalone Results or Discussion heading to find.
                 if combined_page >= min_p:
                     section_start_pages[key] = combined_page
                 continue
 
-            pg = _find_section_page(key, page_text_map, min_page=min_p)
+            pg = _find_section_page(key, page_text_map, min_page=min_p, pdf_doc=pdf_doc)
             if pg is not None:
-                # If a combined R&D page was already found, reject any 'methods'
-                # hit that comes after it — it is almost certainly a back-matter
-                # rubric or appendix, not the real Methodology chapter.
                 if combined_page is not None and key == "methods" and pg > combined_page:
                     log.warn(
                         f"Ignoring 'methods' at page {pg} — appears after "
@@ -1081,6 +1246,9 @@ class IMRADService:
 
                 section_start_pages[key] = pg
                 min_p = pg + 1
+        
+        if pdf_doc:
+            pdf_doc.close()
 
         if not section_start_pages:
             log.warn("No IMRAD sections detected")
@@ -1097,6 +1265,7 @@ class IMRADService:
         result_sections: Dict[str, str] = {}
         result_pages: Dict[str, List[int]] = {}
         result_media: Dict[str, str] = {}
+        result_geometry: Dict[str, Set[str]] = {} # section -> set of isolated lines
 
         # Build boilerplate regex list
         dynamic_strip: List[str] = []
@@ -1168,6 +1337,32 @@ class IMRADService:
                     if spatial_result is not None:
                         _, page_markers, filtered_page_text = spatial_result
 
+                # ── Geometry-based Structural Candidates (Smart Chunking) ──
+                if pdf_path and section_key in ("introduction", "methods", "results", "discussion"):
+                    try:
+                        # We use the same doc handle if open, or open locally
+                        temp_doc = None
+                        if pdf_doc:
+                            temp_doc = pdf_doc
+                        else:
+                            import fitz
+                            temp_doc = fitz.open(pdf_path)
+                            
+                        page_fitz = temp_doc.load_page(pg - 1)
+                        geom_lines = _get_page_geometry(page_fitz)
+                        struct_cands = _identify_structural_candidates(geom_lines)
+                        
+                        if struct_cands:
+                            if section_key not in result_geometry:
+                                result_geometry[section_key] = set()
+                            for c in struct_cands:
+                                result_geometry[section_key].add(c["text"])
+                                
+                        if not pdf_doc:
+                            temp_doc.close()
+                    except Exception as e:
+                        log.warn(f"Geometry extraction failed for page {pg}: {e}")
+
                 # ── Always extract text from pypdf ────────────────────────
                 if filtered_page_text is not None:
                     # Also strip the page header on the section start page even
@@ -1216,6 +1411,48 @@ class IMRADService:
                             continue
                         else:
                             in_caption = False
+                    # 1. Subheading detection (PRIORITY)
+                    # We check this BEFORE the section-heading skip check to ensure that common
+                    # subheadings like "Research Design" (which are also known section starts)
+                    # are not erroneously stripped from the content.
+                    is_sh = False
+                    for entry in sh_list:
+                        for pat in entry["patterns"]:
+                            # Match at start of line, allowing optional hierarchical numbering: "1. Phase Name"
+                            # We also capture the remainder of the line to support "inline" headings.
+                            # The prefix group MUST be followed by a dot to prevent eating the label start.
+                            pattern = (
+                                r"^\s*((?:(?:[IVXLC]+|\d+|[A-Z])\.\s*)*"
+                                + pat
+                                + r")\s*[\.\:]?\s*(.*)$"
+                            )
+                            match = re.match(pattern, line, re.I)
+                            
+                            if match:
+                                heading_part = match.group(1).strip()
+                                remainder = match.group(2).strip()
+
+                                # Skip if it looks like a table row (short, contains numbers or interpretations)
+                                if remainder:
+                                    is_interpretation = any(term in remainder for term in ["Excellent", "Satisfactory", "Fair", "Poor"])
+                                    if len(remainder) < 40 and (re.search(r'\b\d+\.\d+\b', remainder) or is_interpretation):
+                                        continue
+
+                                # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
+                                # with a catchphrase, UNLESS the heading part itself is very clearly a heading.
+                                if len(line) < 150 or (len(heading_part) < 80 and remainder):
+                                    pg_lines.append("\n" + heading_part + "\n")
+                                    if remainder:
+                                        pg_lines.append(remainder)
+                                    is_sh = True
+                                    break
+                        if is_sh:
+                            break
+                    
+                    if is_sh:
+                        continue
+
+                    # 2. Boilerplate / Header / Section Skip
                     if any(re.search(bp, line, re.I) for bp in active_boilerplate):
                         continue
                     # Skip bare page numbers / roman numerals only for non-reference sections
@@ -1224,7 +1461,7 @@ class IMRADService:
                     if line.upper() in _SECTION_HEADING_LINES:
                         continue
 
-                    # Inline prefix match fallback: "METHODOLOGY This study..."
+                    # 3. Inline prefix match fallback: "METHODOLOGY This study..."
                     # Handles cases where the heading and body text are merged in the stream.
                     # We match simple keywords from the current section.
                     section_kws = HEADING_KEYWORDS.get(section_key, [])
@@ -1242,7 +1479,7 @@ class IMRADService:
                             continue
 
 
-                    # Section boundaries
+                    # 4. Section boundaries
                     if section_key == "introduction":
                         stop = False
                         for pat in RRL_BOUNDARY_PATTERNS + INTRO_SUBSECTION_PATTERNS:
@@ -1280,40 +1517,6 @@ class IMRADService:
                         if any(re.search(pat, line, re.I) for pat in [r"\bAPPENDI(?:X|CES)\b", r"\bANNEX\b", r"\bCURRICULUM\s+VITAE\b"]):
                             section_stop = True
                             break
-
-                    # Subheading detection
-                    # Using anchors to ensure only standalone or inline headings are matched,
-                    # not mentions of keywords deep inside paragraphs.
-                    is_sh = False
-                    for entry in sh_list:
-                        for pat in entry["patterns"]:
-                            # Match at start of line, allowing optional numbers: "1. Phase Name" or "A. Phase Name"
-                            # We also capture the remainder of the line to support "inline" headings.
-                            pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + pat + r")\b[\.\:]?\s*(.*)$"
-                            match = re.match(pattern, line, re.I)
-                            
-                            if match:
-                                heading_part = match.group(1).strip()
-                                remainder = match.group(2).strip()
-
-                                # Skip if it looks like a table row (short, contains numbers or interpretations)
-                                if remainder:
-                                    is_interpretation = any(term in remainder for term in ["Excellent", "Satisfactory", "Fair", "Poor"])
-                                    if len(remainder) < 40 and (re.search(r'\b\d+\.\d+\b', remainder) or is_interpretation):
-                                        continue
-
-                                # If it's a long line (e.g. >150 chars), it's likely a paragraph starting
-                                # with a catchphrase, UNLESS the heading part itself is very clearly a heading.
-                                if len(line) < 150 or (len(heading_part) < 80 and remainder):
-                                    pg_lines.append("\n" + heading_part + "\n")
-                                    if remainder:
-                                        pg_lines.append(remainder)
-                                    is_sh = True
-                                    break
-                        if is_sh:
-                            break
-                    if is_sh:
-                        continue
 
                     # ── Inject image marker for caption line ───────────────
                     # If this line starts with "Table N." or "table N.", we map it
@@ -1405,6 +1608,7 @@ class IMRADService:
             "full_section_pages": result_pages,
             "imrad_pages":        preview_pages,
             "media":              result_media,
+            "geometry_lines":     result_geometry,
         }
 
     # ─────────────────────────────────────────────────────────────────────
@@ -1412,8 +1616,10 @@ class IMRADService:
     def detect_subheadings(
         self,
         page_text_map: Dict[int, str],
-        methods_pages: List[int],
+        methods_pages: List[int] = None,
         results_pages: List[int] = None,
+        introduction_pages: List[int] = None,
+        pdf_path: str = "",
     ) -> List[str]:
         detected: List[str] = []
         if methods_pages:
@@ -1431,7 +1637,45 @@ class IMRADService:
                         if re.search(r"\b" + pat + r"\b", r_text, re.IGNORECASE):
                             detected.append(entry["label"])
                             break
-        return detected
+        # ── Structural Boost (Smart Chunking) ──────────────────────────────────
+        if pdf_path:
+            try:
+                import fitz
+                from app.services.ml_service import classify_heading
+                doc = fitz.open(pdf_path)
+                
+                # Scan IMRAD pages for geometry isolates
+                target_pages = sorted(list(set(
+                    (introduction_pages or []) +
+                    (methods_pages or []) +
+                    (results_pages or [])
+                )))
+                for pg_num in target_pages:
+                    if pg_num < 1 or pg_num > len(doc): continue
+                    page = doc.load_page(pg_num - 1)
+                    geom_lines = _get_page_geometry(page)
+                    struct_candidates = _identify_structural_candidates(geom_lines)
+                    
+                    for cand in struct_candidates:
+                        txt = cand["text"]
+                        # If BERT says it's a subheading, we count it as "detected"
+                        res_key, res_score = classify_heading(txt)
+                        # Increased to 0.75 for higher precision
+                        if res_key in ("introduction", "methods", "results_and_discussion") and res_score >= 0.75:
+                            # Blacklist major section headings from being subheadings
+                            if txt.upper() in _SECTION_HEADING_LINES:
+                                continue
+
+                            if txt not in detected:
+                                # Check against predefined labels to avoid duplicates
+                                all_predefined = [l.lower() for l in self.get_all_subheading_labels()]
+                                if txt.lower() not in all_predefined:
+                                    detected.append(txt)
+                doc.close()
+            except Exception as e:
+                log.warn(f"Structural subheading discovery failed: {e}")
+
+        return list(dict.fromkeys(detected))
 
     def get_all_subheading_labels(self) -> List[str]:
         return list(dict.fromkeys(
@@ -1450,7 +1694,7 @@ class IMRADService:
         return names
 
     def get_qdrant_vector_config(self):
-        from qdrant_client.http import models
+        from qdrant_client import models
         return {
             "title":        models.VectorParams(size=384, distance=models.Distance.COSINE),
             "abstract":     models.VectorParams(size=384, distance=models.Distance.COSINE),

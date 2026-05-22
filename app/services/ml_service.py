@@ -641,4 +641,4 @@ def rerank_with_cross_encoder(
         return reranked[:top_k]
     except Exception as e:
         log.error("Cross-encoder re-ranking failed", exc=e)
-        return candidates[:top_k]
+        return candidates[:top_k]

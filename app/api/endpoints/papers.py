@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy import Integer, or_
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 import shutil
 import os
@@ -15,6 +15,8 @@ from app.core.database import get_db
 from app.models.paper import Paper
 from app.models.citation import UserCitation
 from app.models.bookmark import UserBookmark
+from app.models.user import Student
+from app.models.authorized_user import AuthorizedUser
 from app.schemas.paper import (
     PaperResponse, SearchResult, PaperUpdate, CitationStatus, 
     ViewCountResponse, UploadPreviewResponse, UploadConfirm, PagePreview,
@@ -134,10 +136,16 @@ async def upload_preview(
                 if same_year and same_author:
                     from app.core.hash import encode_id
                     eid = encode_id(existing.id)
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
-                    )
+                    if existing.status == "Pending":
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Duplicate Detected: This study is already in the system and is currently awaiting approval (ID: {eid})."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
+                        )
 
     if auto_extract:
         import asyncio
@@ -197,10 +205,16 @@ async def upload_preview(
             if same_year and same_author:
                 from app.core.hash import encode_id
                 eid = encode_id(existing.id)
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
-                )
+                if existing.status == "Pending":
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Duplicate Detected: This study is already in the system and is currently awaiting approval (ID: {eid})."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Upload Terminated: This study is already indexed in the repository (ID: {eid})."
+                    )
 
 
     # 2. Determine document completeness and pick which pages to preview.
@@ -315,10 +329,10 @@ async def confirm_upload(data: UploadConfirm, db: Session = Depends(get_db), cur
         degree_program=data.metadata.get("degree_program", "N/A"),
         citation_count=data.metadata.get("citation_count", 0),
         file_path=final_path,
-        uploaded_by=current_user.full_name or current_user.username,
+        uploaded_by=current_user.username,
         uploader_role=current_user.role,
         status="Pending" if current_user.role == "Student" else "Approved",
-        approved_by=None if current_user.role == "Student" else (current_user.full_name or current_user.username),
+        approved_by=None if current_user.role == "Student" else current_user.username,
         approved_at=None if current_user.role == "Student" else datetime.now(),
 
         # Save IMRAD sections (manual overrides or defaults)
@@ -466,9 +480,23 @@ async def list_trash(db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[PaperResponse])
-async def list_papers(db: Session = Depends(get_db)):
-    """Returns only active (non-trashed) papers."""
-    return db.query(Paper).filter(Paper.deleted_at.is_(None)).all()
+async def list_papers(status: Optional[str] = "Approved", db: Session = Depends(get_db)):
+    """Returns only active (non-trashed) papers. Defaults to only Approved papers."""
+    query = db.query(Paper).filter(Paper.deleted_at.is_(None))
+    if status and status != "all":
+        query = query.filter(Paper.status == status)
+    return query.all()
+
+@router.get("/my-uploads", response_model=List[PaperResponse])
+async def get_user_uploads(
+    db: Session = Depends(get_db),
+    current_user: Union[Student, AuthorizedUser] = Depends(get_current_user)
+):
+    """Returns all papers uploaded by the current user (including pending ones)."""
+    return db.query(Paper).filter(
+        (Paper.uploaded_by == current_user.username) | (Paper.uploaded_by == current_user.full_name),
+        Paper.deleted_at.is_(None)
+    ).all()
 
 @router.get("/stats", dependencies=[Depends(get_current_user)])
 async def get_repository_stats(db: Session = Depends(get_db)):
@@ -623,9 +651,47 @@ async def search_papers(
     try:
         print(f"--- [Search] Unified search started ---")
         print(f"    Query: '{query}'")
+        print(f"    Sort:  '{sort}'")
         print(f"    Filters: min_yr={min_year}, max_yr={max_year}, dept={department}, type={project_type}")
         
-        # 1. SQL Metadata-Only Filter (active and approved papers only)
+        # 1. ID Search Override (Direct access by 12-digit numeric ID or 16-char HashID)
+        if query and query.strip():
+            q_trimmed = query.strip()
+            # Only trigger if it looks like one of our ID formats
+            is_numeric_id = q_trimmed.isdigit() and len(q_trimmed) == 12
+            is_hash_id = len(q_trimmed) == 16
+            
+            if is_numeric_id or is_hash_id:
+                paper_id = decode_id(q_trimmed)
+                if paper_id:
+                    direct_paper = db.query(Paper).filter(
+                        Paper.id == paper_id, 
+                        Paper.deleted_at.is_(None)
+                    ).first()
+                    
+                    if direct_paper:
+                        print(f"[Search] ID Override triggered for '{q_trimmed}' -> Paper ID {paper_id}")
+                        result = SearchResult(
+                            id=encode_id(direct_paper.id),
+                            score=1.0,
+                            payload={
+                                "title":          direct_paper.title,
+                                "author":         direct_paper.author,
+                                "year":           direct_paper.year,
+                                "abstract":       direct_paper.abstract,
+                                "department":     direct_paper.department,
+                                "project_type":   direct_paper.project_type,
+                                "degree_program": direct_paper.degree_program,
+                                "citation_count": direct_paper.citation_count,
+                                "view_count":     direct_paper.view_count,
+                                "uploaded_by":    direct_paper.uploaded_by,
+                                "uploader_role":  direct_paper.uploader_role,
+                                "created_at":     direct_paper.created_at.isoformat() if direct_paper.created_at else None
+                            }
+                        )
+                        return PaginatedSearchResults(results=[result], total=1, page=1, page_size=page_size)
+
+        # 2. SQL Metadata-Only Filter (active and approved papers only)
         sql_query = db.query(Paper).filter(
             Paper.deleted_at.is_(None),
             Paper.status == "Approved"
@@ -654,11 +720,23 @@ async def search_papers(
         if project_type: sql_query = sql_query.filter(Paper.project_type == project_type)
         if degree_program: sql_query = sql_query.filter(Paper.degree_program == degree_program)
         
+        # Apply Sorting to SQL Query
+        if sort == "newest":
+            sql_query = sql_query.order_by(Paper.created_at.desc(), Paper.year.desc(), Paper.id.desc())
+        elif sort == "oldest":
+            sql_query = sql_query.order_by(Paper.created_at.asc(), Paper.year.asc(), Paper.id.asc())
+        elif sort == "cited":
+            sql_query = sql_query.order_by(Paper.citation_count.desc())
+        else:
+            # Default for Browse: Newest first
+            if not query:
+                sql_query = sql_query.order_by(Paper.created_at.desc(), Paper.year.desc(), Paper.id.desc())
+
         # Get Candidate Paper IDs
         candidate_papers = sql_query.all()
         candidate_ids = [p.id for p in candidate_papers]
         
-        print(f"[Search] SQL Pre-filter found {len(candidate_ids)} candidates: {candidate_ids[:10]}...")
+        print(f"[Search] SQL Pre-filter found {len(candidate_ids)} candidates. Sort Mode: '{sort}'")
 
         # 2. Handle Search Mode (Semantic vs Browse)
         if query and query.strip():
@@ -764,14 +842,16 @@ async def search_papers(
                         ))
 
             # Final sort
+            # Note: payload.get("created_at") might be None for older records.
+            # We use a fallback tuple to ensure stable sorting.
             if sort == "newest":
-                search_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+                search_results.sort(key=lambda x: (x.payload.get("created_at") or "", x.payload.get("year") or "", x.id), reverse=True)
             elif sort == "oldest":
-                search_results.sort(key=lambda x: x.payload.get("year", ""), reverse=False)
+                search_results.sort(key=lambda x: (x.payload.get("created_at") or "9999", x.payload.get("year") or "9999", x.id), reverse=False)
             elif sort == "cited":
-                search_results.sort(key=lambda x: x.payload.get("citation_count", 0), reverse=True)
+                search_results.sort(key=lambda x: (x.payload.get("citation_count") or 0, x.score), reverse=True)
             else:
-                # Default for keyword search: Relevancy Score
+                # Default for keyword/semantic search: Relevancy Score
                 search_results.sort(key=lambda x: x.score, reverse=True)
 
             print(f"Search completed. Found {len(search_results)} relevant results using linear hybrid fusion.")
@@ -813,15 +893,17 @@ async def search_papers(
                     }
                 ))
             # Final sort for Browse
+            # Since we applied order_by to sql_query above, browse_results is already mostly sorted.
+            # However, we re-apply it here to be absolutely sure and handle the SearchResult structure.
             if sort == "newest":
-                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+                browse_results.sort(key=lambda x: (x.payload.get("created_at") or "", x.payload.get("year") or "", x.id), reverse=True)
             elif sort == "oldest":
-                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=False)
+                browse_results.sort(key=lambda x: (x.payload.get("created_at") or "9999", x.payload.get("year") or "9999", x.id), reverse=False)
             elif sort == "cited":
-                browse_results.sort(key=lambda x: x.payload.get("citation_count", 0), reverse=True)
+                browse_results.sort(key=lambda x: (x.payload.get("citation_count") or 0, x.payload.get("view_count") or 0), reverse=True)
             else:
-                # Default for Browse: Newest Year first
-                browse_results.sort(key=lambda x: x.payload.get("year", ""), reverse=True)
+                # Default for Browse: Newest first
+                browse_results.sort(key=lambda x: (x.payload.get("created_at") or "", x.payload.get("year") or "", x.id), reverse=True)
             
             total = len(browse_results)
             start = (page - 1) * page_size
@@ -1127,7 +1209,7 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
     is_approving = update_data.get("status") == "Approved" and db_paper.status != "Approved"
     
     if is_approving:
-        db_paper.approved_by = current_user.full_name or current_user.username
+        db_paper.approved_by = current_user.username
         db_paper.approved_at = datetime.now()
         
         db.add(ActivityLog(

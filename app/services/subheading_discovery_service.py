@@ -83,22 +83,24 @@ PROMOTE_THRESHOLD: int = 2
 
 # Scoring weights for each structural signal (must sum to 1.0)
 SIGNAL_WEIGHTS = {
-    "bold":          0.35,   # line was bold in the PDF (highest signal)
-    "short":         0.20,   # line is ≤ 10 words
-    "title_case":    0.20,   # majority of words are capitalised
-    "no_end_punct":  0.15,   # line does not end with . , ; :
-    "isolated":      0.10,   # preceded or followed by a blank line
+    "bold":          0.30,   # line was bold in the PDF
+    "geometry":      0.30,   # line was vertically isolated (Smart Chunking)
+    "short":         0.15,   # line is ≤ 10 words
+    "title_case":    0.15,   # majority of words are capitalised
+    "no_end_punct":  0.05,   # line does not end with . , ; :
+    "isolated":      0.05,   # preceded or followed by a blank line (textual)
 }
 
 # Minimum score to consider a line a subheading candidate
-CANDIDATE_THRESHOLD: float = 0.55
+# Increased from 0.55 to 0.65 to ensure bold/geometry alone isn't enough.
+CANDIDATE_THRESHOLD: float = 0.65
 
 # Similarity threshold for mapping a new candidate to an existing label
 # (uses difflib ratio, 0–1). Above this → treat as same label.
 SIMILARITY_THRESHOLD: float = 0.82
 
 # Hard maximum word count for a subheading candidate
-MAX_CANDIDATE_WORDS: int = 12
+MAX_CANDIDATE_WORDS: int = 7
 
 # Minimum word count (avoids single words like "TOTAL", "N/A")
 MIN_CANDIDATE_WORDS: int = 2
@@ -119,6 +121,11 @@ _FP_PATTERNS: List[re.Pattern] = [re.compile(p, re.IGNORECASE) for p in [
     r"^[A-Z][A-Z\s]+\s+\d+[\.\d]*\s+",
     # Lines with 3+ whitespace-separated tokens where one is a decimal (table row)
     r"^\S+\s+\d+[\.,]\d+\s+\S+$",
+    r"[\.\:\?]\s*$",                             # lines ending in punctuation (likely body)
+    r"^(?:INTRODUCTION|METHODOLOGY|METHODS|RESULTS|DISCUSSION|CONCLUSION|ABSTRACT|REFERENCES|SUMMARY|BIBLIOGRAPHY)(?:\s+AND\s+\w+)?$", # major sections
+    r"^(?:SUMMARY,\s+)?CONCLUSION[S]?,\s+AND\s+RECOMMENDATION[S]?$", # specific long section
+    r"\b(?:and|or|the|in|of|to|for|with|by|a|an)\s*$", # lines ending in conjunctions (wraps)
+    r"^[A-Z]+$", # single word ALL-CAPS (likely junk like "PROCESS")
 ]]
 
 # ── Section key normaliser ────────────────────────────────────────────────────
@@ -161,6 +168,7 @@ def _score_line(
     is_bold: bool,
     prev_blank: bool,
     next_blank: bool,
+    is_geometry: bool = False,
 ) -> float:
     """
     Score a single line on structural heading signals. Returns 0–1.
@@ -176,6 +184,7 @@ def _score_line(
 
     scores: Dict[str, float] = {
         "bold":         1.0 if is_bold else 0.0,
+        "geometry":     1.0 if is_geometry else 0.0,
         "short":        1.0 if word_count <= 10 else max(0.0, 1.0 - (word_count - 10) * 0.1),
         "title_case":   _title_case_ratio(stripped),
         "no_end_punct": 0.0 if stripped[-1] in ".,:;" else 1.0,
@@ -243,6 +252,7 @@ def _extract_candidates_from_text(
     section_key: str,
     known_labels: List[str],
     bold_lines: Optional[Set[str]] = None,
+    geometry_lines: Optional[Set[str]] = None,
 ) -> List[Tuple[str, float]]:
     """
     Scan a section's plain text for subheading candidates.
@@ -277,9 +287,10 @@ def _extract_candidates_from_text(
 
         prev_blank = (i == 0) or (not lines[i - 1].strip())
         next_blank = (i == len(lines) - 1) or (not lines[i + 1].strip())
-        is_bold = stripped in bold_lines or stripped.upper() in bold_lines
+        is_bold     = stripped in bold_lines or stripped.upper() in bold_lines
+        is_geometry = stripped in geometry_lines or stripped.upper() in (geometry_lines or set())
 
-        score = _score_line(stripped, is_bold, prev_blank, next_blank)
+        score = _score_line(stripped, is_bold, prev_blank, next_blank, is_geometry=is_geometry)
 
         if score >= CANDIDATE_THRESHOLD:
             # Normalise: strip leading numbering like "A. " or "1. "
@@ -320,6 +331,7 @@ class SubheadingDiscoveryService:
         self,
         sections: Dict[str, str],
         bold_lines_by_section: Optional[Dict[str, Set[str]]] = None,
+        geometry_lines_by_section: Optional[Dict[str, Set[str]]] = None,
     ) -> Dict[str, List[str]]:
         """
         Scan all sections of a newly processed paper for unknown subheadings
@@ -357,9 +369,12 @@ class SubheadingDiscoveryService:
             norm_key = _normalise_key(section_key)
             known_for_section = label_map.get(norm_key, []) + all_known
             bold_lines = (bold_lines_by_section or {}).get(section_key, set())
+            geom_lines = (geometry_lines_by_section or {}).get(section_key, set())
 
             candidates = _extract_candidates_from_text(
-                text, norm_key, known_for_section, bold_lines
+                text, norm_key, known_for_section, 
+                bold_lines=bold_lines,
+                geometry_lines=geom_lines,
             )
 
             newly_registered: List[str] = []

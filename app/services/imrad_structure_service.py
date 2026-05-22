@@ -152,7 +152,15 @@ def _structure_section(
         # A. Check against our known label list
         if labels:
             for label in labels:
-                pattern = r"^\s*((?:(?:[IVXLC\d]+|[a-zA-Z])[\.\s]+)*" + re.escape(label) + r")[\.\:]?\s*(.*)$"
+                # Prefix group only matches real numbering tokens: Roman numerals, digits,
+                # or a SINGLE uppercase letter — all MUST be followed by a literal dot and
+                # optional whitespace. This prevents the group from consuming the first
+                # character(s) of the label itself (e.g. "R" from "Research Design").
+                pattern = (
+                    r"^\s*((?:(?:[IVXLC]+|\d+|[A-Z])\.\s*)*"
+                    + re.escape(label)
+                    + r")\s*[\.\:]?\s*(.*)$"
+                )
                 match = re.match(pattern, stripped, re.I)
                 if match:
                     heading_text = match.group(1).strip()
@@ -191,9 +199,15 @@ def _structure_section(
         
         # B. Check for hierarchical numbering (e.g. "1.1 Something" or "A. Something")
         # if not already caught by Path A and the line is short.
+        # Require at least one real numbering token (digit run, Roman numeral, or
+        # single uppercase letter) followed by a literal dot before the title text.
+        # This prevents bare "Research Design"-style lines from falsely matching.
         if not is_subheading:
-            # Matches "1.1 Title", "A. Title", "I. Title"
-            hierarchy_match = re.match(r'^(?:(?:[IVX\d]{1,4}|[A-Z])[\. ]+)+([A-Z][^a-z]{0,80})$', stripped)
+            # Matches "1.1 Title", "A. Title", "I. Title" — numbering token REQUIRED
+            hierarchy_match = re.match(
+                r'^((?:(?:[IVXLC]+|\d+|[A-Z])\.\s+)+)([A-Z].{0,80})$',
+                stripped,
+            )
             if hierarchy_match and len(stripped) < 100:
                 flush_buffer()
                 flush_pending_media()
@@ -226,6 +240,32 @@ def _structure_section(
                 consumed_pool_ids.add(match_id)
             else:
                 blocks.append({"type": "table-label", "text": stripped})
+            continue
+
+        # 2.5 Inline-label recovery — catches labels that the PDF extractor merged
+        # into the start of a body paragraph (e.g. "Research Design The study used...").
+        # Only attempted when Path A didn't already match this line as a subheading.
+        if labels and not is_subheading and not MARKER_RE.search(stripped):
+            for label in labels:
+                inline_pattern = (
+                    r"^((?:(?:[IVXLC]+|\d+|[A-Z])\.\s*)?"
+                    + re.escape(label)
+                    + r")\s*[\.\:]?\s+(.+)$"
+                )
+                inline_match = re.match(inline_pattern, stripped, re.I)
+                if inline_match:
+                    heading_candidate = inline_match.group(1).strip()
+                    body_remainder = inline_match.group(2).strip()
+                    # Sanity: heading must start uppercase and body must be substantial
+                    if heading_candidate[0].isupper() and len(body_remainder) > 15:
+                        flush_buffer()
+                        flush_pending_media()
+                        blocks.append({"type": "subheading", "text": heading_candidate})
+                        buffer.append(body_remainder)
+                        is_subheading = True
+                        break
+
+        if is_subheading:
             continue
 
         # 3. Handle mixed text and markers (Inline support)

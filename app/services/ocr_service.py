@@ -17,7 +17,7 @@ from app.core.task_manager import task_manager
 # ── Test flag: set True to skip pypdf and always use EasyOCR ──────────────────
 # WARNING: Kung gusto nyo masayang ang inyong mga precious time, i-True nyo yung value
 # sa ibaba or ng variable FORCE_OCR: bool :) Happy waiting and wasting time kneegers.
-FORCE_OCR: bool = True
+FORCE_OCR: bool = False
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -604,6 +604,7 @@ class OCRService:
 
                 # 2. Section pages for specialized scans
                 full_sec_pages = extracted_imrad.get("full_section_pages", {})
+                intro_pages = full_sec_pages.get("introduction") or extracted_imrad.get("section_pages", {}).get("introduction", [])
                 methods_pages = full_sec_pages.get("methods") or extracted_imrad.get("section_pages", {}).get("methods", [])
                 results_pages = (
                     full_sec_pages.get("results_and_discussion")
@@ -614,8 +615,10 @@ class OCRService:
 
                 detected_subs = imrad_service.detect_subheadings(
                     page_text_map=page_text_map,
+                    introduction_pages=intro_pages,
                     methods_pages=methods_pages,
                     results_pages=results_pages,
+                    pdf_path=pdf_path,
                 )
             except Exception as imrad_err:
                 log.error("IMRAD extraction failed (non-fatal)", exc=imrad_err)
@@ -644,7 +647,10 @@ class OCRService:
                     import fitz  # PyMuPDF — already a project dependency
                     doc = fitz.open(pdf_path)
                     full_sec_pages_for_bold = extracted_imrad.get("full_section_pages", {})
+                    IMRAD_KEYS = {"introduction", "methods", "results", "discussion", "results_and_discussion"}
                     for sec_key, page_nums in full_sec_pages_for_bold.items():
+                        if sec_key not in IMRAD_KEYS:
+                            continue
                         bold_set: set = set()
                         for pg_num in page_nums:
                             if pg_num < 1 or pg_num > len(doc):
@@ -668,6 +674,7 @@ class OCRService:
                 subheading_discovery_service.scan_and_register(
                     sections_raw,
                     bold_lines_by_section=bold_lines_by_section or None,
+                    geometry_lines_by_section=extracted_imrad.get("geometry_lines"),
                 )
             except Exception as disc_err:
                 log.error("SubheadingDiscovery: scan failed (non-fatal)", exc=disc_err)
