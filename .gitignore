@@ -37,3 +37,7 @@ extracted_data_heading/
 sample_data/
 imrad_document/
 models/
+
+# RAR and ZIP archives
+*.rar
+*.zip

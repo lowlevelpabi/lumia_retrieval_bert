@@ -15,10 +15,12 @@ CROSS_ENCODER_MODEL   = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 ZSC_MODEL = LIGHTWEIGHT_MODEL if USE_LIGHTWEIGHT_ZSC else BART_MODEL
 
 # ── DistilBERT 9-class sequence classifier (Tier 0) ───────────────────────────
-# Check for both default and clean folder names
-_MODEL_CLEAN = "./distilbert_imrad_model"
-_MODEL_STD = "./distilbert_imrad_model"
-DISTILBERT_IMRAD_PATH: str  = _MODEL_CLEAN if os.path.isdir(_MODEL_CLEAN) else _MODEL_STD
+# Check for both default and clean folder names, resolving paths relative to project root
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_MODEL_IN_MODELS = os.path.join(_BASE_DIR, "models", "distilbert_imrad_model")
+_MODEL_IN_ROOT = os.path.join(_BASE_DIR, "distilbert_imrad_model")
+
+DISTILBERT_IMRAD_PATH: str  = _MODEL_IN_MODELS if os.path.isdir(_MODEL_IN_MODELS) else _MODEL_IN_ROOT
 USE_DISTILBERT_IMRAD:  bool = os.path.isdir(DISTILBERT_IMRAD_PATH)
 
 # Maps the 9-class labels back to the 4 section keys used by imrad_service.py

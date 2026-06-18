@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     COLLECTION_NAME: str = "thesis_papers"
     DEFAULT_SEARCH_THRESHOLD: float = 0.15
-    RECOMMENDATION_THRESHOLD: float = 0.35
+    RECOMMENDATION_THRESHOLD: float = 0.25
 
     # ── Evaluation Guard Rails ────────────────────────────────────────────────
     # Controls the instant termination of duplicate uploads (Title, Author, Year).

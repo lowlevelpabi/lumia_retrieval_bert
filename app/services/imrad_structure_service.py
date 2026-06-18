@@ -223,23 +223,30 @@ def _structure_section(
             blocks.append({"type": "text", "text": stripped})
             continue
 
-        # 2. Check for Table/Figure Label (Caption) — only when no inline markers exist.
-        if not has_inline_markers and _TABLE_FIGURE_RE.match(stripped):
+        # 2. Check for Table/Figure Label (Caption)
+        if _TABLE_FIGURE_RE.match(stripped):
             flush_buffer()
-            is_table = stripped.upper().startswith("TABLE")
-            prefix = "T_" if is_table else "F_"
-            pool_keys = sorted(section_media_pool.keys(), key=lambda x: [int(c) if c.isdigit() else c for c in re.split('([0-9]+)', x)])
-            match_id = next((pk for pk in pool_keys if pk.startswith(prefix) and pk not in consumed_pool_ids), None)
-            
-            if match_id:
-                blocks.append({
-                    "type": "table-image", 
-                    "id": match_id, 
-                    "text": section_media_pool[match_id]
-                })
-                consumed_pool_ids.add(match_id)
-            else:
+            if has_inline_markers:
+                # Just emit the label block; the inline marker will place the image exactly.
                 blocks.append({"type": "table-label", "text": stripped})
+            else:
+                # Fallback image matching for documents extracted without spatial inline markers
+                is_table = stripped.upper().startswith("TABLE")
+                prefix = "T_" if is_table else "F_"
+                pool_keys = sorted(section_media_pool.keys(), key=lambda x: [int(c) if c.isdigit() else c for c in re.split('([0-9]+)', x)])
+                match_id = next((pk for pk in pool_keys if pk.startswith(prefix) and pk not in consumed_pool_ids), None)
+                
+                if match_id:
+                    # Emit both label and matched image block consecutively
+                    blocks.append({"type": "table-label", "text": stripped})
+                    blocks.append({
+                        "type": "table-image", 
+                        "id": match_id, 
+                        "text": section_media_pool[match_id]
+                    })
+                    consumed_pool_ids.add(match_id)
+                else:
+                    blocks.append({"type": "table-label", "text": stripped})
             continue
 
         # 2.5 Inline-label recovery — catches labels that the PDF extractor merged

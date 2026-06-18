@@ -529,6 +529,14 @@ def _find_section_page(
             elif fp_score >= FUZZY_THRESHOLD:
                 penalised = target_score * 0.55
             if penalised >= FUZZY_THRESHOLD:
+                # Golden rule: A major section start page can never start after a table/figure caption
+                # on that same page. Any keyword match sitting below a table/figure caption is a false positive
+                # (e.g. inside a comparison table, literature matrix, or results table).
+                pos_in_raw = normalized.upper().find(clean.upper())
+                if pos_in_raw != -1:
+                    text_before = normalized[:pos_in_raw]
+                    if re.search(r'\b(Table|Figure|Fig\.?)\s+\d+', text_before, re.I):
+                        continue
                 nominees.append((page_num, clean, penalised, "regex"))
 
     # ── Structural Boost ──────────────────────────────────────────────────────
@@ -543,9 +551,29 @@ def _find_section_page(
             # Use geometry to find isolates
             page = pdf_doc.load_page(page_num - 1)
             geom_lines = _get_page_geometry(page)
-            struct_candidates = _identify_structural_candidates(geom_lines)
+            struct_candidates = _identify_structural_candidates(geom_lines, ignore_section_headings=False)
             
+            # Spatial Table/Figure quarantine heuristic
+            quarantined_ranges = []
+            for line in geom_lines:
+                if re.search(r'\b(Table|Figure|Fig\.?)\s+\d+', line["text"], re.I):
+                    # Table caption: quarantine below (+250 pt)
+                    if "table" in line["text"].lower():
+                        quarantined_ranges.append((line["y0"], line["y0"] + 250.0))
+                    # Figure caption: quarantine above (-250 pt)
+                    else:
+                        quarantined_ranges.append((line["y0"] - 250.0, line["y0"]))
+
             for cand in struct_candidates:
+                # Find matching geometry coordinates
+                cand_geom = next((g for g in geom_lines if g["text"] == cand["text"]), None)
+                if cand_geom:
+                    # Skip if the candidate falls within quarantined Table/Figure coordinate blocks
+                    y_mid = (cand_geom["y0"] + cand_geom["y1"]) / 2.0
+                    in_quarantine = any(q_start <= y_mid <= q_end for q_start, q_end in quarantined_ranges)
+                    if in_quarantine:
+                        continue
+
                 # We check the ML verdict for every structural isolate
                 ml_section, ml_score = classify_heading(cand["text"])
                 if ml_section == section_key and ml_score >= 0.40:
@@ -602,11 +630,17 @@ def _get_page_geometry(page: Any) -> List[Dict[str, Any]]:
                 is_bold = any("Bold" in s.get("font", "") or (s.get("flags", 0) & 16) for s in spans)
                 
                 bbox = line["bbox"] # (x0, y0, x1, y1)
+                y0, y1 = bbox[1], bbox[3]
+                
+                # Microsecond Header/Footer Stripping Heuristic
+                if y1 < 80.0 or y0 > 720.0:
+                    continue
+
                 lines.append({
                     "text":    text,
-                    "y0":      bbox[1],
-                    "y1":      bbox[3],
-                    "height":  bbox[3] - bbox[1],
+                    "y0":      y0,
+                    "y1":      y1,
+                    "height":  y1 - y0,
                     "size":    round(avg_size, 1),
                     "is_bold": is_bold,
                 })
@@ -619,7 +653,7 @@ def _get_page_geometry(page: Any) -> List[Dict[str, Any]]:
     return lines
 
 
-def _identify_structural_candidates(lines: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _identify_structural_candidates(lines: List[Dict[str, Any]], ignore_section_headings: bool = True) -> List[Dict[str, Any]]:
     """
     Analyzes vertical gaps between lines to find heading/subheading candidates.
     Returns a list of candidate dicts with 'type' (heading/subheading) and 'text'.
@@ -645,7 +679,8 @@ def _identify_structural_candidates(lines: List[Dict[str, Any]]) -> List[Dict[st
             continue
 
         # Ignore single words that are all-caps (likely table headers or junk like "PROCESS", "SCORES")
-        if word_count == 1 and txt.isupper():
+        # BUT if it matches one of our actual major heading words, don't ignore it!
+        if word_count == 1 and txt.isupper() and txt not in _SECTION_HEADING_LINES:
             continue
 
         # Heuristic: If it has many words, it should have a decent Title Case ratio
@@ -657,7 +692,7 @@ def _identify_structural_candidates(lines: List[Dict[str, Any]]) -> List[Dict[st
         # Skip major section headers (blacklist)
         # Check against both the exact strings and fuzzy matches for common chapter patterns
         clean_txt = re.sub(r'^(?:CHAPTER\s+[IVX\d]+\s+)', '', txt, flags=re.I).strip()
-        if clean_txt.upper() in _SECTION_HEADING_LINES:
+        if ignore_section_headings and clean_txt.upper() in _SECTION_HEADING_LINES:
             continue
             
         # Skip pure numeric lines (page numbers)
@@ -859,6 +894,32 @@ def _extract_page_spatially(
             return False
         return True
 
+    def _has_horizontal_companion(tb: dict, blocks: list) -> bool:
+        """True if there is another text block on the same page with vertical overlap but separated horizontally."""
+        tb_y0, tb_y1 = tb["y0"], tb["y1"]
+        tb_x0, tb_x1 = tb["x0"], tb["x1"]
+        tb_h = tb_y1 - tb_y0
+        if tb_h <= 0:
+            return False
+            
+        for other in blocks:
+            if other == tb:
+                continue
+            oth_y0, oth_y1 = other["y0"], other["y1"]
+            oth_x0, oth_x1 = other["x0"], other["x1"]
+            oth_h = oth_y1 - oth_y0
+            if oth_h <= 0:
+                continue
+                
+            # Vertical overlap check (overlap height > 50% of the shorter block)
+            overlap = min(tb_y1, oth_y1) - max(tb_y0, oth_y0)
+            min_h = min(tb_h, oth_h)
+            if overlap > 0 and (overlap / min_h) > 0.5:
+                # Horizontal separation check (at least 2 points gap, no overlap)
+                if oth_x0 > tb_x1 + 2 or tb_x0 > oth_x1 + 2:
+                    return True
+        return False
+
     # Sort text blocks top-to-bottom once — reused throughout
     text_blocks_sorted = sorted(text_blocks, key=lambda b: b["y0"])
 
@@ -893,17 +954,34 @@ def _extract_page_spatially(
                 # min() handles cases where the caption might be slightly below tbox.y0.
                 zone_y0 = min(cap_y0, matched_tbox.y0) - 10
                 zone_y1 = matched_tbox.y1 + 8
-                # check the first few blocks forward until we find a clear stop.
+                
+                # Dynamic extension: PyMuPDF's find_tables() often misses trailing rows
+                # of a table if they are formatted loosely. We walk forward and extend
+                # the zone for any non-body blocks immediately below the table.
                 for tb in text_blocks_sorted:
-                    if tb["y0"] <= matched_tbox.y1 + 5:
+                    tb_y0 = tb["y0"]
+                    if tb_y0 <= zone_y1 - 5:
                         continue
-                    # If we've drifted more than 150px past the table, stop anyway.
-                    if tb["y0"] > matched_tbox.y1 + 150:
+                    # Stop extending if we drift too far (>100px) without active extension
+                    if tb_y0 > zone_y1 + 100:
                         break
+                    
                     txt = tb["text"].strip()
-                    if bool(TRUE_CAP_RE.match(txt)) or _is_body_paragraph(txt):
-                        zone_y1 = min(zone_y1, tb["y0"] - 5)
+                    # A block belongs to the table if it's NOT a body paragraph and NOT a caption
+                    is_body = len(txt) > 140 and _is_body_paragraph(txt)
+                    is_cap = bool(TRUE_CAP_RE.match(txt))
+                    
+                    if not is_body and not is_cap:
+                        # Extend the table zone to include this row!
+                        zone_y1 = max(zone_y1, tb["y1"] + 8)
+                    else:
+                        # Found actual body text or next caption — stop extending immediately
                         break
+                        
+                # Align with any horizontal rules that are close to the extended bottom (bottom borders)
+                close_rules = [ry for ry in h_rules if ry > zone_y1 - 5 and ry < zone_y1 + 40]
+                if close_rules:
+                    zone_y1 = max(zone_y1, max(close_rules) + 10)
 
             else:
                 # ── Strategy B: Horizontal drawing rule detection ───────────
@@ -914,6 +992,12 @@ def _extract_page_spatially(
                 if len(rules_below) >= 2:
                     table_bottom = rules_below[0]
                     for ry in rules_below:
+                        # If the gap to the next rule is small (<150px), it's definitely a table row divider.
+                        # Do not let body paragraphs inside table cells break the table.
+                        if ry - table_bottom < 150:
+                            table_bottom = ry
+                            continue
+                            
                         # Stop extending if body paragraph appears before this rule
                         body_breaks = False
                         for tb in text_blocks_sorted:
@@ -921,7 +1005,8 @@ def _extract_page_spatially(
                                 continue
                             if tb["y0"] > ry + 5:
                                 break
-                            if _is_body_paragraph(tb["text"].strip()):
+                            txt_val = tb["text"].strip()
+                            if len(txt_val) > 140 and _is_body_paragraph(txt_val) and not _has_horizontal_companion(tb, text_blocks_sorted):
                                 body_breaks = True
                                 break
                         if body_breaks:
@@ -954,7 +1039,7 @@ def _extract_page_spatially(
                             if tb["y0"] <= cap_y1 + 5:
                                 continue
                             txt = tb["text"].strip()
-                            if bool(TRUE_CAP_RE.match(txt)) or _is_body_paragraph(txt):
+                            if bool(TRUE_CAP_RE.match(txt)) or (len(txt) > 140 and _is_body_paragraph(txt) and not _has_horizontal_companion(tb, text_blocks_sorted)):
                                 if tb["y0"] - 5 < zone_y1:
                                     zone_y1 = tb["y0"] - 5
                                 break
@@ -1214,6 +1299,8 @@ class IMRADService:
         page_text_map = {1: page_input} if isinstance(page_input, str) else dict(page_input)
         all_pages = sorted(page_text_map.keys())
 
+        spatial_cache: Dict[int, Tuple[List[str], Dict[str, str], str]] = {}
+
         # ── 1. Locate section start pages ────────────────────────────────
         # Open PDF once to pass doc handle for structural analysis
         pdf_doc = None
@@ -1316,7 +1403,7 @@ class IMRADService:
             section_stop = False
             # Standardized caption regex across services
             # CASE SENSITIVE: Only capitalized "Table" or "Figure" triggers image treatment.
-            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]?')
+            TRUE_CAP_RE = re.compile(r'^(Table|Figure|Fig\.?)\s+\d+[\.\:\-\,]')
 
 
 
@@ -1330,12 +1417,16 @@ class IMRADService:
                 page_markers: Dict[str, str] = {}
                 filtered_page_text: Optional[str] = None
                 if pdf_path and section_key in ("introduction", "methods", "results", "discussion"):
-                    spatial_result = _extract_page_spatially(
-                        pdf_path, pg, result_media, section_key,
-                        all_boilerplate, sh_list,
-                    )
-                    if spatial_result is not None:
-                        _, page_markers, filtered_page_text = spatial_result
+                    if pg in spatial_cache:
+                        _, page_markers, filtered_page_text = spatial_cache[pg]
+                    else:
+                        spatial_result = _extract_page_spatially(
+                            pdf_path, pg, result_media, section_key,
+                            all_boilerplate, sh_list,
+                        )
+                        if spatial_result is not None:
+                            spatial_cache[pg] = spatial_result
+                            _, page_markers, filtered_page_text = spatial_result
 
                 # ── Geometry-based Structural Candidates (Smart Chunking) ──
                 if pdf_path and section_key in ("introduction", "methods", "results", "discussion"):
@@ -1405,7 +1496,11 @@ class IMRADService:
                         looks_like_continuation = (
                             len(line) < 120 and
                             not TRUE_CAP_RE.match(line) and 
-                            (line[0].islower() or line.split()[0].lower() in ["using", "based", "for", "in", "from", "with", "and", "of", "the", "to", "on", "at"])
+                            (
+                                line[0].islower() or 
+                                line.split()[0].lower() in ["using", "based", "for", "in", "from", "with", "and", "of", "the", "to", "on", "at"] or
+                                len(line) < 100
+                            )
                         )
                         if looks_like_continuation:
                             continue
@@ -1495,7 +1590,7 @@ class IMRADService:
                         if stop:
                             section_stop = True
                             break
-                    if section_key in ("results", "results_and_discussion"):
+                    if section_key in ("results", "results_and_discussion", "discussion"):
                         if any(re.search(pat, line, re.I) for pat in RAD_STOP_PATTERNS_STRICT):
                             section_stop = True
                             break

@@ -240,12 +240,20 @@ class OCRService:
                 re.IGNORECASE
             )
 
-            # ── STRATEGY 1: Names above a "Month Year" date line (Structural) ──
+            # ── STRATEGY 1: Names above a Date or Year line (Structural) ──
             date_match = re.search(
                 r'(?:January|February|March|April|May|June|July|August|September|'
                 r'October|November|December)\s+20\d{2}',
-                cover_text
+                cover_text,
+                re.IGNORECASE
             )
+            if not date_match:
+                # Fallback to looking for a standalone year (e.g., 2026) at the bottom/end of the cover text.
+                # Take the last one because date/year is usually at the bottom of the page.
+                matches = list(re.finditer(r'\b(20[1-2][0-9])\b', cover_text))
+                if matches:
+                    date_match = matches[-1]
+
             if date_match:
                 chunk_before_date = cover_text[max(0, date_match.start() - 600) : date_match.start()]
                 lines_before = [l.strip() for l in chunk_before_date.split('\n') if l.strip()]

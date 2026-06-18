@@ -1006,13 +1006,33 @@ async def get_paper_recommendations(
             ce_parts.append(results_txt[:200])
         ce_query = " | ".join(p for p in ce_parts if p.strip())[:1000]
 
+        # Bulk load candidate papers to obtain their methodology/results context
+        candidate_ids = list(set(int(hit.id) for hit in results if hit.payload.get("title") != source_paper.title))
+        cand_papers = db.query(Paper).filter(Paper.id.in_(candidate_ids)).all()
+        cand_map = {p.id: p for p in cand_papers}
+
         re_rank_candidates = []
         for hit in results:
             if hit.payload.get("title") == source_paper.title:
                 continue
             cand_title    = hit.payload.get("title") or ""
             cand_abstract = hit.payload.get("abstract") or ""
-            cand_text     = f"{cand_title} | {cand_abstract[:500]}"
+            
+            # Fetch rich context (methods + results) from database mapping
+            cand_paper = cand_map.get(int(hit.id))
+            cand_parts = [cand_title]
+            if cand_abstract:
+                cand_parts.append(cand_abstract[:400])
+            
+            if cand_paper:
+                cand_methods = cand_paper.methods_summary or cand_paper.methods or ""
+                if cand_methods:
+                    cand_parts.append(cand_methods[:300])
+                cand_results = cand_paper.results_summary or cand_paper.results or ""
+                if cand_results:
+                    cand_parts.append(cand_results[:200])
+            cand_text = " | ".join(p for p in cand_parts if p.strip())[:1000]
+
             re_rank_candidates.append({
                 "id":      hit.id,
                 "score":   hit.score,
@@ -1029,13 +1049,28 @@ async def get_paper_recommendations(
         # ── Step E: Score Fusion + Human-Readable Reason Generation ──────────
         search_results = []
         source_kws = set(k.strip().lower() for k in (source_paper.keywords or "").split(",") if k.strip())
-        
+
+        # Empirical CE logit range observed across Filipino undergraduate thesis pairs.
+        # Maps the raw ms-marco logit to [0, 1] using the actual distribution of
+        # academic thesis scores (-8 worst-unrelated, +5 near-duplicate), then applies
+        # a 1.5-power decay so that moderately-related papers compress downward and
+        # truly unrelated papers collapse toward zero.
+        _CE_MIN, _CE_MAX = -8.0, 5.0
+
         for c in reranked:
             ce_score = c.get("rerank_score", 0.0)
-            # Normalize ms-marco cross-encoder range (~-10..+10) to 0–1
-            norm_ce = max(0.0, min(1.0, (ce_score + 5) / 10))
-            # 35% multi-section vector similarity + 65% cross-encoder deep context
-            final_score = (c["score"] * 0.35) + (norm_ce * 0.65)
+
+            # 1. Map logit to [0, 1] using thesis-specific observed range
+            raw_ce   = max(0.0, min(1.0, (ce_score - _CE_MIN) / (_CE_MAX - _CE_MIN)))
+            # 2. Power-law decay: separates related (high) from unrelated (near-zero)
+            norm_ce  = raw_ce ** 1.5
+
+            # 3. Normalize vector cosine from observed dense-embedding range [0.3, 0.75]
+            raw_cosine  = c["score"]
+            norm_vector = max(0.0, min(1.0, (raw_cosine - 0.3) / 0.45))
+
+            # 4. Blend: 15% vector (topic anchor) + 85% cross-encoder (IMRaD context match)
+            final_score = (norm_vector * 0.15) + (norm_ce * 0.85)
 
             if final_score < settings.RECOMMENDATION_THRESHOLD:
                 continue
