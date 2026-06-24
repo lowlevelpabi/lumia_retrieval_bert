@@ -7,6 +7,7 @@ class UserBase(BaseModel):
     username: str
     full_name: Optional[str] = None
     role: Optional[UserRole] = UserRole.STUDENT
+    avatar_url: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str

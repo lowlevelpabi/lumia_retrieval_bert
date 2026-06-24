@@ -920,8 +920,39 @@ def _extract_page_spatially(
                     return True
         return False
 
-    # Sort text blocks top-to-bottom once — reused throughout
-    text_blocks_sorted = sorted(text_blocks, key=lambda b: b["y0"])
+    # Sort text blocks layout-aware (double-column sorting)
+    mid_x = page_rect.width / 2.0
+    sorted_by_y = sorted(text_blocks, key=lambda b: b["y0"])
+    
+    bands = []
+    current_band = []
+    for b in sorted_by_y:
+        is_spanning = (b["x0"] < mid_x - 40) and (b["x1"] > mid_x + 40)
+        if is_spanning:
+            if current_band:
+                bands.append(current_band)
+                current_band = []
+            bands.append([b])
+        else:
+            current_band.append(b)
+    if current_band:
+        bands.append(current_band)
+        
+    text_blocks_sorted = []
+    for band in bands:
+        if len(band) == 1 and (band[0]["x0"] < mid_x - 40) and (band[0]["x1"] > mid_x + 40):
+            text_blocks_sorted.extend(band)
+        else:
+            left = []
+            right = []
+            for b in band:
+                center_x = (b["x0"] + b["x1"]) / 2.0
+                if center_x < mid_x:
+                    left.append(b)
+                else:
+                    right.append(b)
+            text_blocks_sorted.extend(sorted(left, key=lambda x: x["y0"]))
+            text_blocks_sorted.extend(sorted(right, key=lambda x: x["y0"]))
 
     # markers: list of (caption_text_normalized, marker_string)
     markers = []  # list of (normalized_caption_text, marker_string)
@@ -992,9 +1023,9 @@ def _extract_page_spatially(
                 if len(rules_below) >= 2:
                     table_bottom = rules_below[0]
                     for ry in rules_below:
-                        # If the gap to the next rule is small (<150px), it's definitely a table row divider.
+                        # If the gap to the next rule is small (<180px), it's definitely a table row divider.
                         # Do not let body paragraphs inside table cells break the table.
-                        if ry - table_bottom < 150:
+                        if ry - table_bottom < 180:
                             table_bottom = ry
                             continue
                             
@@ -1006,9 +1037,13 @@ def _extract_page_spatially(
                             if tb["y0"] > ry + 5:
                                 break
                             txt_val = tb["text"].strip()
-                            if len(txt_val) > 140 and _is_body_paragraph(txt_val) and not _has_horizontal_companion(tb, text_blocks_sorted):
-                                body_breaks = True
-                                break
+                            is_long_body = len(txt_val) > 140 and _is_body_paragraph(txt_val)
+                            if is_long_body and not _has_horizontal_companion(tb, text_blocks_sorted):
+                                # Only break if the text block is wide, representing a true page/column-wide paragraph
+                                block_width = tb["x1"] - tb["x0"]
+                                if block_width > 220:
+                                    body_breaks = True
+                                    break
                         if body_breaks:
                             break
                         table_bottom = ry
@@ -1769,6 +1804,31 @@ class IMRADService:
                 doc.close()
             except Exception as e:
                 log.warn(f"Structural subheading discovery failed: {e}")
+
+        # Filter detected list to only include subheadings that actually appear in structured blocks with content.
+        # This prevents empty subheadings (e.g. subheadings with no body text) from showing in the UI tags.
+        try:
+            from app.services.imrad_structure_service import imrad_structure_service
+            
+            valid_subheadings = []
+            for sec_key, pages in [("introduction", introduction_pages), ("methods", methods_pages), ("results", results_pages)]:
+                if pages:
+                    sec_text = "\n".join(_normalize_text(page_text_map.get(pg, "")) for pg in sorted(pages))
+                    blocks = imrad_structure_service.build_section(sec_text, sec_key)
+                    for b in blocks:
+                        if b["type"] == "subheading":
+                            valid_subheadings.append(b["text"].lower().strip())
+                            
+            filtered_detected = []
+            for det in detected:
+                det_lower = det.lower().strip()
+                # If the detected label is present in any of the valid (non-empty) subheading blocks
+                # (either as a substring because of numbering/punctuation, or vice versa)
+                if any((det_lower in v_sub or v_sub in det_lower) for v_sub in valid_subheadings):
+                    filtered_detected.append(det)
+            detected = filtered_detected
+        except Exception as filter_err:
+            log.warn(f"Failed filtering empty subheadings: {filter_err}")
 
         return list(dict.fromkeys(detected))
 

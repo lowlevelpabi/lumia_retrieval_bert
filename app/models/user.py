@@ -14,6 +14,7 @@ class Student(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.now)
     updated_at = Column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now)
     dark_mode = Column(Integer, default=0) # 0 for Light, 1 for Dark
+    avatar_url = Column(String, nullable=True)
 
     @property
     def role(self):

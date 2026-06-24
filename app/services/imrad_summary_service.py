@@ -24,6 +24,7 @@ import re
 import math
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
+import requests
 from app.services.logging_service import log
 
 # ── Constants (previously imported from imrad_service — defined locally to avoid
@@ -62,28 +63,122 @@ def _truncate_text(text: str, max_chars: int) -> str:
         return text
     return text[:max_chars].strip()
 
+
+def build_imrad_summary_prompt(section_key: str, content: str) -> str:
+    ct = content[:8000]
+    if section_key == "introduction":
+        return f"""You are summarising the Introduction section of a Filipino undergraduate thesis for display in a 2-column IMRAD layout.
+
+Instructions:
+- Identify each sub-section present in the text.
+- For each sub-section, write a concise summary in 2–4 sentences.
+- Use clear headings for each sub-section.
+- Keep the total summary under 400 words.
+- Write in plain academic prose. No bullet lists.
+
+Introduction text:
+---
+{ct}
+---
+
+Respond with the structured summary only. No preamble."""
+
+    elif section_key == "methods":
+        return f"""You are summarising the Methodology section of a Filipino undergraduate thesis.
+
+Instructions:
+- Identify all sub-headings present in the text.
+- For each sub-heading, write a concise 2–3 sentence summary.
+- Keep the total summary under 450 words.
+
+Methodology text:
+---
+{ct}
+---
+
+Respond with the structured summary only. No preamble."""
+
+    elif section_key == "results":
+        return f"""You are summarising the Results/Findings section of a Filipino undergraduate thesis.
+
+Instructions:
+- Write a concise 3–5 sentence paragraph summarising the key findings.
+- Keep the summary under 200 words.
+
+Results text:
+---
+{ct}
+---
+
+Respond with the summary paragraph only. No preamble."""
+
+    elif section_key == "discussion":
+        return f"""You are summarising the Conclusions and Recommendations section of a Filipino undergraduate thesis.
+
+Instructions:
+- Write a concise 3–5 sentence paragraph covering the main conclusions and recommendations.
+- Keep the summary under 200 words.
+
+Conclusions text:
+---
+{ct}
+---
+
+Respond with the summary paragraph only. No preamble."""
+
+    return f"Summarise the following academic text in 3–5 sentences:\n\n{ct}"
+
+
+def _generate_ollama_summary(section_key: str, content: str) -> str:
+    """Use local Ollama model to generate a high-quality section summary."""
+    if not content or len(content.strip()) < MIN_SECTION_CHARS:
+        return ""
+        
+    prompt = build_imrad_summary_prompt(section_key, content)
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": "gemma2:2b",
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.3,
+            "num_predict": 400
+        }
+    }
+    try:
+        log.info(f"Generating Ollama summary for '{section_key}'...")
+        response = requests.post(url, json=payload, timeout=20.0)
+        if response.status_code == 200:
+            result = response.json()
+            summary = result.get("response", "").strip()
+            if summary:
+                log.success(f"Ollama summary generated for '{section_key}'")
+                return summary
+    except Exception as e:
+        log.warn(f"Ollama summarization failed for '{section_key}', falling back to truncation: {e}")
+    
+    # Fallback to standard truncation
+    return _truncate_text(content.strip(), MAX_SUMMARY_CHARS)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Core Section Processing (Raw Passthrough)
+# Core Section Processing (Local LLM + Fallback Raw Passthrough)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _summarise_introduction(text: str) -> str:
-    """Returns the Introduction text truncated to the maximum allowed length."""
-    return _truncate_text(text.strip(), MAX_SUMMARY_CHARS)
+    return _generate_ollama_summary("introduction", text)
 
 
 def _summarise_methods(text: str) -> str:
-    """Returns the Methods text truncated to the maximum allowed length."""
-    return _truncate_text(text.strip(), MAX_SUMMARY_CHARS)
+    return _generate_ollama_summary("methods", text)
 
 
 def _summarise_results(text: str) -> str:
-    """Returns the Results text truncated to the maximum allowed length."""
-    return _truncate_text(text.strip(), MAX_SUMMARY_CHARS)
+    return _generate_ollama_summary("results", text)
 
 
 def _summarise_discussion(text: str) -> str:
-    """Returns the Discussion text truncated to the maximum allowed length."""
-    return _truncate_text(text.strip(), MAX_SUMMARY_CHARS)
+    return _generate_ollama_summary("discussion", text)
 
 
 _SUMMARISERS = {

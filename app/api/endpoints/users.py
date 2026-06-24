@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
+import os
+import uuid
+import shutil
 
 from app.core.database import get_db
 from app.api.deps import admin_required, get_current_user
@@ -191,3 +195,80 @@ def create_staff_user(
         "user": UserResponse.from_orm(new_user),
         "password": generated_password
     }
+
+# Directory to save user avatars
+AVATAR_DIR = "uploads/avatars"
+os.makedirs(AVATAR_DIR, exist_ok=True)
+
+@router.post("/me/avatar", response_model=UserResponse)
+def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: Student = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload an avatar image for the current user.
+    """
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, GIF, and WEBP images are allowed.")
+
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"{current_user.id}_{uuid.uuid4().hex}{file_ext}"
+    file_path = os.path.join(AVATAR_DIR, filename)
+
+    # Delete old avatar file if it exists
+    if current_user.avatar_url:
+        old_filename = current_user.avatar_url.split("/")[-1]
+        old_file_path = os.path.join(AVATAR_DIR, old_filename)
+        if os.path.exists(old_file_path):
+            try:
+                os.remove(old_file_path)
+            except Exception as e:
+                print(f"Failed to delete old avatar: {e}")
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save avatar image: {str(e)}")
+
+    # Update database
+    avatar_url = f"/api/v1/users/avatar/{filename}"
+
+    staff = db.query(AuthorizedUser).filter(AuthorizedUser.id == current_user.id).first()
+    if staff:
+        staff.avatar_url = avatar_url
+    else:
+        student = db.query(Student).filter(Student.id == current_user.id).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="User not found.")
+        student.avatar_url = avatar_url
+
+    db.commit()
+
+    updated_user = staff or student
+    if hasattr(updated_user, 'role'):
+        return updated_user
+    res = UserResponse.from_orm(updated_user)
+    res.role = UserRole.STUDENT
+    return res
+
+@router.get("/avatar/{filename}")
+def get_avatar(filename: str):
+    """
+    Retrieve user avatar image.
+    """
+    file_path = os.path.join(AVATAR_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Avatar not found")
+
+    media_type = "image/jpeg"
+    if filename.endswith(".png"):
+        media_type = "image/png"
+    elif filename.endswith(".gif"):
+        media_type = "image/gif"
+    elif filename.endswith(".webp"):
+        media_type = "image/webp"
+
+    return FileResponse(file_path, media_type=media_type)

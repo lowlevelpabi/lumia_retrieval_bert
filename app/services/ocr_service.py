@@ -25,6 +25,123 @@ FORCE_OCR: bool = False
 # ─────────────────────────────────────────────────────────────────────────────
 ENABLE_TABLE_EXTRACTION: bool = False
 
+
+def _get_poppler_path() -> Optional[str]:
+    """
+    Checks for the poppler binaries folder within an 'additionals' directory
+    either in the current working directory or relative to the source code folder.
+    """
+    path_opts = [
+        os.path.abspath(os.path.join("additionals", "poppler", "bin")),
+        os.path.abspath(os.path.join("additionals", "poppler")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "additionals", "poppler", "bin")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "additionals", "poppler"))
+    ]
+    for opt in path_opts:
+        if os.path.exists(opt):
+            if os.path.exists(os.path.join(opt, "pdftoppm.exe")):
+                return opt
+            elif os.path.exists(os.path.join(opt, "bin", "pdftoppm.exe")):
+                return os.path.join(opt, "bin")
+    return None
+
+
+def _get_tesseract_cmd() -> str:
+    """
+    Locates the Tesseract OCR executable. Searches the local 'additionals' 
+    directory first before defaulting to standard installation path.
+    """
+    path_opts = [
+        os.path.abspath(os.path.join("additionals", "Tesseract-OCR", "tesseract.exe")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "additionals", "Tesseract-OCR", "tesseract.exe")),
+        r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    ]
+    for opt in path_opts:
+        if os.path.exists(opt):
+            return opt
+    return r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+
+def _extract_text_layout_aware(pdf_path: str, page_num_1based: int, pypdf_reader: Optional[PdfReader] = None) -> str:
+    """
+    Extract text from a PDF page in a layout-aware manner (handling double columns).
+    Uses PyMuPDF (fitz) blocks mode. If it fails or fitz is unavailable, falls back
+    to pypdf's extract_text().
+    """
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        if page_num_1based - 1 < len(doc):
+            page = doc.load_page(page_num_1based - 1)
+            page_rect = page.rect
+            page_width = page_rect.width
+            
+            raw_blocks = page.get_text("blocks")
+            if raw_blocks:
+                text_blocks = []
+                for b in raw_blocks:
+                    if b[6] != 0:  # Skip image/non-text blocks
+                        continue
+                    text = b[4].strip()
+                    if not text:
+                        continue
+                    text_blocks.append({
+                        "x0": b[0], "y0": b[1],
+                        "x1": b[2], "y1": b[3],
+                        "text": text,
+                    })
+                
+                if text_blocks:
+                    mid_x = page_width / 2.0
+                    sorted_by_y = sorted(text_blocks, key=lambda b: b["y0"])
+                    
+                    bands = []
+                    current_band = []
+                    for b in sorted_by_y:
+                        is_spanning = (b["x0"] < mid_x - 40) and (b["x1"] > mid_x + 40)
+                        if is_spanning:
+                            if current_band:
+                                bands.append(current_band)
+                                current_band = []
+                            bands.append([b])
+                        else:
+                            current_band.append(b)
+                    if current_band:
+                        bands.append(current_band)
+                        
+                    final_blocks = []
+                    for band in bands:
+                        if len(band) == 1 and (band[0]["x0"] < mid_x - 40) and (band[0]["x1"] > mid_x + 40):
+                            final_blocks.extend(band)
+                        else:
+                            left = []
+                            right = []
+                            for b in band:
+                                center_x = (b["x0"] + b["x1"]) / 2.0
+                                if center_x < mid_x:
+                                    left.append(b)
+                                else:
+                                    right.append(b)
+                            final_blocks.extend(sorted(left, key=lambda x: x["y0"]))
+                            final_blocks.extend(sorted(right, key=lambda x: x["y0"]))
+                            
+                    doc.close()
+                    return "\n".join(b["text"] for b in final_blocks)
+            doc.close()
+    except Exception as e:
+        log.warn(f"Layout-aware text extraction failed for page {page_num_1based}; falling back to pypdf: {e}")
+
+    # Fallback to pypdf
+    try:
+        if pypdf_reader is None:
+            pypdf_reader = PdfReader(pdf_path)
+        if page_num_1based - 1 < len(pypdf_reader.pages):
+            return pypdf_reader.pages[page_num_1based - 1].extract_text() or ""
+    except Exception as fallback_err:
+        log.error(f"Fallback text extraction failed for page {page_num_1based}", exc=fallback_err)
+    return ""
+
+
 class OCRService:
     def __init__(self):
         log.info("Initializing EasyOCR (English)")
@@ -43,17 +160,16 @@ class OCRService:
     def extract_metadata_sync(self, pdf_path: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         log.section(f"Extracting — {os.path.basename(pdf_path)}")
         try:
-            log.info("Direct text extraction via pypdf...")
+            log.info("Direct text extraction via layout-aware PyMuPDF...")
             if session_id: task_manager.update_task(session_id, 10, "Loading PDF...")
             reader = PdfReader(pdf_path)
             num_pages = len(reader.pages)
             log.info("PDF loaded", pages=num_pages)
-            # ... all the existing logic from extract_metadata ...
-
+            
             # ── Full page map for IMRAD (all pages) ───────────────────────────
             page_text_map: Dict[int, str] = {}
             for i in range(num_pages):
-                p_text = reader.pages[i].extract_text()
+                p_text = _extract_text_layout_aware(pdf_path, i + 1, reader)
                 if p_text:
                     page_text_map[i + 1] = p_text
 
@@ -75,7 +191,7 @@ class OCRService:
                 _tesseract_ok = False
                 try:
                     import pytesseract
-                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # wag nyo baguhin to, default na yan kung san naka lagay tesseract nyo
+                    pytesseract.pytesseract.tesseract_cmd = _get_tesseract_cmd()
                     pytesseract.get_tesseract_version()
                     _tesseract_ok = True
                 except Exception:
@@ -91,6 +207,7 @@ class OCRService:
                         imgs = convert_from_path(
                             pdf_path, dpi=150,
                             first_page=pg_num, last_page=pg_num,
+                            poppler_path=_get_poppler_path()
                         )
                         if not imgs:
                             continue
@@ -127,6 +244,7 @@ class OCRService:
                 _meta_tess_ok = False
                 try:
                     import pytesseract
+                    pytesseract.pytesseract.tesseract_cmd = _get_tesseract_cmd()
                     pytesseract.get_tesseract_version()
                     _meta_tess_ok = True
                 except Exception:
@@ -137,7 +255,8 @@ class OCRService:
                         import pytesseract
                         log.info("Meta OCR engine: Tesseract")
                         images = convert_from_path(pdf_path, dpi=200,
-                                                   first_page=1, last_page=5)
+                                                   first_page=1, last_page=5,
+                                                   poppler_path=_get_poppler_path())
                         for i, img in enumerate(images):
                             log.info("Tesseract processing page", page=i + 1)
                             meta_text += pytesseract.image_to_string(
@@ -148,7 +267,8 @@ class OCRService:
                 elif self.ocr_available:
                     try:
                         log.info("Meta OCR engine: EasyOCR")
-                        images = convert_from_path(pdf_path, first_page=1, last_page=3)
+                        images = convert_from_path(pdf_path, first_page=1, last_page=3,
+                                                   poppler_path=_get_poppler_path())
                         for i, img in enumerate(images):
                             log.info("EasyOCR processing page", page=i + 1)
                             img_np = np.array(img)
@@ -434,98 +554,104 @@ class OCRService:
             if found_start != -1:
                 abstract_text_raw = meta_text[found_start:].strip()
 
-                # ── Step 1: Smart Slice for Merged Lines ──
-                # If the OCR merges the header and body into a single line, line-by-line fails.
-                # We find the 'Adviser' or 'Date' terminus and slice everything before it.
-                search_window = abstract_text_raw[:1200]
-                last_terminus = None
+                # Try to clean using local LLM first
+                abstract_text = self.clean_abstract_with_llm(abstract_text_raw)
                 
-                # 1a. Look for Adviser (Supports Ms., names with ñ, etc.)
-                for m in re.finditer(r'Adviser\s*[:\s]+[A-Za-zñÑ\s\.\-]{2,50}\.', search_window, re.IGNORECASE):
-                    last_terminus = m
+                # If LLM failed or fell back to raw, use the legacy regex cleaner
+                if abstract_text == abstract_text_raw:
+                    # ── Legacy regex-based line-by-line fallback ──
+                    # ── Step 1: Smart Slice for Merged Lines ──
+                    # If the OCR merges the header and body into a single line, line-by-line fails.
+                    # We find the 'Adviser' or 'Date' terminus and slice everything before it.
+                    search_window = abstract_text_raw[:1200]
+                    last_terminus = None
                     
-                # 1b. Fallback to Date, but ONLY if it appears very early (< 400 chars)
-                # This prevents matching dates like "July 2024" inside the abstract body.
-                if not last_terminus:
-                    for m in re.finditer(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}\.', search_window[:400], re.IGNORECASE):
+                    # 1a. Look for Adviser (Supports Ms., names with ñ, commas, etc.)
+                    for m in re.finditer(r'Adviser\s*[:\s]+[A-Za-zñÑ\s\.,\-]{2,60}\.', search_window, re.IGNORECASE):
                         last_terminus = m
+                        
+                    # 1b. Fallback to Date, but ONLY if it appears very early (< 400 chars)
+                    # This prevents matching dates like "July 2024" inside the abstract body.
+                    if not last_terminus:
+                        for m in re.finditer(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}\.', search_window[:400], re.IGNORECASE):
+                            last_terminus = m
 
-                if last_terminus:
-                    abstract_text_raw = abstract_text_raw[last_terminus.end():].strip()
+                    if last_terminus:
+                        abstract_text_raw = abstract_text_raw[last_terminus.end():].strip()
 
-                # ── Step 2: line-by-line skip for remaining boilerplate ────────
-                raw_lines     = abstract_text_raw.split('\n')
-                cleaned_lines = []
-                start_collecting = False
+                    # ── Step 2: line-by-line skip for remaining boilerplate ────────
+                    raw_lines     = abstract_text_raw.split('\n')
+                    cleaned_lines = []
+                    start_collecting = False
 
-                # We use a set of markers that indicate the DEFINITIVE start of the next section
-                # to avoid accidental cut-offs.
-                STOP_MARKERS = {
-                    "TABLE OF CONTENTS", "ACKNOWLEDGMENT", "LIST OF TABLES",
-                    "LIST OF FIGURES", "INTRODUCTION", "CHAPTER I", "CHAPTER 1",
-                    "APPROVAL SHEET", "BIOGRAPHICAL DATA", "DEDICATION"
-                }
+                    # We use a set of markers that indicate the DEFINITIVE start of the next section
+                    # to avoid accidental cut-offs.
+                    STOP_MARKERS = {
+                        "TABLE OF CONTENTS", "ACKNOWLEDGMENT", "LIST OF TABLES",
+                        "LIST OF FIGURES", "INTRODUCTION", "CHAPTER I", "CHAPTER 1",
+                        "APPROVAL SHEET", "BIOGRAPHICAL DATA", "DEDICATION"
+                    }
 
-                for line in raw_lines:
-                    line = line.strip()
-                    if not line:
-                        continue
+                    for line in raw_lines:
+                        line = line.strip()
+                        if not line:
+                            continue
 
-                    if not start_collecting:
-                        # ── Explicit Body Start Detection ──
-                        # If a line starts with these common phrases, it's DEFINITELY the abstract body.
-                        if any(line.lower().startswith(w) for w in ["this study", "the research", "the objective", "this research"]):
+                        if not start_collecting:
+                            # ── Explicit Body Start Detection ──
+                            # If a line starts with these common phrases, it's DEFINITELY the abstract body.
+                            if any(line.lower().startswith(w) for w in ["this study", "the research", "the objective", "this research"]):
+                                start_collecting = True
+                            
+                            elif _is_abstract_boilerplate(line):
+                                continue
+                            
+                            # Softened gate: allow more varied starting sentences.
+                            if len(line) < 15 and not any(line.lower().startswith(w) for w in ["this", "the", "in", "with", "a", "an"]):
+                                continue
+                            
                             start_collecting = True
                         
-                        elif _is_abstract_boilerplate(line):
-                            continue
-                        
-                        # Softened gate: allow more varied starting sentences.
-                        if len(line) < 15 and not any(line.lower().startswith(w) for w in ["this", "the", "in", "with", "a", "an"]):
-                            continue
-                        
-                        start_collecting = True
-                    
-                    if start_collecting:
-                        # Page numbers or small fragments (e.g. "iii", "viii")
-                        if re.match(r'^\d+$', line) or re.match(r'^[ivxIVX]+$', line):
-                            continue
-                        
-                        upper_line = line.upper()
-                        
-                        # Stop ONLY if it's a definitive, standalone section header.
-                        if upper_line in STOP_MARKERS:
-                            if len(line) < 30:
+                        if start_collecting:
+                            # Page numbers or small fragments (e.g. "iii", "viii")
+                            if re.match(r'^\d+$', line) or re.match(r'^[ivxIVX]+$', line):
+                                continue
+                            
+                            upper_line = line.upper()
+                            
+                            # Stop ONLY if it's a definitive, standalone section header.
+                            if upper_line in STOP_MARKERS:
+                                if len(line) < 30:
+                                    break
+                                
+                            # Stop at an ALL-CAPS section heading (Chapter II, etc)
+                            if re.match(r'^CHAPTER\s+[IVX\d]+', upper_line):
                                 break
-                            
-                        # Stop at an ALL-CAPS section heading (Chapter II, etc)
-                        if re.match(r'^CHAPTER\s+[IVX\d]+', upper_line):
-                            break
-                            
-                        # Keywords often mark the end of the abstract body
-                        if re.match(r'^Keywords?\s*:', line, re.IGNORECASE):
+                                
+                            # Keywords often mark the end of the abstract body
+                            if re.match(r'^Keywords?\s*:', line, re.IGNORECASE):
+                                cleaned_lines.append(line)
+                                break
+
                             cleaned_lines.append(line)
+
+                    abstract_text = " ".join(cleaned_lines)
+
+                    # Hard stop safety net (still needed for non-line-broken text)
+                    for stop in STOP_MARKERS:
+                        # Look for stop word followed by a newline or significant space
+                        # to avoid cutting off mid-sentence words that happen to contain 'Introduction'
+                        pattern = rf'\b{re.escape(stop)}\b'
+                        match = re.search(pattern, abstract_text.upper())
+                        if match and match.start() > 600: # Increase buffer to prevent cutting off early
+                            abstract_text = abstract_text[:match.start()].strip()
                             break
 
-                        cleaned_lines.append(line)
-
-                abstract_text = " ".join(cleaned_lines)
-
-                # Hard stop safety net (still needed for non-line-broken text)
-                for stop in STOP_MARKERS:
-                    # Look for stop word followed by a newline or significant space
-                    # to avoid cutting off mid-sentence words that happen to contain 'Introduction'
-                    pattern = rf'\b{re.escape(stop)}\b'
-                    match = re.search(pattern, abstract_text.upper())
-                    if match and match.start() > 600: # Increase buffer to prevent cutting off early
-                        abstract_text = abstract_text[:match.start()].strip()
-                        break
-
-                # Strip trailing page numbers or roman footers that may have merged with the last sentence
-                abstract_text = re.sub(r'\s+(?:\d+|[ivxIVX]+)\s*$', '', abstract_text)
-                
-                # Only truncate if extremely long (abstracts shouldn't be > 15k chars)
-                abstract_text = abstract_text[:15000].strip()
+                    # Strip trailing page numbers or roman footers that may have merged with the last sentence
+                    abstract_text = re.sub(r'\s+(?:\d+|[ivxIVX]+)\s*$', '', abstract_text)
+                    
+                    # Only truncate if extremely long (abstracts shouldn't be > 15k chars)
+                    abstract_text = abstract_text[:15000].strip()
 
             if not abstract_text or len(abstract_text) < 100 or len(meta_text) < 200:
                 log.warn("Abstract extraction insufficient — no OCR fallback for text-based PDFs")
@@ -724,6 +850,49 @@ class OCRService:
                 "imrad_pages":    [],
             }
 
+    def clean_abstract_with_llm(self, raw_abstract_page_text: str) -> str:
+        """Use local Ollama model to clean up the abstract page, extracting only the body paragraph."""
+        if not raw_abstract_page_text or len(raw_abstract_page_text.strip()) < 150:
+            return raw_abstract_page_text
+            
+        prompt = f"""You are an assistant parsing academic manuscripts. Extract ONLY the abstract body paragraphs from the text below.
+
+Guidelines:
+- Exclude university header info (e.g., Cavite State University, Imus Campus).
+- Exclude the thesis title, author list, degree name, publication date, and adviser name (e.g., MSIT, PhD, MBA).
+- Do NOT include keywords at the end.
+- Output ONLY the abstract body paragraphs. No preamble, no introductory remarks.
+
+Abstract page text:
+---
+{raw_abstract_page_text[:4000]}
+---
+
+Respond with the clean abstract body paragraphs only."""
+
+        url = "http://localhost:11434/api/generate"
+        payload = {
+            "model": "gemma2:2b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 1000
+            }
+        }
+        try:
+            import requests
+            response = requests.post(url, json=payload, timeout=10.0)
+            if response.status_code == 200:
+                result = response.json()
+                clean_text = result.get("response", "").strip()
+                if clean_text and len(clean_text) > 100:
+                    log.success("Abstract page cleaned via Ollama")
+                    return clean_text
+        except Exception as e:
+            log.warn(f"Ollama abstract cleanup failed (non-fatal), using legacy fallback: {e}")
+        return raw_abstract_page_text
+
     def quick_metadata_sync(self, pdf_path: str) -> Dict[str, Any]:
         """
         Ultra-fast metadata extraction using only the first few pages and direct text.
@@ -736,7 +905,7 @@ class OCRService:
             # Extract text from first 3 pages quickly
             meta_text = ""
             for i in range(min(3, num_pages)):
-                text = reader.pages[i].extract_text()
+                text = _extract_text_layout_aware(pdf_path, i + 1, reader)
                 if text: meta_text += text + "\n"
                 
             if len(meta_text.strip()) < 50:
@@ -745,9 +914,9 @@ class OCRService:
                     import pytesseract
                     from pdf2image import convert_from_path
                     # Use lower DPI for speed
-                    imgs = convert_from_path(pdf_path, dpi=120, first_page=1, last_page=1)
+                    imgs = convert_from_path(pdf_path, dpi=120, first_page=1, last_page=1, poppler_path=_get_poppler_path())
                     if imgs:
-                        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+                        pytesseract.pytesseract.tesseract_cmd = _get_tesseract_cmd()
                         ocr_text = pytesseract.image_to_string(imgs[0], config="--psm 6 --oem 1").strip()
                         if ocr_text: meta_text = ocr_text + "\n"
                 except Exception:
@@ -836,6 +1005,7 @@ class OCRService:
                         dpi=72,
                         first_page=page_num,
                         last_page=page_num,
+                        poppler_path=_get_poppler_path()
                     )
                     if images:
                         buffered = BytesIO()

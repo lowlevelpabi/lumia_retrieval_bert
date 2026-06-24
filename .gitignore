@@ -40,4 +40,7 @@ models/
 
 # RAR and ZIP archives
 *.rar
-*.zip
+*.zip
+
+# Instruction screenshots
+image.png

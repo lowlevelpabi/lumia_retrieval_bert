@@ -300,7 +300,24 @@ def _structure_section(
 
     flush_buffer()
     flush_pending_media()  # Safety net: emit any images that were never flushed
-    return blocks
+    
+    # Filter out empty subheadings: any subheading block that is not followed by any non-subheading content block
+    filtered_blocks = []
+    for i, block in enumerate(blocks):
+        if block["type"] == "subheading":
+            has_content = False
+            for j in range(i + 1, len(blocks)):
+                next_block = blocks[j]
+                if next_block["type"] == "subheading":
+                    break
+                else:
+                    has_content = True
+                    break
+            if has_content:
+                filtered_blocks.append(block)
+        else:
+            filtered_blocks.append(block)
+    return filtered_blocks
 
 
 # ── Service class ─────────────────────────────────────────────────────────────

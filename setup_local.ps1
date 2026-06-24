@@ -24,8 +24,9 @@ if ($?) {
     Write-Host "Setup Complete!" -ForegroundColor Green
     Write-Host "--------------------------------------------------"
     Write-Host "IMPORTANT REMINDERS:" -ForegroundColor Yellow
-    Write-Host "1. Ensure Tesseract OCR is installed: https://github.com/UB-Mannheim/tesseract/wiki"
-    Write-Host "2. Ensure Poppler is installed and in PATH: https://github.com/oschwartz10612/poppler-windows/releases/"
+    Write-Host "Copy the 'additionals' folder (containing Tesseract-OCR and poppler)" -ForegroundColor Cyan
+    Write-Host "from the flashdrive directly into this folder (lumia_retrieval_bert/)." -ForegroundColor Cyan
+    Write-Host "The system is configured to auto-detect them locally here." -ForegroundColor Cyan
     Write-Host "--------------------------------------------------"
     Write-Host "To start the server, run:" -ForegroundColor Cyan
     Write-Host "uvicorn app.main:app --reload"

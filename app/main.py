@@ -35,6 +35,58 @@ app.add_middleware(
 def read_root():
     return {"message": "Welcome to Lumia Smart Research API"}
 
+@app.get("/api/v1/system/info")
+def get_system_info():
+    return {
+        "version": "1.2.0",
+        "academic_year": "2025-2026",
+        "release_date": "2026-06-24",
+        "department": "Department of Computer Studies",
+        "changelog": [
+            {
+                "version": "1.2.0",
+                "date": "2026-06-24",
+                "title": "Turnover Release & Documentation Integration",
+                "changes": [
+                    "Created A4-formatted technical deployment manual and operations guide",
+                    "Integrated department branding logos and screenshots into manual generation script",
+                    "Added compressed archive rules (*.rar, *.zip) to gitignores",
+                    "Removed system log files from tracking and updated environment configuration settings"
+                ]
+            },
+            {
+                "version": "1.1.1",
+                "date": "2026-04-15",
+                "title": "Oral Defense Stable Build",
+                "changes": [
+                    "Resolved minor panel evaluation feedback on text trimming thresholds",
+                    "Stabilized database connection polling rate for local deployment",
+                    "Optimized PDF page rendering pipeline speeds"
+                ]
+            },
+            {
+                "version": "1.1.0",
+                "date": "2026-03-10",
+                "title": "UI/UX Layout Overhaul",
+                "changes": [
+                    "Implemented 3-step document upload flow with thumbnail previews",
+                    "Redesigned filter sidebar and exploration portals",
+                    "Added dark/light theme syncing across components"
+                ]
+            },
+            {
+                "version": "1.0.0",
+                "date": "2026-02-25",
+                "title": "Defended System Baseline",
+                "changes": [
+                    "First stable integration of BERT-NLP embeddings and Qdrant database",
+                    "Completed User Privilege Matrix and RBAC gatekeepers",
+                    "Setup multi-vector IMRAD structural segmenting"
+                ]
+            }
+        ]
+    }
+
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(papers.router, prefix="/api/v1/papers", tags=["papers"])

@@ -1313,6 +1313,7 @@ async def update_paper(paper_id: str, updates: PaperUpdate, db: Session = Depend
     ))
     db.commit()
 
+    db_paper.__dict__["imrad_structured"] = imrad_structure_service.build(db_paper)
     return db_paper
 @router.get("/{paper_id}/formatted-citations")
 async def get_formatted_citations(
