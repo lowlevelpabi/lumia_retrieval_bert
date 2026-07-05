@@ -1,4 +1,4 @@
-# SMART RESEARCH: AI-Powered Research Paper Retrieval
+# LUMIA SMART RETRIEVAL/ARCHIVING AND RECOMMENDATION SYSTEM
 
 ### (BERT-NLP Backend Prototype)
 
